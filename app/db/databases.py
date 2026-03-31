@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from urllib.parse import quote_plus
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -11,8 +12,9 @@ class Base(DeclarativeBase):
 
 
 def get_database_url() -> str:
+    password = quote_plus(config.DB_PASSWORD)
     return (
-        f"postgresql+asyncpg://{config.DB_USER}:{config.DB_PASSWORD}"
+        f"postgresql+asyncpg://{config.DB_USER}:{password}"
         f"@{config.DB_HOST}:{config.DB_PORT}/{config.DB_NAME}"
     )
 

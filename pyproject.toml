@@ -11,6 +11,7 @@ dependencies = [
     "python-dateutil>=2.9.0.post0",
     "redis>=7.1.0",
     "tomlkit>=0.14.0",
+    "tzdata>=2025.3",
 ]
 
 [dependency-groups]
@@ -31,6 +32,7 @@ app = [
     "passlib[bcrypt]>=1.7.4",
     "pyjwt>=2.10.1",
     "sqlalchemy[asyncio]>=2.0.0",
+    "tzdata>=2025.3",
     "uvicorn>=0.40.0",
 ]
 dev = [
