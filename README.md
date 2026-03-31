@@ -9,9 +9,181 @@
 - **PostgreSQL** - 데이터베이스
 - **Alembic** - DB 마이그레이션
 - **Redis** - 메시지 브로커 / 캐싱
-- **AI Worker** - 지방간 예측 모델 추론 (Celery/Redis 기반)
+- **AI Worker** - 지방간 예측 모델 추론
 - **JWT** - 인증
 - **Docker Compose** - 컨테이너 실행
+
+---
+
+## 개발 시작 가이드 (처음 세팅하는 경우)
+
+### Step 1. 필수 프로그램 설치
+
+아래 3가지가 설치되어 있어야 합니다.
+
+- **Python 3.13 이상** - [python.org](https://www.python.org/downloads/)
+- **uv** - Python 패키지 매니저
+  ```bash
+  # macOS / Linux
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+
+  # Windows (PowerShell)
+  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+  ```
+- **Docker Desktop** - [docker.com](https://www.docker.com/products/docker-desktop/)
+
+> ⚠️ Docker Desktop은 실행 중인 상태여야 합니다. 터미널에서 `docker ps` 쳤을 때 오류 없이 나오면 정상입니다.
+
+### Step 2. 레포 클론 및 브랜치 설정
+
+```bash
+git clone https://github.com/AI-HealthCare-02/AI_02_03.git
+cd AI_02_03
+
+# dev 브랜치로 전환
+git checkout dev
+```
+
+> ⚠️ **반드시 내 브랜치를 만들고 작업하세요.**  
+> `git checkout dev` 한 뒤 바로 파일을 수정하면 dev 브랜치에 직접 작업하는 것입니다.  
+> 아래 명령어로 내 브랜치를 먼저 만든 후 작업을 시작하세요.
+
+```bash
+# 내 작업 브랜치 생성 (이름은 본인 이름 또는 기능명으로)
+# 예: feat/kim-auth, feat/lee-dashboard, feat/survey-api
+git checkout -b feat/본인이름-기능명
+```
+
+작업 중 내가 어느 브랜치에 있는지 항상 확인하는 습관을 들이세요:
+```bash
+git branch
+# * feat/본인이름-기능명   ← 앞에 * 표시가 현재 브랜치
+```
+
+### Step 3. 의존성 설치
+
+```bash
+uv sync --group app --group dev
+```
+
+> ⚠️ `uv`가 설치되어 있지 않으면 Step 1로 돌아가세요.  
+> `uv: command not found` 오류가 나면 터미널을 껐다 켜야 설치가 반영됩니다.
+
+### Step 4. 환경 변수 설정
+
+```bash
+cp envs/example.prod.env .env
+```
+
+`.env` 파일을 열어서 아래 항목 수정:
+
+```env
+# Docker Hub 계정 정보
+DOCKER_USER=본인_도커허브_아이디
+DOCKER_REPOSITORY=ai-health
+
+# 보안 키 (아무 문자열로 변경)
+SECRET_KEY=my-secret-key-change-this
+
+# 로컬 개발 시 그대로 두기
+COOKIE_DOMAIN=localhost
+
+# DB 설정 (로컬 개발 시 아래 그대로 사용 가능)
+DB_HOST=postgres
+DB_PORT=5432
+DB_EXPOSE_PORT=5432
+DB_USER=ozcoding
+DB_PASSWORD=pw1234
+DB_NAME=ai_health
+
+# Redis
+REDIS_PORT=6379
+```
+
+> ⚠️ **`.env` 파일은 절대 커밋하지 마세요.**  
+> 비밀번호, 시크릿 키 등 민감한 정보가 담겨 있습니다.  
+> `.gitignore`에 등록되어 있어 `git add .` 해도 자동으로 제외되지만,  
+> `git add .env` 처럼 직접 추가하면 올라가버립니다. 절대 하지 마세요.  
+> 혹시 실수로 올렸다면 즉시 팀장에게 알려주세요.
+
+### Step 5. 도커 실행
+
+```bash
+docker compose up -d --build
+```
+
+> ⚠️ 처음 실행 시 이미지 다운로드로 시간이 걸릴 수 있습니다. 기다려주세요.  
+> `--build` 옵션은 최초 실행 또는 코드 변경 후에만 필요합니다. 이후엔 `docker compose up -d`로 충분합니다.
+
+정상 실행 확인:
+```bash
+docker ps
+```
+
+아래처럼 컨테이너가 `Up` 상태여야 합니다:
+```
+postgres    Up (healthy)
+redis       Up (healthy)
+fastapi     Up
+ai-worker   Restarting  ← 아직 미구현 상태로 정상
+nginx       Up
+```
+
+**접속 확인:**
+- API 문서: http://localhost/api/docs
+
+> ⚠️ http://localhost:8000 이 아니라 http://localhost/api/docs 입니다. Nginx를 통해 접속합니다.
+
+---
+
+## 개발 워크플로우
+
+### 매일 작업 시작할 때
+
+```bash
+# 1. dev 최신 내용 가져오기
+git checkout dev
+git pull origin dev
+
+# 2. 내 브랜치로 돌아와서 dev 내용 반영
+git checkout feat/본인이름-기능명
+git rebase origin/dev
+```
+
+> ⚠️ `git pull` 하기 전에 내 변경사항을 커밋하거나 stash 해두지 않으면 충돌이 날 수 있습니다.  
+> 작업 중이라면 먼저 커밋하고 pull 하세요.
+
+### 작업 후 커밋 & 푸시
+
+```bash
+git add .
+git commit -m "feat: 기능 설명"
+git push origin feat/본인이름-기능명
+```
+
+커밋 메시지 앞에 아래 prefix를 붙여주세요:
+- `feat:` 새 기능
+- `fix:` 버그 수정
+- `refactor:` 코드 구조 변경
+- `docs:` 문서 수정
+- `chore:` 설정, 패키지 등 기타
+
+### PR 올리기
+
+1. GitHub 레포에서 **Pull requests** 탭 클릭
+2. **New pull request** 버튼 클릭
+3. 상단 드롭다운에서 타겟 브랜치 설정:
+   ```
+   base: dev  ←  compare: feat/본인이름-기능명
+   ```
+   - `base` = 코드를 받을 브랜치 → **반드시 `dev`로 설정**
+   - `compare` = 내가 작업한 브랜치
+4. **Create pull request** 클릭 후 제목/설명 작성
+
+> ⚠️ `base`가 기본값인 `main`으로 되어있을 수 있습니다. 반드시 `dev`로 바꾸고 PR을 올리세요.  
+> PR 올리기 전에 `git rebase origin/dev`로 최신 dev 내용을 반영해주세요.
+
+---
 
 ## 프로젝트 구조
 
@@ -44,117 +216,24 @@
 └── pyproject.toml          # 프로젝트 의존성
 ```
 
-## 사전 준비
+---
 
-- Python 3.13 이상
-- [uv](https://github.com/astral-sh/uv) 패키지 매니저
-- Docker & Docker Compose
+## DB 모델 추가 시
 
-## 설치 및 실행
-
-### 1. 의존성 설치
-
-```bash
-uv sync --group app   # API 서버용
-uv sync --group ai    # AI 워커용
-uv sync --group dev   # 개발/테스트용
-```
-
-### 2. 환경 변수 설정
-
-프로젝트 루트에 `.env` 파일을 생성하세요. `envs/example.prod.env`를 참고하세요.
-
-```bash
-cp envs/example.prod.env .env
-```
-
-`.env` 파일에서 아래 항목을 본인 환경에 맞게 수정하세요:
-
-```env
-# docker 이미지 정보
-DOCKER_USER=your_dockerhub_id
-DOCKER_REPOSITORY=your_repo_name
-
-# 앱 버전
-APP_VERSION=v1.0.0
-AI_WORKER_VERSION=v1.0.0
-
-# 보안 키 (반드시 변경!)
-SECRET_KEY=your-secret-key-here
-
-# 도메인 (로컬 개발 시 localhost)
-COOKIE_DOMAIN=localhost
-
-# PostgreSQL 설정
-DB_HOST=localhost         # 도커 실행 시: postgres
-DB_PORT=5432
-DB_EXPOSE_PORT=5432
-DB_USER=your_db_user
-DB_PASSWORD=your_db_password
-DB_NAME=ai_health
-
-# Redis
-REDIS_PORT=6379
-```
-
-> **주의**: `.env` 파일은 `.gitignore`에 포함되어 있어 커밋되지 않습니다. 절대 커밋하지 마세요.
-
-### 3. 도커로 전체 실행 (권장)
-
-```bash
-# 최초 실행 또는 코드 변경 후
-docker compose up -d --build
-
-# 이후 실행
-docker compose up -d
-```
-
-**접속 주소:**
-- API 문서: http://localhost/api/docs
-- API 서버: http://localhost/api
-
-### 4. 로컬에서 직접 실행 (도커 없이)
-
-PostgreSQL과 Redis가 별도로 실행 중이어야 합니다.
-
-```bash
-# FastAPI 서버
-uv run uvicorn app.main:app --reload
-
-# AI Worker
-uv run python -m ai_worker.main
-```
-
-## DB 마이그레이션
-
-```bash
-# 마이그레이션 파일 생성
-uv run alembic revision --autogenerate -m "설명"
-
-# 마이그레이션 적용
-uv run alembic upgrade head
-
-# 롤백
-uv run alembic downgrade -1
-```
-
-## 모델 추가 시
-
-1. `app/models/`에 SQLAlchemy 모델 정의
-2. `app/db/databases.py`의 `Base`를 상속받았는지 확인
-3. `alembic revision --autogenerate`로 마이그레이션 파일 생성
+1. `app/models/`에 SQLAlchemy 모델 정의 (`Base` 상속)
+2. 마이그레이션 파일 생성:
+   ```bash
+   uv run alembic revision --autogenerate -m "모델명 추가"
+   ```
+3. 마이그레이션 적용:
+   ```bash
+   uv run alembic upgrade head
+   ```
 
 ## 테스트
 
 ```bash
-# 전체 테스트
 ./scripts/ci/run_test.sh
-
-# 코드 포맷팅
-./scripts/ci/code_fommatting.sh
-
-# 타입 검사
-./scripts/ci/check_mypy.sh
 ```
 
 ## 운영 배포
