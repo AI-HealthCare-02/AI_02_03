@@ -131,6 +131,30 @@ nginx       Up
 
 > ⚠️ http://localhost:8000 이 아니라 http://localhost/api/docs 입니다. Nginx를 통해 접속합니다.
 
+### Step 5-2. 로컬에서 직접 실행 (도커 없이 개발할 때)
+
+DB와 Redis는 도커로, FastAPI는 로컬에서 직접 실행하는 방식입니다.  
+코드 수정 시 즉시 반영되어 개발할 때 편리합니다.
+
+```bash
+# 1. .env를 로컬용으로 설정 (아직 안 했다면)
+cp envs/example.local.env .env
+
+# 2. 의존성 설치 (처음 한 번만)
+uv sync --group app --group dev
+
+# 3. DB와 Redis만 도커로 실행
+docker compose up -d postgres redis
+
+# 4. FastAPI 로컬 실행
+uv run uvicorn app.main:app --reload
+```
+
+**접속 확인:**
+- API 문서: http://localhost:8000/api/docs
+
+> ⚠️ 로컬 실행 시에는 Nginx를 거치지 않아서 포트가 8000이에요.
+
 ---
 
 ## 개발 워크플로우
