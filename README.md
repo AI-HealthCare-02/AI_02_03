@@ -71,11 +71,22 @@ uv sync --group app --group dev
 
 ### Step 4. 환경 변수 설정
 
+실행 방식에 따라 다른 예시 파일을 복사하세요:
+
 ```bash
+# 도커로 실행할 경우
 cp envs/example.prod.env .env
+
+# 로컬에서 직접 실행할 경우 (uv run)
+cp envs/example.local.env .env
 ```
 
-`.env` 파일을 열어서 아래 항목 수정:
+> ⚠️ **`DB_HOST` 값이 실행 환경마다 달라요.**  
+> - 도커로 실행 시: `DB_HOST=postgres` (도커 컨테이너 이름)  
+> - 로컬에서 직접 실행 시: `DB_HOST=localhost`  
+> 잘못 설정하면 DB 연결 오류가 납니다.
+
+`.env` 파일을 열어서 아래 항목은 본인 환경에 맞게 수정하세요:
 
 ```env
 # Docker Hub 계정 정보
@@ -84,20 +95,6 @@ DOCKER_REPOSITORY=ai-health
 
 # 보안 키 (아무 문자열로 변경)
 SECRET_KEY=my-secret-key-change-this
-
-# 로컬 개발 시 그대로 두기
-COOKIE_DOMAIN=localhost
-
-# DB 설정 (로컬 개발 시 아래 그대로 사용 가능)
-DB_HOST=postgres
-DB_PORT=5432
-DB_EXPOSE_PORT=5432
-DB_USER=ozcoding
-DB_PASSWORD=pw1234
-DB_NAME=ai_health
-
-# Redis
-REDIS_PORT=6379
 ```
 
 > ⚠️ **`.env` 파일은 절대 커밋하지 마세요.**  
