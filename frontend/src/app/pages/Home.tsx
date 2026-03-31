@@ -1,0 +1,342 @@
+import { useState } from "react";
+import { Link } from "react-router";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Progress } from "../components/ui/progress";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Checkbox } from "../components/ui/checkbox";
+import { Calendar } from "../components/ui/calendar";
+import { LiverCharacter } from "../components/LiverCharacter";
+import {
+  Activity,
+  Droplet,
+  Utensils,
+  Moon,
+  CheckCircle2,
+  TrendingUp,
+  Target,
+  Award,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  Clock,
+  Hospital,
+  Pill,
+} from "lucide-react";
+import { format } from "date-fns";
+import { ko } from "date-fns/locale";
+
+export function Home() {
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [todayHabits] = useState([
+    { id: 1, name: "30분 걷기", icon: Activity, completed: true, category: "운동" },
+    { id: 2, name: "물 2L 마시기", icon: Droplet, completed: true, category: "수분" },
+    { id: 3, name: "채소 중심 식사", icon: Utensils, completed: false, category: "식습관" },
+    { id: 4, name: "7시간 이상 수면", icon: Moon, completed: false, category: "수면" },
+  ]);
+
+  // Today's appointments
+  const [todayAppointments] = useState([
+    {
+      id: 1,
+      time: "14:00",
+      hospital: "서울대학교병원",
+      memo: "정기 검진",
+    },
+  ]);
+
+  // Today's medications
+  const [medications] = useState([
+    {
+      id: 1,
+      name: "우루사",
+      times: ["08:00", "20:00"],
+      completed: [true, false],
+    },
+    {
+      id: 2,
+      name: "밀크씨슬",
+      times: ["12:00"],
+      completed: [false],
+    },
+  ]);
+
+  const toggleMedicationComplete = (medId: number, timeIndex: number) => {
+    // Mock function for demo
+    console.log(`Toggle medication ${medId}, time ${timeIndex}`);
+  };
+
+  const completedToday = todayHabits.filter(h => h.completed).length;
+  const totalHabits = todayHabits.length;
+  const progressPercent = (completedToday / totalHabits) * 100;
+
+  // Calculate overall health score based on various factors
+  const streakDays = 14;
+  const activeChallenges = 3;
+  const totalChallenges = 5;
+  const earnedBadges = 8;
+
+  const healthScore = Math.round(
+    (progressPercent * 0.4) + // Today's progress: 40%
+    (Math.min(streakDays / 30, 1) * 100 * 0.3) + // Streak: 30%
+    ((activeChallenges / totalChallenges) * 100 * 0.2) + // Active challenges: 20%
+    (Math.min(earnedBadges / 10, 1) * 100 * 0.1) // Badges: 10%
+  );
+
+  return (
+    <div className="space-y-8 pb-8">
+      {/* Welcome Section */}
+      <div className="text-center space-y-2">
+        <h2 className="text-3xl font-bold text-gray-900">안녕하세요! 👋</h2>
+        <p className="text-gray-600">오늘도 건강한 하루를 만들어가요</p>
+      </div>
+
+      {/* Desktop: Two Column Layout | Mobile: Stack */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Card 1: Liver Character Status + Today's Progress */}
+        <Card className="border-2 border-emerald-200 bg-gradient-to-br from-white via-emerald-50/30 to-white overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-100/20 rounded-full blur-3xl -z-10" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-100/20 rounded-full blur-3xl -z-10" />
+          <CardContent className="p-6">
+            {/* Liver Character with Speech Bubble */}
+            <div className="flex flex-col items-center mb-6">
+              <div className="relative">
+                <LiverCharacter healthScore={healthScore} />
+                {/* AI Speech Bubble */}
+                <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-64">
+                  <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200 p-3 relative">
+                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l-2 border-t-2 border-emerald-200 rotate-45"></div>
+                    <p className="text-center text-sm font-medium text-gray-800">
+                      오늘은 물 6잔 마시기! 💧
+                    </p>
+                    <p className="text-center text-xs text-gray-600 mt-1">
+                      건강 습관을 더 신경 써주세요!
+                    </p>
+                  </div>
+                </div>
+              </div>
+              {/* Health Score */}
+              <div className="mt-8 text-center">
+                <p className="text-sm text-gray-600">건강 점수</p>
+                <p className="text-3xl font-bold text-emerald-600">{healthScore}점</p>
+              </div>
+            </div>
+
+            {/* Today's Progress Section */}
+            <div className="space-y-4 mt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-xl text-gray-900 flex items-center gap-2">
+                    <Target className="size-5 text-emerald-600" />
+                    오늘의 목표
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    {completedToday}/{totalHabits} 완료
+                  </p>
+                </div>
+                <Badge variant="secondary" className="bg-emerald-100 text-emerald-900">
+                  {Math.round(progressPercent)}%
+                </Badge>
+              </div>
+
+              <Progress value={progressPercent} className="h-3" />
+
+              <div className="grid gap-3">
+                {todayHabits.map((habit) => (
+                  <div
+                    key={habit.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                      habit.completed
+                        ? "bg-white border-emerald-200"
+                        : "bg-gray-50 border-gray-200"
+                    }`}
+                  >
+                    <div className={`size-10 rounded-lg flex items-center justify-center ${
+                      habit.completed ? "bg-emerald-100" : "bg-gray-200"
+                    }`}>
+                      <habit.icon className={`size-5 ${
+                        habit.completed ? "text-emerald-600" : "text-gray-500"
+                      }`} />
+                    </div>
+                    <div className="flex-1">
+                      <p className={habit.completed ? "text-gray-900" : "text-gray-600"}>
+                        {habit.name}
+                      </p>
+                      <p className="text-xs text-gray-500">{habit.category}</p>
+                    </div>
+                    {habit.completed && (
+                      <CheckCircle2 className="size-5 text-emerald-600" />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* New Challenge Button - Small Size */}
+              <Link to="/challenges">
+                <Button size="sm" className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 mt-4">
+                  새로운 챌린지 시작하기
+                  <ChevronRight className="size-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 2: Today's Schedule */}
+        <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50/50 to-white">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="size-5 text-blue-600" />
+                  오늘의 일정
+                </CardTitle>
+                <CardDescription>
+                  {format(new Date(), "MM월 dd일 EEEE", { locale: ko })}
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Calendar with Appointments - Inside Same Container */}
+            <div className="bg-white p-4 rounded-lg border border-blue-100">
+              <div className="flex gap-4">
+                {/* Calendar */}
+                <div className="flex-shrink-0">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    locale={ko}
+                    className="rounded-md"
+                  />
+                </div>
+
+                {/* Appointments - Right Side */}
+                <div className="flex-1 flex flex-col min-w-0">
+                  {/* Title - Always Visible */}
+                  <p className="text-sm font-medium text-gray-700 mb-3">병원 일정</p>
+                  
+                  {/* Appointments List or Empty Message */}
+                  {todayAppointments.length > 0 ? (
+                    <div className="space-y-2">
+                      {todayAppointments.map((apt) => (
+                        <div key={apt.id} className="flex items-start gap-2">
+                          <Hospital className="size-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 text-sm">{apt.hospital}</p>
+                            <p className="text-sm text-gray-600">{apt.time}</p>
+                            {apt.memo && (
+                              <p className="text-xs text-gray-500 mt-1">{apt.memo}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center">
+                      <p className="text-sm text-gray-400">오늘 예정된 일정이 없습니다.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Today's Medications */}
+            <div className="pt-3 border-t border-blue-100">
+              <p className="text-sm font-medium text-gray-700 mb-2">오늘의 복약</p>
+              {medications.map((med) =>
+                med.times.map((time, idx) => (
+                  <div
+                    key={`${med.id}-${idx}`}
+                    className="flex items-center justify-between p-2 bg-white rounded border border-blue-100 mb-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Pill className="size-4 text-purple-600" />
+                      <div>
+                        <p className="text-sm font-medium">{med.name}</p>
+                        <p className="text-xs text-gray-500">{time}</p>
+                      </div>
+                    </div>
+                    <Checkbox
+                      checked={med.completed[idx]}
+                      onCheckedChange={() => toggleMedicationComplete(med.id, idx)}
+                    />
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Button to schedule page */}
+            <Link to="/schedule" className="block">
+              <Button variant="outline" className="w-full border-2 border-blue-300 hover:bg-blue-50">
+                일정 관리 페이지로 이동
+                <ChevronRight className="size-4 ml-2" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="size-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="size-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">14일</p>
+                <p className="text-sm text-gray-600">연속 참여</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="size-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Activity className="size-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">3/5</p>
+                <p className="text-sm text-gray-600">활성 챌린지</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="size-12 bg-amber-100 rounded-lg flex items-center justify-center">
+                <Award className="size-6 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">8개</p>
+                <p className="text-sm text-gray-600">획득 뱃지</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Tips */}
+      <Card className="bg-gradient-to-br from-blue-50 to-white border-blue-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            💡 오늘의 건강 팁
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-700 leading-relaxed">
+            지방간 예방을 위해 하루 30분 이상의 유산소 운동을 권장합니다. 
+            빠르게 걷기, 자전거 타기, 수영 등이 효과적이며, 꾸준한 운동은 
+            간 건강 개선에 큰 도움이 됩니다.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
