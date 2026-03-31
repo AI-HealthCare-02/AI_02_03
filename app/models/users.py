@@ -1,6 +1,10 @@
+from datetime import date, datetime
 from enum import StrEnum
 
-from tortoise import fields, models
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, Enum, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db.databases import Base
 
 
 class Gender(StrEnum):
@@ -8,19 +12,20 @@ class Gender(StrEnum):
     FEMALE = "FEMALE"
 
 
-class User(models.Model):
-    id = fields.BigIntField(primary_key=True)
-    email = fields.CharField(max_length=40)
-    hashed_password = fields.CharField(max_length=128)
-    name = fields.CharField(max_length=20)
-    gender = fields.CharEnumField(enum_type=Gender)
-    birthday = fields.DateField()
-    phone_number = fields.CharField(max_length=11)
-    is_active = fields.BooleanField(default=True)
-    is_admin = fields.BooleanField(default=False)
-    last_login = fields.DatetimeField(null=True)
-    created_at = fields.DatetimeField(auto_now_add=True)
-    updated_at = fields.DatetimeField(auto_now=True)
+class User(Base):
+    __tablename__ = "users"
 
-    class Meta:
-        table = "users"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(128), nullable=False)
+    name: Mapped[str] = mapped_column(String(20), nullable=False)
+    gender: Mapped[Gender] = mapped_column(Enum(Gender), nullable=False)
+    birthday: Mapped[date] = mapped_column(Date, nullable=False)
+    phone_number: Mapped[str] = mapped_column(String(11), unique=True, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.now, onupdate=datetime.now, nullable=False
+    )

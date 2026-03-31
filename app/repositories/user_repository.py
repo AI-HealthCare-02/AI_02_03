@@ -2,23 +2,24 @@ from datetime import date, datetime
 from typing import Any
 
 from pydantic import EmailStr
+from sqlalchemy import exists, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import config
 from app.models.users import Gender, User
 
-ALLOWED_UPDATE_FIELDS = ["name", "phone_number", "gender", "birthday"]
-UPDATED_AT_FIELD = "updated_at"
-
 
 class UserRepository:
-    def __init__(self):
-        self._model = User
+    def __init__(self, session: AsyncSession):
+        self._session = session
 
-    async def get_all(self):
-        return await self._model.all()
+    async def get_all(self) -> list[User]:
+        result = await self._session.execute(select(User))
+        return list(result.scalars().all())
 
     async def get_user(self, user_id: int) -> User | None:
-        return await self._model.get_or_none(id=user_id)
+        result = await self._session.execute(select(User).where(User.id == user_id))
+        return result.scalar_one_or_none()
 
     async def create_user(
         self,
@@ -32,7 +33,7 @@ class UserRepository:
         is_active: bool = True,
         is_admin: bool = False,
     ) -> User:
-        return await self._model.create(
+        user = User(
             email=email,
             hashed_password=hashed_password,
             name=name,
@@ -42,26 +43,32 @@ class UserRepository:
             is_active=is_active,
             is_admin=is_admin,
         )
+        self._session.add(user)
+        await self._session.flush()
+        await self._session.refresh(user)
+        return user
 
     async def get_user_by_email(self, email: str) -> User | None:
-        return await self._model.get_or_none(email=email)
+        result = await self._session.execute(select(User).where(User.email == email))
+        return result.scalar_one_or_none()
 
     async def exists_by_email(self, email: str) -> bool:
-        return await self._model.filter(email=email).exists()
+        result = await self._session.execute(select(exists().where(User.email == email)))
+        return bool(result.scalar())
 
     async def exists_by_phone_number(self, phone_number: str) -> bool:
-        return await self._model.filter(phone_number=phone_number).exists()
+        result = await self._session.execute(select(exists().where(User.phone_number == phone_number)))
+        return bool(result.scalar())
 
     async def update_last_login(self, user_id: int) -> None:
-        await self._model.filter(id=user_id).update(last_login=datetime.now(config.TIMEZONE))
+        await self._session.execute(
+            update(User).where(User.id == user_id).values(last_login=datetime.now(config.TIMEZONE))
+        )
 
     async def update_instance(self, user: User, data: dict[str, Any]) -> None:
-        update_fields = []
         for key, value in data.items():
             if value is not None:
                 setattr(user, key, value)
-                update_fields.append(key)
-        if update_fields:
-            user.updated_at = datetime.now(config.TIMEZONE)
-            update_fields.append(UPDATED_AT_FIELD)
-            await user.save(update_fields=update_fields)
+        user.updated_at = datetime.now(config.TIMEZONE)
+        await self._session.flush()
+        await self._session.refresh(user)

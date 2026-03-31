@@ -1,7 +1,7 @@
 from fastapi.exceptions import HTTPException
 from pydantic import EmailStr
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
-from tortoise.transactions import in_transaction
 
 from app.dtos.auth import LoginRequest, SignUpRequest
 from app.models.users import User
@@ -13,8 +13,8 @@ from app.utils.security import hash_password, verify_password
 
 
 class AuthService:
-    def __init__(self):
-        self.user_repo = UserRepository()
+    def __init__(self, session: AsyncSession):
+        self.user_repo = UserRepository(session)
         self.jwt_service = JwtService()
 
     async def signup(self, data: SignUpRequest) -> User:
@@ -28,17 +28,16 @@ class AuthService:
         await self.check_phone_number_exists(normalized_phone_number)
 
         # 유저 생성
-        async with in_transaction():
-            user = await self.user_repo.create_user(
-                email=data.email,
-                hashed_password=hash_password(data.password),  # 해시화된 비밀번호를 사용
-                name=data.name,
-                phone_number=normalized_phone_number,
-                gender=data.gender,
-                birthday=data.birth_date,
-            )
+        user = await self.user_repo.create_user(
+            email=data.email,
+            hashed_password=hash_password(data.password),  # 해시화된 비밀번호를 사용
+            name=data.name,
+            phone_number=normalized_phone_number,
+            gender=data.gender,
+            birthday=data.birth_date,
+        )
 
-            return user
+        return user
 
     async def authenticate(self, data: LoginRequest) -> User:
         # 이메일로 사용자 조회

@@ -1,176 +1,165 @@
-# AI Healthcare Project Template
+# AI Healthcare Project
 
-이 프로젝트는 AI 모델 추론(Inference) 워커와 FastAPI API 서버를 통합한 서비스 템플릿입니다. 
-현대적인 Python 패키지 관리 도구인 `uv`와 컨테이너화 도구인 `Docker`를 활용하여 일관된 개발 및 배포 환경을 제공합니다.
+지방간(NAFLD) 위험도를 AI 모델로 예측하고, SHAP 기반 설명과 개인화된 챌린지를 제공하는 헬스케어 서비스입니다.
 
----
+## 주요 기술 스택
 
-## 🚀 주요 특징
+- **FastAPI** - 비동기 API 서버
+- **SQLAlchemy (async)** - 비동기 ORM
+- **PostgreSQL** - 데이터베이스
+- **Alembic** - DB 마이그레이션
+- **Redis** - 메시지 브로커 / 캐싱
+- **AI Worker** - 지방간 예측 모델 추론 (Celery/Redis 기반)
+- **JWT** - 인증
+- **Docker Compose** - 컨테이너 실행
 
-- **FastAPI Framework**: 고성능 비동기 API 서버 구현.
-- **AI Worker**: 모델 추론 및 학습 작업을 API 서버와 분리하여 처리.
-- **UV Package Manager**: 매우 빠른 의존성 설치 및 가상환경 관리.
-- **Tortoise ORM**: 비동기 방식의 데이터베이스 모델링 및 쿼리 관리.
-- **Docker-Compose**: MySQL, Redis, Nginx를 포함한 전체 서비스 스택을 한 번에 실행.
-- **CI/CD Scripts**: 코드 포맷팅(Ruff), 타입 체크(Mypy), 테스트(Pytest)를 위한 자동화 스크립트 제공.
+## 프로젝트 구조
 
----
-
-## 📂 프로젝트 구조
-
-```text
+```
 .
-├── ai_worker/          # AI 모델 추론 및 학습 관련 코드 (Worker)
-│   ├── core/           # 워커 설정 및 로거
-│   ├── models/         # AI 모델 파일 보관 (PyTorch 등)
-│   ├── tasks/          # 실제 처리할 작업 정의
-│   └── main.py         # 워커 진입점
-├── app/                # FastAPI 서버 코드
-│   ├── apis/           # API 라우터 (v1 버전 관리)
-│   ├── core/           # 서버 설정 (pydantic-settings)
-│   ├── db/             # 데이터베이스 초기화 및 마이그레이션 (Tortoise ORM)
-│   ├── dtos/           # 데이터 전송 객체 (Pydantic models)
-│   ├── models/         # DB 테이블 정의
-│   ├── services/       # 비즈니스 로직
-│   └── main.py         # FastAPI 애플리케이션 진입점
-├── envs/               # 환경 변수 설정 파일 (.env)
-├── nginx/              # Nginx 설정 파일 (리버스 프록시)
-├── scripts/            # 배포 및 CI용 쉘 스크립트
-├── docker-compose.yml  # 전체 서비스 실행 설정
-└── pyproject.toml      # uv 기반 의존성 관리 설정
+├── ai_worker/              # AI 모델 워커
+│   ├── core/               # 워커 설정 및 로거
+│   ├── schemas/            # 입출력 스키마
+│   ├── tasks/              # 예측 작업 로직
+│   └── main.py             # 워커 진입점
+├── app/                    # FastAPI 애플리케이션
+│   ├── apis/v1/            # API 라우터 (v1)
+│   ├── core/               # 앱 설정
+│   ├── db/                 # DB 세션 및 Alembic 마이그레이션
+│   ├── dependencies/       # 의존성 주입 (인증 등)
+│   ├── dtos/               # 요청/응답 스키마
+│   ├── models/             # SQLAlchemy 모델
+│   ├── repositories/       # 데이터 접근 계층
+│   ├── services/           # 비즈니스 로직
+│   ├── tests/              # 테스트 코드
+│   ├── utils/              # 유틸리티
+│   ├── validators/         # 입력값 검증
+│   └── main.py             # FastAPI 진입점
+├── envs/                   # 환경 변수 예시 파일
+├── nginx/                  # Nginx 설정
+├── scripts/                # 배포 및 CI 스크립트
+├── docker-compose.yml      # 개발용
+├── docker-compose.prod.yml # 운영용
+├── alembic.ini             # Alembic 설정
+└── pyproject.toml          # 프로젝트 의존성
 ```
 
----
+## 사전 준비
 
-## ⚙️ 사전 준비 사항
+- Python 3.13 이상
+- [uv](https://github.com/astral-sh/uv) 패키지 매니저
+- Docker & Docker Compose
 
-- **Python**: 3.13 이상 (로컬 개발 환경용)
-- **UV**: Python 패키지 매니저 ([설치 가이드](https://github.com/astral-sh/uv))
-- **Docker & Docker-Compose**: 전체 서비스 실행용
+## 설치 및 실행
 
----
-
-## 🛠️ 설치 및 설정
-
-### 1. 가상환경 구축 및 의존성 설치
-
-`uv`를 사용하여 프로젝트에 필요한 패키지를 설치합니다.
+### 1. 의존성 설치
 
 ```bash
-# 의존성 설치 (가상환경 자동 생성)
-uv sync
-
-# 특정 그룹의 의존성만 설치하려는 경우
-uv sync --group app  # API 서버용
-uv sync --group ai   # AI 워커용
+uv sync --group app   # API 서버용
+uv sync --group ai    # AI 워커용
+uv sync --group dev   # 개발/테스트용
 ```
 
 ### 2. 환경 변수 설정
 
-`envs/` 디렉토리에 있는 예시 파일을 복사하여 `.env` 파일을 생성합니다.
-- 로컬용 
-    ```bash
-    cp envs/example.local.env envs/.local.env
-    ```
-- 배포용 
-    ```bash
-    cp envs/example.prod.env envs/.prod.env
-    ```
-
-생성된 `env` 파일 내의 환경변수들은 프로젝트 상황에 맞게 수정하세요.
-
----
-
-## 🏃 실행 방법
-
-### 1. 로컬 및 개발 환경
-
-#### Docker Compose로 전체 스택 실행
-
-모든 서비스(API, Worker, DB, Redis, Nginx)를 한 번에 실행합니다.
+프로젝트 루트에 `.env` 파일을 생성하세요. `envs/example.prod.env`를 참고하세요.
 
 ```bash
-docker-compose up -d --build
+cp envs/example.prod.env .env
 ```
 
-실행 후 다음 주소로 접속 가능합니다:
-- **API 서버**: [http://localhost/api/docs](http://localhost/api/docs) (Swagger UI)
-- **Nginx**: 80 포트를 통해 API 서버로 요청을 전달합니다.
+`.env` 파일에서 아래 항목을 본인 환경에 맞게 수정하세요:
 
-#### 로컬에서 개별 실행 (개발용)
+```env
+# docker 이미지 정보
+DOCKER_USER=your_dockerhub_id
+DOCKER_REPOSITORY=your_repo_name
 
-**FastAPI 서버 실행:**
+# 앱 버전
+APP_VERSION=v1.0.0
+AI_WORKER_VERSION=v1.0.0
+
+# 보안 키 (반드시 변경!)
+SECRET_KEY=your-secret-key-here
+
+# 도메인 (로컬 개발 시 localhost)
+COOKIE_DOMAIN=localhost
+
+# PostgreSQL 설정
+DB_HOST=localhost         # 도커 실행 시: postgres
+DB_PORT=5432
+DB_EXPOSE_PORT=5432
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+DB_NAME=ai_health
+
+# Redis
+REDIS_PORT=6379
+```
+
+> **주의**: `.env` 파일은 `.gitignore`에 포함되어 있어 커밋되지 않습니다. 절대 커밋하지 마세요.
+
+### 3. 도커로 전체 실행 (권장)
+
 ```bash
+# 최초 실행 또는 코드 변경 후
+docker compose up -d --build
+
+# 이후 실행
+docker compose up -d
+```
+
+**접속 주소:**
+- API 문서: http://localhost/api/docs
+- API 서버: http://localhost/api
+
+### 4. 로컬에서 직접 실행 (도커 없이)
+
+PostgreSQL과 Redis가 별도로 실행 중이어야 합니다.
+
+```bash
+# FastAPI 서버
 uv run uvicorn app.main:app --reload
-# or
-docker compose up -d --build app
-```
 
-**AI Worker 실행:**
-```bash
+# AI Worker
 uv run python -m ai_worker.main
-# or
-docker compose up -d --build ai_worker
 ```
 
-### 2. EC2 배포 환경 (Production)
+## DB 마이그레이션
 
-제공된 쉘 스크립트를 사용하여 AWS EC2 환경에 이미지를 빌드, 푸시 및 배포할 수 있습니다.
+```bash
+# 마이그레이션 파일 생성
+uv run alembic revision --autogenerate -m "설명"
 
-#### 사전 준비
-- EC2 인스턴스 (Ubuntu 권장)
-- SSH 키 페어 (`~/.ssh/` 경로에 위치)
-- 도커 허브(Docker Hub) 계정 및 Personal Access Token
-- 배포용 환경 변수 설정 (`envs/.prod.env`)
-- 도메인 구매 (Gabia, GoDaddy, AWS Route53 등)
+# 마이그레이션 적용
+uv run alembic upgrade head
 
-#### 자동 배포 스크립트 실행
-`scripts/deployment.sh`는 도커 이미지 빌드, 레포지토리 푸시, EC2 접속 및 컨테이너 실행 과정을 자동화합니다.
+# 롤백
+uv run alembic downgrade -1
+```
+
+## 모델 추가 시
+
+1. `app/models/`에 SQLAlchemy 모델 정의
+2. `app/db/databases.py`의 `Base`를 상속받았는지 확인
+3. `alembic revision --autogenerate`로 마이그레이션 파일 생성
+
+## 테스트
+
+```bash
+# 전체 테스트
+./scripts/ci/run_test.sh
+
+# 코드 포맷팅
+./scripts/ci/code_fommatting.sh
+
+# 타입 검사
+./scripts/ci/check_mypy.sh
+```
+
+## 운영 배포
 
 ```bash
 chmod +x scripts/deployment.sh
 ./scripts/deployment.sh
 ```
-스크립트 실행 시 다음 정보를 입력해야 합니다:
-1. 도커 허브 계정 정보 (Username, PAT)
-2. 이미지를 업로드할 레포지토리 이름
-3. 배포할 서비스 선택 (FastAPI, AI-Worker) 및 버전(Tag)
-4. SSH 키 파일명 및 EC2 IP 주소
-5. https 사용여부
-   - 5-1. https인 경우 도메인 추가 입력  
-
-#### SSL(HTTPS) 설정 (Certbot)
-도메인을 연결하고 HTTPS를 적용하려면 `scripts/certbot.sh`를 사용합니다.
-
-```bash
-chmod +x scripts/certbot.sh
-./scripts/certbot.sh
-```
-1. 도메인 주소 및 이메일 입력
-2. SSH 키 파일명 및 EC2 IP 주소 입력
-3. Let's Encrypt를 통한 인증서 발급 및 Nginx 설정 자동 갱신 적용
-
----
-
-## 🧪 테스트 및 품질 관리
-
-제공된 스크립트를 사용하여 코드의 품질을 검증할 수 있습니다.
-
-```bash
-# 테스트 실행
-./scripts/ci/run_test.sh
-
-# 코드 포맷팅 확인 (Ruff)
-./scripts/ci/code_fommatting.sh
-
-# 정적 타입 검사 (Mypy)
-./scripts/ci/check_mypy.sh
-```
-
----
-
-## 📝 개발 가이드
-
-- **API 추가**: `app/apis/v1/` 아래에 새로운 라우터 파일을 생성하고 `app/apis/v1/__init__.py`에 등록하세요.
-- **DB 모델 추가**: `app/models/`에 Tortoise 모델을 정의하고 `app/db/databases.py`의 `MODELS` 리스트에 추가하세요.
-- **AI 로직 추가**: `ai_worker/tasks/`에 새로운 처리 로직을 작성하고 `ai_worker/main.py`에서 호출하도록 구성하세요.

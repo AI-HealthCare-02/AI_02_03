@@ -2,9 +2,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, status
 from fastapi.responses import JSONResponse as Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import config
 from app.core.config import Env
+from app.db.databases import get_db
 from app.dtos.auth import LoginRequest, LoginResponse, SignUpRequest, TokenRefreshResponse
 from app.services.auth import AuthService
 from app.services.jwt import JwtService
@@ -12,10 +14,14 @@ from app.services.jwt import JwtService
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def get_auth_service(db: Annotated[AsyncSession, Depends(get_db)]) -> AuthService:
+    return AuthService(db)
+
+
 @auth_router.post("/signup", status_code=status.HTTP_201_CREATED)
 async def signup(
     request: SignUpRequest,
-    auth_service: Annotated[AuthService, Depends(AuthService)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> Response:
     await auth_service.signup(request)
     return Response(content={"detail": "회원가입이 성공적으로 완료되었습니다."}, status_code=status.HTTP_201_CREATED)
@@ -24,7 +30,7 @@ async def signup(
 @auth_router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
 async def login(
     request: LoginRequest,
-    auth_service: Annotated[AuthService, Depends(AuthService)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> Response:
     user = await auth_service.authenticate(request)
     tokens = await auth_service.login(user)

@@ -1,4 +1,4 @@
-from tortoise.transactions import in_transaction
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dtos.users import UserUpdateRequest
 from app.models.users import User
@@ -8,9 +8,10 @@ from app.utils.common import normalize_phone_number
 
 
 class UserManageService:
-    def __init__(self):
-        self.repo = UserRepository()
-        self.auth_service = AuthService()
+    def __init__(self, session: AsyncSession):
+        self._session = session
+        self.repo = UserRepository(session)
+        self.auth_service = AuthService(session)
 
     async def update_user(self, user: User, data: UserUpdateRequest) -> User:
         if data.email:
@@ -19,7 +20,5 @@ class UserManageService:
             normalized_phone_number = normalize_phone_number(data.phone_number)
             await self.auth_service.check_phone_number_exists(normalized_phone_number)
             data.phone_number = normalized_phone_number
-        async with in_transaction():
-            await self.repo.update_instance(user=user, data=data.model_dump(exclude_none=True))
-            await user.refresh_from_db()
+        await self.repo.update_instance(user=user, data=data.model_dump(exclude_none=True))
         return user
