@@ -133,9 +133,10 @@ nginx       Up
 
 ### Step 5-2. 로컬에서 직접 실행 (도커 없이 개발할 때)
 
-DB와 Redis는 도커로, FastAPI는 로컬에서 직접 실행하는 방식입니다.  
+DB와 Redis는 도커로, FastAPI와 프론트엔드는 로컬에서 직접 실행하는 방식입니다.  
 코드 수정 시 즉시 반영되어 개발할 때 편리합니다.
 
+**백엔드 실행:**
 ```bash
 # 1. .env를 로컬용으로 설정 (아직 안 했다면)
 cp envs/example.local.env .env
@@ -154,6 +155,24 @@ uv run uvicorn app.main:app --reload
 - API 문서: http://localhost:8000/api/docs
 
 > ⚠️ 로컬 실행 시에는 Nginx를 거치지 않아서 포트가 8000이에요.
+
+**프론트엔드 실행 (별도 터미널):**
+```bash
+# 1. 프론트엔드 디렉토리로 이동
+cd frontend
+
+# 2. 의존성 설치 (처음 한 번만)
+npm install
+
+# 3. 개발 서버 실행
+npm run dev
+```
+
+**접속 확인:**
+- 프론트엔드: http://localhost:5173
+
+> ⚠️ 백엔드와 프론트엔드는 터미널을 각각 따로 열어서 실행해야 합니다.  
+> Node.js가 설치되어 있지 않으면 [nodejs.org](https://nodejs.org/)에서 설치하세요.
 
 ---
 
