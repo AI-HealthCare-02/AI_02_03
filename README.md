@@ -247,6 +247,19 @@ git push origin feat/본인이름-기능명
 │   ├── utils/              # 유틸리티
 │   ├── validators/         # 입력값 검증
 │   └── main.py             # FastAPI 진입점
+├── frontend/               # React 프론트엔드
+│   └── src/
+│       ├── app/
+│       │   ├── components/
+│       │   │   ├── ui/     # shadcn 기본 컴포넌트 (수정 금지)
+│       │   │   └── ...     # 공통 컴포넌트 (Layout, LiverCharacter 등)
+│       │   ├── pages/      # 각 페이지 (Home, Login, Challenges 등)
+│       │   └── routes.tsx  # 라우팅 설정
+│       ├── lib/
+│       │   └── api.ts      # axios 인스턴스 및 인터셉터
+│       ├── services/       # API 호출 함수 (auth, survey, challenge 등)
+│       ├── store/          # 전역 상태 관리 (zustand)
+│       └── styles/         # 전역 CSS
 ├── envs/                   # 환경 변수 예시 파일
 ├── nginx/                  # Nginx 설정
 ├── scripts/                # 배포 및 CI 스크립트
