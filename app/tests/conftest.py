@@ -9,10 +9,7 @@ from app.db.databases import Base, get_db
 from app.main import app
 
 TEST_BASE_URL = "http://test"
-TEST_DATABASE_URL = (
-    f"postgresql+asyncpg://{config.DB_USER}:{config.DB_PASSWORD}"
-    f"@{config.DB_HOST}:{config.DB_PORT}/test"
-)
+TEST_DATABASE_URL = f"postgresql+asyncpg://{config.DB_USER}:{config.DB_PASSWORD}@{config.DB_HOST}:{config.DB_PORT}/test"
 
 
 @pytest_asyncio.fixture(scope="session")
