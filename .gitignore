@@ -12,3 +12,9 @@ wheels/
 .coverage
 *.coverage
 .coverage.*
+data/
+*csv
+*.db
+scripts/
+*.pkl
+*.bin
