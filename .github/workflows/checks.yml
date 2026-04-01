@@ -4,14 +4,14 @@ on:
   push:
     branches:
       - main
-      - develop
+      - dev
       - 'release/*'
       - 'hotfix/*'
   pull_request:
-    # feature 브랜치는 보통 develop으로 PR을 생성하기 때문에 develop이 target 브랜치에 포함되어 있다면 별도로 적지 않아도 됩니다.
+    # feature 브랜치는 보통 dev으로 PR을 생성하기 때문에 dev이 target 브랜치에 포함되어 있다면 별도로 적지 않아도 됩니다.
     branches:
       - main
-      - develop
+      - dev
       - 'release/*'
       - 'hotfix/*'
 
@@ -43,14 +43,26 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: ozcoding
+      DB_PASSWORD: pw1234
+      DB_NAME: ai_health
     services:
-      mysql:
-        image: mysql:8.0
+      postgres:
+        image: postgres:16
         env:
-          MYSQL_ROOT_PASSWORD: pw1234
-          MYSQL_DATABASE: ai_health
+          POSTGRES_USER: ozcoding
+          POSTGRES_PASSWORD: pw1234
+          POSTGRES_DB: test
         ports:
-          - 3306:3306
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

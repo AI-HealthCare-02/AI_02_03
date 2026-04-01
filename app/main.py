@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 
 from app.apis.v1 import v1_routers
-from app.db.databases import engine, Base
+from app.db.databases import Base, engine
 
 
 @asynccontextmanager

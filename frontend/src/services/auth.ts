@@ -1,0 +1,19 @@
+import api from '../lib/api'
+
+export const authService = {
+  signup: (data: { email: string; password: string; nickname: string }) =>
+    api.post('/api/v1/auth/signup', data),
+
+  login: async (data: { email: string; password: string }) => {
+    const res = await api.post('/api/v1/auth/login', data)
+    localStorage.setItem('access_token', res.data.access_token)
+    return res.data
+  },
+
+  logout: async () => {
+    await api.post('/api/v1/auth/logout')
+    localStorage.removeItem('access_token')
+  },
+
+  me: () => api.get('/api/v1/auth/me').then((res) => res.data),
+}
