@@ -13,10 +13,7 @@ class Base(DeclarativeBase):
 
 def get_database_url() -> str:
     password = quote_plus(config.DB_PASSWORD)
-    return (
-        f"postgresql+asyncpg://{config.DB_USER}:{password}"
-        f"@{config.DB_HOST}:{config.DB_PORT}/{config.DB_NAME}"
-    )
+    return f"postgresql+asyncpg://{config.DB_USER}:{password}@{config.DB_HOST}:{config.DB_PORT}/{config.DB_NAME}"
 
 
 engine = create_async_engine(
