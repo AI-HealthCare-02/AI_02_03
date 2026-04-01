@@ -3,6 +3,7 @@ from collections.abc import AsyncGenerator
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.core import config
 from app.db.databases import Base, get_db
@@ -14,7 +15,7 @@ TEST_DATABASE_URL = f"postgresql+asyncpg://{config.DB_USER}:{config.DB_PASSWORD}
 
 @pytest_asyncio.fixture
 async def engine():
-    _engine = create_async_engine(TEST_DATABASE_URL)
+    _engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield _engine
