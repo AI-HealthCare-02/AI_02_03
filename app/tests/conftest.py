@@ -12,7 +12,7 @@ TEST_BASE_URL = "http://test"
 TEST_DATABASE_URL = f"postgresql+asyncpg://{config.DB_USER}:{config.DB_PASSWORD}@{config.DB_HOST}:{config.DB_PORT}/test"
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def engine():
     _engine = create_async_engine(TEST_DATABASE_URL)
     async with _engine.begin() as conn:
