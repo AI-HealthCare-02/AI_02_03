@@ -10,10 +10,7 @@ async def test_token_refresh_success(client: AsyncClient):
     signup_data = {
         "email": "refresh@example.com",
         "password": "Password123!",
-        "name": "리프레시테스터",
-        "gender": "MALE",
-        "birth_date": "1990-01-01",
-        "phone_number": "01099998888",
+        "nickname": "리프레시테스터",
     }
     await client.post("/api/v1/auth/signup", json=signup_data)
 
