@@ -1,1 +1,1 @@
-from app.models import users, goals
+from app.models import users, goals, activity_logs
