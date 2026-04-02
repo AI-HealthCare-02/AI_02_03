@@ -17,4 +17,4 @@ data/
 *.db
 scripts/
 *.pkl
-*.bin
+*.bin.ipynb_checkpoints/
