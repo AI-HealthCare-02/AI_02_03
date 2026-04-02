@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 
+import app.models  # noqa: F401 — ensure all models are registered before create_all
+
 from app.apis.v1 import v1_routers
 from app.db.databases import Base, engine
 
