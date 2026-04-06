@@ -1,1 +1,1 @@
-from app.models import users, goals, activity_logs, notification_settings
+from app.models import users, goals, activity_logs, notification_settings, medications
