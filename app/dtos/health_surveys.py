@@ -14,8 +14,8 @@ class SurveyCreateRequest(BaseModel):
 
     drinking: str
     drink_amount: float = 0.0
+    drink_type: str | None = None  # 맥주/소주/와인/막걸리/칵테일
     weekly_drink_freq: float = 0.0
-    monthly_binge_freq: float = 0.0
 
     exercise: str
     weekly_exercise_count: int = 0
@@ -36,7 +36,11 @@ class SurveyCreateRequest(BaseModel):
         if self.drinking == "음주안함":
             self.drink_amount = 0.0
             self.weekly_drink_freq = 0.0
-            self.monthly_binge_freq = 0.0
+        else:
+            if self.drink_amount <= 0:
+                raise ValueError("음주를 하는 경우 1회 음주량은 0보다 커야 합니다.")
+            if self.weekly_drink_freq <= 0:
+                raise ValueError("음주를 하는 경우 주당 음주 횟수는 0보다 커야 합니다.")
         if self.exercise == "운동안함":
             self.weekly_exercise_count = 0
         return self
@@ -55,8 +59,8 @@ class SurveyUpdateRequest(BaseModel):
 
     drinking: str | None = None
     drink_amount: float | None = None
+    drink_type: str | None = None
     weekly_drink_freq: float | None = None
-    monthly_binge_freq: float | None = None
 
     exercise: str | None = None
     weekly_exercise_count: int | None = None
