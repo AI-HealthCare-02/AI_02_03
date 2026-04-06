@@ -73,33 +73,35 @@ services:
         condition: service_healthy
 
   # 5. Nginx (웹 서버 - 요청 리버스 프록시로 전달)
-  nginx:
-    container_name: nginx
-    image: nginx:latest
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - static_volume:/vol/web/static
-      - media_volume:/vol/web/media
-      - certbot-conf:/etc/letsencrypt
-      - certbot-www:/var/www/certbot
-    ports:
-      - "80:80"
-      - "443:443"
-    networks:
-      - ws
-    depends_on:
-      - fastapi
+  # TODO: 도메인 연결 후 활성화
+  # nginx:
+  #   container_name: nginx
+  #   image: nginx:latest
+  #   volumes:
+  #     - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+  #     - static_volume:/vol/web/static
+  #     - media_volume:/vol/web/media
+  #     - certbot-conf:/etc/letsencrypt
+  #     - certbot-www:/var/www/certbot
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   networks:
+  #     - ws
+  #   depends_on:
+  #     - fastapi
 
   # 6. certbot: SSL 인증서 발급담당
-  certbot:
-    image: certbot/certbot
-    container_name: auto-certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 48h & wait $${!}; done;'"
-    volumes:
-      - certbot-conf:/etc/letsencrypt
-      - certbot-www:/var/www/certbot
-    depends_on:
-      - nginx
+  # TODO: 도메인 연결 후 활성화
+  # certbot:
+  #   image: certbot/certbot
+  #   container_name: auto-certbot
+  #   entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 48h & wait $${!}; done;'"
+  #   volumes:
+  #     - certbot-conf:/etc/letsencrypt
+  #     - certbot-www:/var/www/certbot
+  #   depends_on:
+  #     - nginx
 
 volumes:
   postgres_data:
@@ -108,10 +110,11 @@ volumes:
     name: static_volume
   media_volume:
     name: media_volume
-  certbot-conf:
-    name: certbot-conf
-  certbot-www:
-    name: certbot-www
+  # TODO: 도메인 연결 후 활성화
+  # certbot-conf:
+  #   name: certbot-conf
+  # certbot-www:
+  #   name: certbot-www
 
 networks:
   ws:

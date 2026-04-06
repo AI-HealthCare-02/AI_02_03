@@ -13,6 +13,8 @@ from app.db.databases import Base, engine
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    from ai_worker.tasks.predict import _load_model
+    _load_model()  # 서버 시작 시 모델 1회 로딩
     yield
     await engine.dispose()
 

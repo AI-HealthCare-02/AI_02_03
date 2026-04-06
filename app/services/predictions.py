@@ -77,7 +77,7 @@ class PredictionService:
             "score": score,
             "grade": grade,
             "character_state": result["stage_label"],
-            "shap_factors": result.get("shap_factors", {}),
+            "shap_factors": result.get("shap_factors", []),
         })
         return prediction
 

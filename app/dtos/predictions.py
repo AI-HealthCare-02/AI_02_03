@@ -9,12 +9,17 @@ class RecommendedChallenge(BaseModel):
     type: str
 
 
+class ShapFactor(BaseModel):
+    feature: str
+    impact: float
+
+
 class PredictionResponse(BaseModel):
     id: int
     score: float
     grade: str
     character_state: str
-    shap_factors: dict
+    shap_factors: list[ShapFactor] = []
     recommended_challenges: list[RecommendedChallenge] = []
     created_at: datetime
 

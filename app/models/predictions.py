@@ -15,6 +15,6 @@ class Prediction(Base):
     score: Mapped[float] = mapped_column(Float, nullable=False)
     grade: Mapped[str] = mapped_column(String(10), nullable=False)
     character_state: Mapped[str] = mapped_column(String(10), nullable=False)
-    shap_factors: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    shap_factors: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now, nullable=False)
