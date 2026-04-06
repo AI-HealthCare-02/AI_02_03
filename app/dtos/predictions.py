@@ -35,5 +35,3 @@ class PredictionListItem(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class PredictionListResponse(BaseModel):
-    predictions: list[PredictionListItem]
