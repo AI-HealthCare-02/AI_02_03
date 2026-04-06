@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.predictions import Prediction
 from app.models.users import User
+from app.repositories.challenge_repository import ChallengeRepository
 from app.repositories.health_survey_repository import HealthSurveyRepository
 from app.repositories.prediction_repository import PredictionRepository
 
@@ -47,6 +48,7 @@ class PredictionService:
         self._session = session
         self.repo = PredictionRepository(session)
         self.survey_repo = HealthSurveyRepository(session)
+        self.challenge_repo = ChallengeRepository(session)
 
     async def predict(self, user: User) -> Prediction:
         survey = await self.survey_repo.get_by_user_id(user.id)
@@ -72,13 +74,24 @@ class PredictionService:
         score = result["score"]
         grade = _calc_grade(score)
 
+        shap_factors = result.get("shap_factors", [])
         prediction = await self.repo.create({
             "user_id": user.id,
             "score": score,
             "grade": grade,
             "character_state": result["stage_label"],
-            "shap_factors": result.get("shap_factors", []),
+            "shap_factors": shap_factors,
         })
+
+        # SHAP 요인 기반 추천 챌린지
+        shap_features = [f["feature"] for f in shap_factors]
+        all_challenges = await self.challenge_repo.get_all()
+        prediction.recommended_challenges = [
+            {"id": c.id, "name": c.name, "type": c.type}
+            for c in all_challenges
+            if c.shap_feature in shap_features
+        ]
+
         return prediction
 
     async def get_predictions(self, user: User) -> list[Prediction]:
