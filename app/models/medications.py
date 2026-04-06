@@ -12,8 +12,5 @@ class Medication(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     dosage: Mapped[str] = mapped_column(String(50), nullable=False)
     schedule: Mapped[str] = mapped_column(String(50), nullable=False)
-    is_taken: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    taken_today: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.now, onupdate=datetime.now, nullable=False
-    )

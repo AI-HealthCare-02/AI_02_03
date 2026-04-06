@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.databases import get_db
 from app.dependencies.security import get_request_user
-from app.dtos.predictions import PredictionListItem, PredictionListResponse, PredictionResponse
+from app.dtos.predictions import PredictionListItem, PredictionResponse
 from app.models.users import User
 from app.services.predictions import PredictionService
 
@@ -29,15 +29,13 @@ async def create_prediction(
     )
 
 
-@prediction_router.get("/me", response_model=PredictionListResponse, status_code=status.HTTP_200_OK)
+@prediction_router.get("/me", response_model=list[PredictionListItem], status_code=status.HTTP_200_OK)
 async def get_my_predictions(
     user: Annotated[User, Depends(get_request_user)],
     service: Annotated[PredictionService, Depends(get_prediction_service)],
 ) -> Response:
     predictions = await service.get_predictions(user)
     return Response(
-        PredictionListResponse(
-            predictions=[PredictionListItem.model_validate(p) for p in predictions]
-        ).model_dump(mode="json"),
+        [PredictionListItem.model_validate(p).model_dump(mode="json") for p in predictions],
         status_code=status.HTTP_200_OK,
     )

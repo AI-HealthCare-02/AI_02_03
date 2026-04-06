@@ -7,8 +7,8 @@ class GoalRepository:
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def create_goal(self, user_id: int, title: str, description: str | None) -> Goal:
-        goal = Goal(user_id=user_id, title=title, description=description)
+    async def create_goal(self, user_id: int, category: str, description: str | None) -> Goal:
+        goal = Goal(user_id=user_id, category=category, description=description)
         self._session.add(goal)
         await self._session.flush()
         await self._session.refresh(goal)

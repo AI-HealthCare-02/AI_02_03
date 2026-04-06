@@ -6,7 +6,6 @@ from fastapi.responses import ORJSONResponse
 import app.models  # noqa: F401 — ensure all models are registered before create_all
 
 from app.apis.v1 import v1_routers
-from app.apis.appointment_router import router as appointment_router
 from app.db.databases import Base, engine
 
 
@@ -29,4 +28,3 @@ app = FastAPI(
 )
 
 app.include_router(v1_routers)
-app.include_router(appointment_router)

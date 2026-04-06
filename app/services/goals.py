@@ -12,7 +12,7 @@ class GoalService:
     async def create_goal(self, user_id: int, data: GoalCreateRequest) -> Goal:
         return await self.goal_repo.create_goal(
             user_id=user_id,
-            title=data.title,
+            category=data.category,
             description=data.description,
         )
 

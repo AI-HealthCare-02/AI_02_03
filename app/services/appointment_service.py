@@ -13,11 +13,9 @@ class AppointmentService:
     async def create_appointment(self, user_id: int, data: AppointmentCreateRequest) -> Appointment:
         return await self.appointment_repo.create(
             user_id=user_id,
-            title=data.title,
-            doctor_name=data.doctor_name,
-            location=data.location,
-            scheduled_at=data.scheduled_at,
-            notes=data.notes,
+            hospital_name=data.hospital_name,
+            visit_date=data.visit_date,
+            memo=data.memo,
         )
 
     async def get_my_appointments(self, user_id: int) -> list[Appointment]:

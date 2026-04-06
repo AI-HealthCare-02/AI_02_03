@@ -20,11 +20,11 @@ class MedicationService:
     async def get_my_medications(self, user_id: int) -> list[Medication]:
         return await self.medication_repo.get_all_by_user(user_id)
 
-    async def toggle_taken(self, medication_id: int, user_id: int, is_taken: bool) -> Medication:
+    async def toggle_taken(self, medication_id: int, user_id: int, taken_today: bool) -> Medication:
         medication = await self.medication_repo.get_by_id(medication_id, user_id)
         if not medication:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="복약 정보를 찾을 수 없습니다")
-        return await self.medication_repo.update_taken(medication, is_taken)
+        return await self.medication_repo.update_taken(medication, taken_today)
 
     async def delete_medication(self, medication_id: int, user_id: int) -> None:
         medication = await self.medication_repo.get_by_id(medication_id, user_id)

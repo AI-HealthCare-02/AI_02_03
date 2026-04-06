@@ -15,6 +15,5 @@ class MedicationResponse(BaseSerializerModel):
     name: str
     dosage: str
     schedule: str
-    is_taken: bool
+    taken_today: bool
     created_at: datetime
-    updated_at: datetime

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,19 +13,15 @@ class AppointmentRepository:
     async def create(
         self,
         user_id: int,
-        title: str,
-        doctor_name: str | None,
-        location: str | None,
-        scheduled_at,
-        notes: str | None,
+        hospital_name: str,
+        visit_date: datetime,
+        memo: str | None,
     ) -> Appointment:
         appointment = Appointment(
             user_id=user_id,
-            title=title,
-            doctor_name=doctor_name,
-            location=location,
-            scheduled_at=scheduled_at,
-            notes=notes,
+            hospital_name=hospital_name,
+            visit_date=visit_date,
+            memo=memo,
         )
         self._session.add(appointment)
         await self._session.flush()
@@ -34,7 +32,7 @@ class AppointmentRepository:
         result = await self._session.execute(
             select(Appointment)
             .where(Appointment.user_id == user_id)
-            .order_by(Appointment.scheduled_at.asc())
+            .order_by(Appointment.visit_date.asc())
         )
         return list(result.scalars().all())
 

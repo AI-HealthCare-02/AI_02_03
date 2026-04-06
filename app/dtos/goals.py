@@ -1,24 +1,27 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel
+
 from app.dtos.base import BaseSerializerModel
+
+GoalCategory = Literal["운동", "식단", "금주", "수면", "기타"]
 
 
 class GoalCreateRequest(BaseModel):
-    title: str = Field(max_length=100)
-    description: str | None = Field(None)
+    category: GoalCategory
+    description: str
 
 
 class GoalUpdateRequest(BaseModel):
-    title: str | None = Field(None, max_length=100)
-    description: str | None = Field(None)
-    is_completed: bool | None = Field(None)
+    description: str | None = None
+    is_achieved: bool | None = None
 
 
 class GoalResponse(BaseSerializerModel):
     id: int
     user_id: int
-    title: str
+    category: str
     description: str | None
-    is_completed: bool
+    is_achieved: bool
     created_at: datetime
-    updated_at: datetime

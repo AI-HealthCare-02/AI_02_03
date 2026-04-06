@@ -26,8 +26,8 @@ class MedicationRepository:
         )
         return result.scalar_one_or_none()
 
-    async def update_taken(self, medication: Medication, is_taken: bool) -> Medication:
-        medication.is_taken = is_taken
+    async def update_taken(self, medication: Medication, taken_today: bool) -> Medication:
+        medication.taken_today = taken_today
         await self._session.flush()
         await self._session.refresh(medication)
         return medication

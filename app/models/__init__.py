@@ -1,4 +1,3 @@
-from app.models.activity_logs import ActivityLog
 from app.models.appointment import Appointment
 from app.models.challenges import Challenge, ChallengeLog, UserChallenge
 from app.models.goals import Goal
@@ -11,6 +10,6 @@ from app.models.users import User
 __all__ = [
     "User", "HealthSurvey", "Prediction",
     "Challenge", "UserChallenge", "ChallengeLog",
-    "Goal", "ActivityLog", "Appointment",
+    "Goal", "Appointment",
     "Medication", "NotificationSetting",
 ]
