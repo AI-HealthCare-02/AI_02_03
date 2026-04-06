@@ -53,6 +53,36 @@ def _calc_score_from_survey(survey: HealthSurvey) -> int:
     return _proba_to_score(proba)
 
 
+# 주류별 1잔 기준 순수 알코올(g) / 14g(NHANES standard drink)
+# 소주: 50ml × 17% × 0.8 = 6.8g → 0.49
+# 맥주: 355ml × 5% × 0.8 = 14.2g → 1.01
+# 와인: 150ml × 12% × 0.8 = 14.4g → 1.03
+# 막걸리: 200ml × 6% × 0.8 = 9.6g → 0.69
+# 칵테일: 100ml × 15% × 0.8 = 12g → 0.86
+_DRINK_TYPE_MULTIPLIER: dict[str, float] = {
+    "소주": 0.49,
+    "맥주": 1.01,
+    "와인": 1.03,
+    "막걸리": 0.69,
+    "칵테일": 0.86,
+}
+_DEFAULT_MULTIPLIER = 1.0
+_BINGE_THRESHOLD = 5  # 5 standard drinks 이상 = 폭음
+
+
+def _to_standard_drinks(drinks: float, drink_type: str | None) -> float:
+    """한국 잔 수 → NHANES standard drink 변환"""
+    multiplier = _DRINK_TYPE_MULTIPLIER.get(drink_type, _DEFAULT_MULTIPLIER) if drink_type else _DEFAULT_MULTIPLIER
+    return round(drinks * multiplier, 2)
+
+
+def _calc_monthly_binge(drink_amount_std: float, weekly_drink_freq: float) -> float:
+    """standard drink 기준 1회 음주량 >= 5이면 폭음, 월 폭음 횟수 자동 계산"""
+    if drink_amount_std >= _BINGE_THRESHOLD:
+        return round(weekly_drink_freq * 4.33, 1)
+    return 0.0
+
+
 def _calc_diet(questions: list[int]) -> tuple[int, str]:
     score = sum(questions)
     if score >= 28:
@@ -79,6 +109,8 @@ class HealthSurveyService:
 
         bmi = _calc_bmi(data.weight, data.height)
         diet_score, diet_eval = _calc_diet(data.diet_questions)
+        drink_amount_std = _to_standard_drinks(data.drink_amount, data.drink_type)
+        monthly_binge_freq = _calc_monthly_binge(drink_amount_std, data.weekly_drink_freq)
 
         survey_data = {
             "user_id": user.id,
@@ -89,9 +121,9 @@ class HealthSurveyService:
             "bmi": bmi,
             "waist": data.waist,
             "drinking": data.drinking,
-            "drink_amount": data.drink_amount,
+            "drink_amount": drink_amount_std,
             "weekly_drink_freq": data.weekly_drink_freq,
-            "monthly_binge_freq": data.monthly_binge_freq,
+            "monthly_binge_freq": monthly_binge_freq,
             "exercise": data.exercise,
             "weekly_exercise_count": data.weekly_exercise_count,
             "smoking": data.smoking,
@@ -142,6 +174,12 @@ class HealthSurveyService:
             update_data["drink_amount"] = 0.0
             update_data["weekly_drink_freq"] = 0.0
             update_data["monthly_binge_freq"] = 0.0
+        elif data.drink_amount is not None or data.weekly_drink_freq is not None:
+            if data.drink_amount is not None:
+                update_data["drink_amount"] = _to_standard_drinks(data.drink_amount, data.drink_type)
+            new_drink_amount_std = update_data.get("drink_amount", survey.drink_amount)
+            new_weekly_freq = data.weekly_drink_freq if data.weekly_drink_freq is not None else survey.weekly_drink_freq
+            update_data["monthly_binge_freq"] = _calc_monthly_binge(new_drink_amount_std, new_weekly_freq)
 
         if data.exercise == "운동안함":
             update_data["weekly_exercise_count"] = 0
