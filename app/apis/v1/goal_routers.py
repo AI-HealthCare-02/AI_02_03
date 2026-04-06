@@ -22,28 +22,32 @@ async def create_goal(
     goal = await goal_service.create_goal(user.id, request)
     return Response(GoalResponse.model_validate(goal).model_dump(), status_code=status.HTTP_201_CREATED)
 
-@goal_router.get("", response_model=list[GoalResponse], status_code=status.HTTP_200_OK)
-async def get_goals(
+# GET /goals/me 로 변경
+@goal_router.get("/me", response_model=list[GoalResponse], status_code=status.HTTP_200_OK)
+async def get_my_goals(
     user: Annotated[User, Depends(get_request_user)],
     goal_service: Annotated[GoalService, Depends(get_goal_service)],
 ) -> Response:
     goals = await goal_service.get_goals(user.id)
     return Response([GoalResponse.model_validate(g).model_dump() for g in goals], status_code=status.HTTP_200_OK)
 
-@goal_router.put("/{goal_id}", response_model=GoalResponse, status_code=status.HTTP_200_OK)
+# PUT 응답을 {"detail": str} 로 변경
+@goal_router.put("/{goal_id}", status_code=status.HTTP_200_OK)
 async def update_goal(
     goal_id: int,
     request: GoalUpdateRequest,
     user: Annotated[User, Depends(get_request_user)],
     goal_service: Annotated[GoalService, Depends(get_goal_service)],
 ) -> Response:
-    goal = await goal_service.update_goal(goal_id, user.id, request)
-    return Response(GoalResponse.model_validate(goal).model_dump(), status_code=status.HTTP_200_OK)
+    await goal_service.update_goal(goal_id, user.id, request)
+    return Response({"detail": "목표가 수정되었습니다."}, status_code=status.HTTP_200_OK)
 
-@goal_router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)
+# DELETE 200 + {"detail": str} 로 변경
+@goal_router.delete("/{goal_id}", status_code=status.HTTP_200_OK)
 async def delete_goal(
     goal_id: int,
     user: Annotated[User, Depends(get_request_user)],
     goal_service: Annotated[GoalService, Depends(get_goal_service)],
-) -> None:
+) -> Response:
     await goal_service.delete_goal(goal_id, user.id)
+    return Response({"detail": "목표가 삭제되었습니다."}, status_code=status.HTTP_200_OK)
