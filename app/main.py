@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 
 from app.apis.v1 import v1_routers
+from app.apis.appointment_router import router as appointment_router
 from app.db.databases import engine, Base
 
 
@@ -24,3 +25,4 @@ app = FastAPI(
 )
 
 app.include_router(v1_routers)
+app.include_router(appointment_router)
