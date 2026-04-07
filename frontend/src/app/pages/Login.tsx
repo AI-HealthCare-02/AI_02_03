@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -7,24 +7,39 @@ import { Label } from "../components/ui/label";
 import { Checkbox } from "../components/ui/checkbox";
 import { Separator } from "../components/ui/separator";
 import { Mail, Lock, ArrowRight, UserPlus, Activity } from "lucide-react";
+import { authService } from "../../services/auth";
+import { useAuthStore } from "../../store/authStore";
 
 export function Login() {
+  const navigate = useNavigate();
+  const fetchMe = useAuthStore((s) => s.fetchMe);
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     rememberMe: false,
     autoLogin: false,
   });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log("Login data:", formData);
+    setError("");
+    setLoading(true);
+    try {
+      await authService.login({ email: formData.email, password: formData.password });
+      await fetchMe();
+      navigate("/");
+    } catch (err: any) {
+      setError(err.response?.data?.error_detail || "이메일 또는 비밀번호가 올바르지 않습니다.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSocialLogin = (provider: "naver" | "kakao") => {
     console.log(`Login with ${provider}`);
-    // Handle social login logic here
   };
 
   return (
@@ -103,10 +118,7 @@ export function Login() {
                       setFormData({ ...formData, rememberMe: checked as boolean })
                     }
                   />
-                  <label
-                    htmlFor="rememberMe"
-                    className="text-sm text-gray-600 cursor-pointer select-none"
-                  >
+                  <label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer select-none">
                     아이디 저장
                   </label>
                 </div>
@@ -118,22 +130,25 @@ export function Login() {
                       setFormData({ ...formData, autoLogin: checked as boolean })
                     }
                   />
-                  <label
-                    htmlFor="autoLogin"
-                    className="text-sm text-gray-600 cursor-pointer select-none"
-                  >
+                  <label htmlFor="autoLogin" className="text-sm text-gray-600 cursor-pointer select-none">
                     자동 로그인
                   </label>
                 </div>
               </div>
 
+              {/* Error Message */}
+              {error && (
+                <p className="text-sm text-red-500 text-center">{error}</p>
+              )}
+
               {/* Submit Button */}
               <Button
                 type="submit"
+                disabled={loading}
                 className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-medium mt-6"
               >
                 <span className="flex items-center gap-2">
-                  로그인
+                  {loading ? "로그인 중..." : "로그인"}
                   <ArrowRight className="size-4" />
                 </span>
               </Button>
@@ -179,17 +194,11 @@ export function Login() {
 
               {/* Find ID/Password Links */}
               <div className="flex items-center justify-center gap-2 text-xs text-gray-500 pt-2">
-                <button
-                  type="button"
-                  className="hover:text-emerald-600 transition-colors"
-                >
+                <button type="button" className="hover:text-emerald-600 transition-colors">
                   아이디 찾기
                 </button>
                 <span>|</span>
-                <button
-                  type="button"
-                  className="hover:text-emerald-600 transition-colors"
-                >
+                <button type="button" className="hover:text-emerald-600 transition-colors">
                   비밀번호 찾기
                 </button>
               </div>
@@ -214,17 +223,11 @@ export function Login() {
         {/* Footer */}
         <div className="text-center">
           <div className="flex items-center justify-center gap-3 text-xs text-gray-500">
-            <button
-              type="button"
-              className="hover:text-emerald-600 transition-colors underline"
-            >
+            <button type="button" className="hover:text-emerald-600 transition-colors underline">
               이용약관
             </button>
             <span>|</span>
-            <button
-              type="button"
-              className="hover:text-emerald-600 transition-colors underline"
-            >
+            <button type="button" className="hover:text-emerald-600 transition-colors underline">
               개인정보 처리방침
             </button>
           </div>

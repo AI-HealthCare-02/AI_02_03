@@ -6,29 +6,52 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
 import { Mail, Lock, User, ArrowRight, LogIn, Activity } from "lucide-react";
+import { authService } from "../../services/auth";
 
 export function Signup() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    name: "",
+    nickname: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle signup logic here
-    console.log("Signup data:", formData);
-    // After signup, redirect to onboarding
-    navigate("/onboarding/step0");
+    setError("");
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await authService.signup({
+        email: formData.email,
+        password: formData.password,
+        nickname: formData.nickname,
+      });
+      navigate("/onboarding/step0");
+    } catch (err: any) {
+      const data = err.response?.data;
+      if (data?.error_detail) {
+        setError(data.error_detail);
+      } else if (data?.email) {
+        setError(data.email);
+      } else {
+        setError("회원가입에 실패했습니다. 다시 시도해주세요.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSocialSignup = (provider: "naver" | "kakao") => {
     console.log(`Signup with ${provider}`);
-    // Handle social signup logic here
-    // After social signup, redirect to onboarding
-    navigate("/onboarding/step0");
   };
 
   return (
@@ -98,19 +121,19 @@ export function Signup() {
 
             {/* Signup Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Name */}
+              {/* Nickname */}
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-sm font-medium text-gray-700">
-                  이름
+                <Label htmlFor="nickname" className="text-sm font-medium text-gray-700">
+                  닉네임
                 </Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
                   <Input
-                    id="name"
+                    id="nickname"
                     type="text"
-                    placeholder="홍길동"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="닉네임을 입력하세요"
+                    value={formData.nickname}
+                    onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
                     className="pl-10 h-11 border-2 focus:border-emerald-500"
                     required
                   />
@@ -146,7 +169,7 @@ export function Signup() {
                   <Input
                     id="password"
                     type="password"
-                    placeholder="8자 이상 입력해주세요"
+                    placeholder="8자 이상, 영문+숫자+특수문자 포함"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="pl-10 h-11 border-2 focus:border-emerald-500"
@@ -176,13 +199,19 @@ export function Signup() {
                 </div>
               </div>
 
+              {/* Error Message */}
+              {error && (
+                <p className="text-sm text-red-500 text-center">{error}</p>
+              )}
+
               {/* Submit Button */}
               <Button
                 type="submit"
+                disabled={loading}
                 className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-medium mt-6"
               >
                 <span className="flex items-center gap-2">
-                  회원가입하기
+                  {loading ? "처리 중..." : "회원가입하기"}
                   <ArrowRight className="size-4" />
                 </span>
               </Button>
@@ -207,17 +236,11 @@ export function Signup() {
         {/* Footer */}
         <div className="text-center">
           <div className="flex items-center justify-center gap-3 text-xs text-gray-500">
-            <button
-              type="button"
-              className="hover:text-emerald-600 transition-colors underline"
-            >
+            <button type="button" className="hover:text-emerald-600 transition-colors underline">
               이용약관
             </button>
             <span>|</span>
-            <button
-              type="button"
-              className="hover:text-emerald-600 transition-colors underline"
-            >
+            <button type="button" className="hover:text-emerald-600 transition-colors underline">
               개인정보 처리방침
             </button>
           </div>
