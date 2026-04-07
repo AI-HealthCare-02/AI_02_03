@@ -15,5 +15,5 @@ export const authService = {
     localStorage.removeItem('access_token')
   },
 
-  me: () => api.get('/api/v1/auth/me').then((res) => res.data),
+  me: () => api.get('/api/v1/users/me').then((res) => res.data),
 }
