@@ -26,3 +26,5 @@ v1_routers.include_router(medication_router)
 v1_routers.include_router(daily_health_log_router)
 v1_routers.include_router(dashboard_router)
 v1_routers.include_router(badge_router)
+
+v1_routers.include_router(dashboard_router)
