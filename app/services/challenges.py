@@ -45,9 +45,9 @@ def _calc_grade(score: float) -> str:
         return "중증"
 
 
-def _get_recommended_challenge_ids(shap_factors: list) -> list[str]:
-    """SHAP 요인에서 상위 feature 반환"""
-    return [f["feature"] for f in shap_factors] if shap_factors else []
+def _get_recommended_challenge_types(improvement_factors: list) -> list[str]:
+    """개선 요인에서 챌린지 type 목록 반환"""
+    return [f["challenge_type"] for f in improvement_factors] if improvement_factors else []
 
 
 class ChallengeService:
@@ -62,15 +62,15 @@ class ChallengeService:
     async def get_challenges(self, user: User) -> list[ChallengeResponse]:
         challenges = await self.repo.get_all()
 
-        # 최근 예측의 SHAP 요인으로 추천 챌린지 판단
+        # 최근 예측의 개선 요인으로 추천 챌린지 판단
         latest = await self.prediction_repo.get_latest_by_user_id(user.id)
-        recommended_features = _get_recommended_challenge_ids(
+        recommended_types = _get_recommended_challenge_types(
             latest.shap_factors if latest else []
         )
 
         result = []
         for c in challenges:
-            is_recommended = c.shap_feature in recommended_features if c.shap_feature else False
+            is_recommended = c.type in recommended_types
             resp = ChallengeResponse.model_validate(c)
             resp.is_recommended = is_recommended
             result.append(resp)

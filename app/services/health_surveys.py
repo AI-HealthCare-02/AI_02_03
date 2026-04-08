@@ -184,7 +184,10 @@ class HealthSurveyService:
         if data.exercise == "운동안함":
             update_data["weekly_exercise_count"] = 0
 
-        raw = data.model_dump(exclude_none=True, exclude={"diet_questions"})
+        raw = data.model_dump(
+            exclude_none=True,
+            exclude={"diet_questions", "drink_amount", "drink_type", "weekly_drink_freq", "weight", "height"},
+        )
         update_data.update(raw)
 
         updated = await self.repo.update(survey, update_data)
