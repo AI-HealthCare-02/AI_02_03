@@ -17,3 +17,9 @@ class UserManageService:
             await self.auth_service.check_email_exists(data.email)
         await self.repo.update_instance(user=user, data=data.model_dump(exclude_none=True))
         return user
+
+    async def delete_user(self, user: User) -> None:
+        await self.repo.delete_user(user)
+
+    async def complete_onboarding(self, user: User) -> None:
+        await self.repo.update_instance(user=user, data={"is_onboarded": True})

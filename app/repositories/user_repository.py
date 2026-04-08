@@ -45,3 +45,7 @@ class UserRepository:
                 setattr(user, key, value)
         await self._session.flush()
         await self._session.refresh(user)
+
+    async def delete_user(self, user: User) -> None:
+        await self._session.delete(user)
+        await self._session.flush()

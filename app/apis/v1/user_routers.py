@@ -32,3 +32,20 @@ async def update_user_me_info(
 ) -> Response:
     updated_user = await user_manage_service.update_user(user=user, data=update_data)
     return Response(UserInfoResponse.model_validate(updated_user).model_dump(), status_code=status.HTTP_200_OK)
+
+
+@user_router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_me(
+    user: Annotated[User, Depends(get_request_user)],
+    user_manage_service: Annotated[UserManageService, Depends(get_user_service)],
+) -> None:
+    await user_manage_service.delete_user(user)
+
+
+@user_router.patch("/me/onboarding", response_model=UserInfoResponse, status_code=status.HTTP_200_OK)
+async def complete_onboarding(
+    user: Annotated[User, Depends(get_request_user)],
+    user_manage_service: Annotated[UserManageService, Depends(get_user_service)],
+) -> Response:
+    await user_manage_service.complete_onboarding(user)
+    return Response(UserInfoResponse.model_validate(user).model_dump(), status_code=status.HTTP_200_OK)
