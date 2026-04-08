@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.databases import Base
 
@@ -18,3 +18,5 @@ class NotificationSetting(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.now, onupdate=datetime.now, nullable=False
     )
+
+    user = relationship("User", back_populates="notification_settings")

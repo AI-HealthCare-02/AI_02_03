@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, JSON, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.databases import Base
 
@@ -18,3 +18,5 @@ class Prediction(Base):
     shap_factors: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now, nullable=False)
+
+    user = relationship("User", back_populates="predictions")

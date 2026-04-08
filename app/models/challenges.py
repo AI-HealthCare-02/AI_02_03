@@ -32,6 +32,7 @@ class UserChallenge(Base):
 
     challenge: Mapped["Challenge"] = relationship(back_populates="user_challenges")
     logs: Mapped[list["ChallengeLog"]] = relationship(back_populates="user_challenge")
+    user = relationship("User", back_populates="user_challenges")
 
 
 class ChallengeLog(Base):
