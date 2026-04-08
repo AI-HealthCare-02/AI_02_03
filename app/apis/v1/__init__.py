@@ -22,3 +22,6 @@ v1_routers.include_router(goal_router)
 v1_routers.include_router(activity_router)
 v1_routers.include_router(notification_router)
 v1_routers.include_router(medication_router)
+from app.apis.v1.dashboard_routers import dashboard_router
+
+v1_routers.include_router(dashboard_router)
