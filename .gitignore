@@ -19,3 +19,6 @@ scripts/
 *.pkl
 *.bin
 .ipynb_checkpoints/
+
+# 임시 테스트 파일
+predict_test.py
