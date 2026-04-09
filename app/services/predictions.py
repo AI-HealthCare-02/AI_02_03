@@ -60,10 +60,10 @@ class PredictionService:
                 detail="설문 데이터가 없습니다. 먼저 설문을 완료해주세요.",
             )
 
-        from ai_worker.tasks.predict import predict_fatty_liver
+        from celery import current_app as celery_app
 
         features = _survey_to_features(survey)
-        task_result = predict_fatty_liver.delay(features)
+        task_result = celery_app.send_task("predict_fatty_liver", args=[features])
 
         try:
             result = task_result.get(timeout=30)
@@ -128,7 +128,7 @@ class PredictionService:
         if recovery_rate == 0:
             return 0
 
-        from ai_worker.tasks.predict import _alcohol_penalty
+        from app.utils.score import _alcohol_penalty
         alcohol_data = {
             "음주여부": survey.drinking,
             "1회음주량": survey.drink_amount,

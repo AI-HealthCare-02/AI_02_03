@@ -183,7 +183,7 @@ class ChallengeService:
         if recovery_rate == 0:
             return 0
 
-        from ai_worker.tasks.predict import _alcohol_penalty
+        from app.utils.score import _alcohol_penalty
         alcohol_data = {
             "음주여부": survey.drinking,
             "1회음주량": survey.drink_amount,

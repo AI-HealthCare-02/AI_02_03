@@ -1,16 +1,18 @@
 from contextlib import asynccontextmanager
 
+from celery import Celery
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 
 from app.apis.v1 import v1_routers
+from app.core import config
 from app.db.databases import engine
+
+celery_app = Celery(broker=f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/0")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from ai_worker.tasks.predict import _load_model
-    _load_model()  # 서버 시작 시 모델 1회 로딩
     yield
     await engine.dispose()
 

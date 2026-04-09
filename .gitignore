@@ -23,3 +23,5 @@ scripts/
 
 # 임시 테스트 파일
 predict_test.py
+
+*.pem
