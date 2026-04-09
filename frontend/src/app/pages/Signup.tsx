@@ -6,7 +6,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
 import { Mail, Lock, User, ArrowRight, LogIn } from "lucide-react";
-import liverIcon from "figma:asset/69a088d3353430d855c1d35248e4c546fddaf7b3.png";
+import liverIcon from "../../assets/characters/liver_excellent.png";
 
 export function Signup() {
   const navigate = useNavigate();
