@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 지방간 위험도 예측 모델 학습 스크립트
 실행: python notebooks/train.py
@@ -6,16 +5,17 @@
 import json
 import os
 import warnings
+
 warnings.filterwarnings("ignore")
 
 import threading
 import time
 
 import joblib
-import numpy as np
-import pandas as pd
 import optuna
+import pandas as pd
 from tqdm import tqdm
+
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 from imblearn.over_sampling import SMOTE
@@ -24,8 +24,8 @@ from lightgbm import LGBMClassifier
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
 from sklearn.metrics import accuracy_score, f1_score, recall_score
+from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
 from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 from xgboost import XGBClassifier
 
@@ -97,7 +97,7 @@ def cv_f1(pipeline, X, y, cv):
 if os.path.exists(PARAMS_PATH):
     with open(PARAMS_PATH) as f:
         best_params = json.load(f)
-    print(f"\nbest_params.json 로드 완료 → 튜닝 스킵")
+    print("\nbest_params.json 로드 완료 → 튜닝 스킵")
     best_rf   = best_params["RandomForest"]
     best_xgb  = best_params["XGBoost"]
     best_lgbm = best_params["LightGBM"]
@@ -200,7 +200,7 @@ acc  = accuracy_score(y_test, y_pred)
 f1   = f1_score(y_test, y_pred, average="macro")
 risk_recall = recall_score(y_test, y_pred, labels=[2, 3], average="macro")
 
-print(f"\n[결과] Stacking")
+print("\n[결과] Stacking")
 print(f"  Accuracy     : {acc:.4f}")
 print(f"  F1 (macro)   : {f1:.4f}")
 print(f"  Risk Recall  : {risk_recall:.4f}  (중등도+중증)")
