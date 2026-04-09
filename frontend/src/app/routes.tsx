@@ -5,6 +5,10 @@ import { Education } from "./pages/Education";
 import { Progress } from "./pages/Progress";
 import { Schedule } from "./pages/Schedule";
 import { MyPage } from "./pages/MyPage";
+import { AccountManagement } from "./pages/AccountManagement";
+import { MyInfo } from "./pages/MyInfo";
+import { ActivityHistory } from "./pages/ActivityHistory";
+import { NotificationSettings } from "./pages/NotificationSettings";
 import { Signup } from "./pages/Signup";
 import { Login } from "./pages/Login";
 import { OnboardingStep0 } from "./pages/OnboardingStep0";
@@ -25,6 +29,10 @@ export const router = createBrowserRouter([
       { path: "progress", Component: Progress },
       { path: "schedule", Component: Schedule },
       { path: "mypage", Component: MyPage },
+      { path: "mypage/account", Component: AccountManagement },
+      { path: "mypage/account/info", Component: MyInfo },
+      { path: "mypage/history", Component: ActivityHistory },
+      { path: "mypage/notifications", Component: NotificationSettings },
     ],
   },
   {
