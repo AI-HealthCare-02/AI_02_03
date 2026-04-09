@@ -45,7 +45,9 @@ interface Medication {
   id: number;
   name: string;
   times: string[];
-  completed: boolean[];
+  completedByDate: {
+    [dateString: string]: boolean[];
+  };
 }
 
 interface Reminder {
@@ -101,13 +103,17 @@ export function Schedule() {
       id: 1,
       name: "우루사",
       times: ["08:00", "20:00"],
-      completed: [true, false],
+      completedByDate: {
+        [new Date().toDateString()]: [true, false],
+      },
     },
     {
       id: 2,
       name: "밀크씨슬",
       times: ["12:00"],
-      completed: [false],
+      completedByDate: {
+        [new Date().toDateString()]: [false],
+      },
     },
   ]);
 
@@ -177,16 +183,24 @@ export function Schedule() {
 
   const [todayAppointmentChecked, setTodayAppointmentChecked] = useState<{ [key: number]: boolean }>({});
 
-  const toggleMedicationComplete = (medId: number, timeIndex: number) => {
+  const toggleMedicationComplete = (medId: number, timeIndex: number, date: Date) => {
+    const dateString = date.toDateString();
+
     setMedications(
-      medications.map((med) =>
-        med.id === medId
-          ? {
-              ...med,
-              completed: med.completed.map((c, i) => (i === timeIndex ? !c : c)),
-            }
-          : med
-      )
+      medications.map((med) => {
+        if (med.id !== medId) return med;
+
+        const currentCompleted = med.completedByDate[dateString] || new Array(med.times.length).fill(false);
+        const updatedCompleted = currentCompleted.map((c, i) => (i === timeIndex ? !c : c));
+
+        return {
+          ...med,
+          completedByDate: {
+            ...med.completedByDate,
+            [dateString]: updatedCompleted,
+          },
+        };
+      })
     );
   };
 
@@ -285,7 +299,7 @@ export function Schedule() {
 
     const freq = parseInt(frequency);
     const timeMap: { [key: number]: string[] } = {
-      1: ["12:00"],
+      1: ["08:00"],
       2: ["08:00", "18:00"],
       3: ["08:00", "12:00", "18:00"],
       4: ["08:00", "12:00", "18:00", "22:00"],
@@ -361,7 +375,7 @@ export function Schedule() {
       id: medications.length > 0 ? Math.max(...medications.map((m) => m.id)) + 1 : 1,
       name: trimmedName,
       times: [...newMedication.times],
-      completed: new Array(newMedication.times.length).fill(false),
+      completedByDate: {},
     };
 
     setMedications((prev) => [...prev, newMed]);
@@ -381,8 +395,9 @@ export function Schedule() {
     med.toLowerCase().includes(medicationNameInput.toLowerCase())
   );
 
-  // Get all medication schedules sorted by time for today
-  const getTodayMedicationSchedules = () => {
+  // Get all medication schedules sorted by time for selected date
+  const getMedicationSchedules = (date: Date) => {
+    const dateString = date.toDateString();
     const schedules: Array<{
       medId: number;
       medName: string;
@@ -392,13 +407,15 @@ export function Schedule() {
     }> = [];
 
     medications.forEach((med) => {
+      const completedForDate = med.completedByDate[dateString] || new Array(med.times.length).fill(false);
+
       med.times.forEach((time, idx) => {
         schedules.push({
           medId: med.id,
           medName: med.name,
           time: time,
           timeIndex: idx,
-          completed: med.completed[idx],
+          completed: completedForDate[idx],
         });
       });
     });
@@ -567,8 +584,8 @@ export function Schedule() {
               )}
             </div>
 
-            {/* Today's Medications - Only show for today */}
-            {selectedDate && selectedDate.toDateString() === new Date().toDateString() && (
+            {/* Medication Schedule - Always show (daily recurring) */}
+            {medications.length > 0 && (
               <div className="pt-4 border-t border-blue-200">
                 <div className="flex items-center gap-2 mb-3">
                   <Pill className="size-4 text-purple-600" />
@@ -576,41 +593,49 @@ export function Schedule() {
                 </div>
 
                 <div className="space-y-2">
-                  {getTodayMedicationSchedules().map((schedule, idx) => (
-                    <div
-                      key={`${schedule.medId}-${schedule.timeIndex}-${idx}`}
-                      className={`p-3 rounded-lg border-2 flex items-center gap-3 transition-all ${
-                        schedule.completed
-                          ? "bg-emerald-50 border-emerald-300"
-                          : "bg-white border-purple-200"
-                      }`}
-                    >
+                  {selectedDate && getMedicationSchedules(selectedDate).map((schedule, idx) => {
+                    const isToday = selectedDate.toDateString() === new Date().toDateString();
+
+                    return (
                       <div
-                        className={`size-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          schedule.completed ? "bg-emerald-100" : "bg-purple-100"
+                        key={`${schedule.medId}-${schedule.timeIndex}-${idx}`}
+                        className={`p-3 rounded-lg border-2 flex items-center gap-3 transition-all ${
+                          schedule.completed
+                            ? "bg-emerald-50 border-emerald-300"
+                            : "bg-white border-purple-200"
                         }`}
                       >
-                        <Pill
-                          className={`size-5 ${
-                            schedule.completed ? "text-emerald-600" : "text-purple-600"
+                        <div
+                          className={`size-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                            schedule.completed ? "bg-emerald-100" : "bg-purple-100"
                           }`}
-                        />
-                      </div>
+                        >
+                          <Pill
+                            className={`size-5 ${
+                              schedule.completed ? "text-emerald-600" : "text-purple-600"
+                            }`}
+                          />
+                        </div>
 
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{schedule.medName}</p>
-                        <p className="text-sm text-gray-600 flex items-center gap-1">
-                          <Clock className="size-3" />
-                          {schedule.time}
-                        </p>
-                      </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{schedule.medName}</p>
+                          <p className="text-sm text-gray-600 flex items-center gap-1">
+                            <Clock className="size-3" />
+                            {schedule.time}
+                          </p>
+                        </div>
 
-                      <Checkbox
-                        checked={schedule.completed}
-                        onCheckedChange={() => toggleMedicationComplete(schedule.medId, schedule.timeIndex)}
-                      />
-                    </div>
-                  ))}
+                        {isToday && (
+                          <Checkbox
+                            checked={schedule.completed}
+                            onCheckedChange={() =>
+                              toggleMedicationComplete(schedule.medId, schedule.timeIndex, selectedDate)
+                            }
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
