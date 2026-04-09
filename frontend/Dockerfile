@@ -18,7 +18,10 @@ FROM nginx:alpine
 # 4. 빌드 결과물을 nginx 서빙 디렉토리로 복사
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# 5. 포트 노출
+# 5. SPA 라우팅을 위한 nginx 설정
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# 6. 포트 노출
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
