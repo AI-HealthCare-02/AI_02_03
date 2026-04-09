@@ -1,8 +1,9 @@
-import pandas as pd
+import asyncio
+
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_worker.tasks.predict import _alcohol_penalty, _load_model, _proba_to_score
+from app.utils.score import _alcohol_penalty
 from app.dtos.health_surveys import SurveyCreateRequest, SurveyUpdateRequest, SurveyUpdateResponse
 from app.models.health_surveys import HealthSurvey
 from app.models.users import User
@@ -27,14 +28,10 @@ def _calc_grade(score: int) -> str:
         return "중증"
 
 
-def _calc_score_from_survey(survey: HealthSurvey) -> int:
-    alcohol_data = {
-        "음주여부": survey.drinking,
-        "1회음주량": survey.drink_amount,
-        "주당음주빈도": survey.weekly_drink_freq,
-        "월폭음빈도": survey.monthly_binge_freq,
-    }
-    features = {
+async def _calc_score_from_survey(survey: HealthSurvey) -> int:
+    from celery import current_app as celery_app
+
+    input_data = {
         "나이": survey.age,
         "성별": survey.gender,
         "키": survey.height,
@@ -50,12 +47,15 @@ def _calc_score_from_survey(survey: HealthSurvey) -> int:
         "수면장애여부": survey.sleep_disorder,
         "평균수면시간": survey.sleep_hours,
         "식습관자가평가": survey.diet_eval,
+        "음주여부": survey.drinking,
+        "1회음주량": survey.drink_amount,
+        "주당음주빈도": survey.weekly_drink_freq,
+        "월폭음빈도": survey.monthly_binge_freq,
     }
-    model = _load_model()
-    proba = model.predict_proba(pd.DataFrame([features]))[0]
-    base_score = _proba_to_score(proba)
-    penalty = _alcohol_penalty(alcohol_data)
-    return min(max(10, base_score + penalty), 100)
+    result = await asyncio.to_thread(
+        lambda: celery_app.send_task("predict_fatty_liver", args=[input_data]).get(timeout=30)
+    )
+    return result["score"]
 
 
 # 주류별 1잔 기준 순수 알코올(g) / 14g(NHANES standard drink)
@@ -228,7 +228,7 @@ class HealthSurveyService:
         updated = await self.repo.update(survey, update_data)
 
         # 업데이트된 설문으로 새 점수 계산 (금주 회복 포함)
-        new_score = _calc_score_from_survey(updated)
+        new_score = await _calc_score_from_survey(updated)
         recovery = await self._calc_alcohol_recovery(user.id, updated)
         new_score = min(100, new_score + recovery)
         new_grade = _calc_grade(new_score)
