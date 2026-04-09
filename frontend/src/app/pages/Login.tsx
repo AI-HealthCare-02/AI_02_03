@@ -6,9 +6,10 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Checkbox } from "../components/ui/checkbox";
 import { Separator } from "../components/ui/separator";
-import { Mail, Lock, ArrowRight, UserPlus, Activity } from "lucide-react";
+import { Mail, Lock, ArrowRight, UserPlus } from "lucide-react";
 import { authService } from "../../services/auth";
 import { useAuthStore } from "../../store/authStore";
+import liverIcon from "../../assets/characters/liver_happy.PNG";
 
 export function Login() {
   const navigate = useNavigate();
@@ -49,7 +50,7 @@ export function Login() {
         <div className="text-center space-y-4">
           <Link to="/" className="inline-flex flex-col items-center justify-center gap-3 mb-2">
             <div className="size-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Activity className="size-10 text-white" />
+              <img src={liverIcon} alt="간편이" className="size-20" />
             </div>
           </Link>
           <div>
