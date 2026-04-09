@@ -5,7 +5,8 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
-import { Mail, Lock, User, ArrowRight, LogIn, Activity } from "lucide-react";
+import { Mail, Lock, User, ArrowRight, LogIn } from "lucide-react";
+import liverIcon from "figma:asset/69a088d3353430d855c1d35248e4c546fddaf7b3.png";
 
 export function Signup() {
   const navigate = useNavigate();
@@ -37,9 +38,7 @@ export function Signup() {
         {/* Service Logo & Name */}
         <div className="text-center space-y-4">
           <Link to="/" className="inline-flex flex-col items-center justify-center gap-3 mb-2">
-            <div className="size-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Activity className="size-10 text-white" />
-            </div>
+            <img src={liverIcon} alt="간편이" className="size-20" />
           </Link>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">간(肝)편한 하루</h1>
