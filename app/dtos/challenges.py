@@ -49,3 +49,15 @@ class ChallengeLogResponse(BaseModel):
     days_remaining: int
     motivation_message: str
     expected_improvement: str
+
+
+class WeeklyCheckinRequest(BaseModel):
+    still_sober: bool
+
+
+class WeeklyCheckinResponse(BaseModel):
+    detail: str
+    is_maintenance: bool
+    consecutive_days: int = 0
+    recovery_rate: float = 0.0
+    recovery_points: int = 0

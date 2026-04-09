@@ -29,6 +29,8 @@ class UserChallenge(Base):
     status: Mapped[str] = mapped_column(String(10), default="진행중", nullable=False)
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now, nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_maintenance: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    last_checkin_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     challenge: Mapped["Challenge"] = relationship(back_populates="user_challenges")
     logs: Mapped[list["ChallengeLog"]] = relationship(back_populates="user_challenge")

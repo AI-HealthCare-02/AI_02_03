@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.databases import get_db
 from app.dependencies.security import get_request_user
-from app.dtos.challenges import ChallengeLogRequest
+from app.dtos.challenges import ChallengeLogRequest, WeeklyCheckinRequest
 from app.models.users import User
 from app.services.challenges import ChallengeService
 
@@ -65,3 +65,13 @@ async def add_challenge_log(
 ) -> Response:
     result = await service.add_log(user, user_challenge_id, body.is_completed)
     return Response(result.model_dump(), status_code=status.HTTP_201_CREATED)
+
+
+@challenge_router.post("/user-challenges/alcohol/checkin", status_code=status.HTTP_200_OK)
+async def weekly_alcohol_checkin(
+    body: WeeklyCheckinRequest,
+    user: Annotated[User, Depends(get_request_user)],
+    service: Annotated[ChallengeService, Depends(get_challenge_service)],
+) -> Response:
+    result = await service.weekly_checkin(user, body.still_sober)
+    return Response(result, status_code=status.HTTP_200_OK)

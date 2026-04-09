@@ -1,6 +1,6 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -67,6 +67,31 @@ class UserChallengeRepository:
         await self._session.refresh(uc)
         return uc
 
+    async def get_maintenance_by_user(self, user_id: int, challenge_type: str) -> UserChallenge | None:
+        """유지 모드 중인 특정 타입 챌린지 조회"""
+        result = await self._session.execute(
+            select(UserChallenge)
+            .join(Challenge)
+            .where(
+                UserChallenge.user_id == user_id,
+                UserChallenge.is_maintenance == True,
+                Challenge.type == challenge_type,
+            )
+            .options(selectinload(UserChallenge.challenge))
+        )
+        return result.scalar_one_or_none()
+
+    async def get_expired_maintenances(self, cutoff: datetime) -> list[UserChallenge]:
+        """체크인 기한이 지난 유지 모드 챌린지 목록 (2주 미응답 감지용)"""
+        result = await self._session.execute(
+            select(UserChallenge)
+            .where(
+                UserChallenge.is_maintenance == True,
+                UserChallenge.last_checkin_at < cutoff,
+            )
+        )
+        return list(result.scalars().all())
+
 
 class ChallengeLogRepository:
     def __init__(self, session: AsyncSession):
@@ -101,3 +126,27 @@ class ChallengeLogRepository:
             )
         )
         return len(result.scalars().all())
+
+    async def get_consecutive_days(self, user_challenge_id: int) -> int:
+        """오늘 기준 연속 완료 일수 계산 (뒤에서부터 끊기는 시점까지)"""
+        result = await self._session.execute(
+            select(ChallengeLog.log_date)
+            .where(
+                ChallengeLog.user_challenge_id == user_challenge_id,
+                ChallengeLog.is_completed == True,
+            )
+            .order_by(ChallengeLog.log_date.desc())
+        )
+        dates = [row[0] for row in result.all()]
+        if not dates:
+            return 0
+
+        consecutive = 0
+        expected = date.today()
+        for d in dates:
+            if d == expected:
+                consecutive += 1
+                expected -= timedelta(days=1)
+            elif d < expected:
+                break
+        return consecutive
