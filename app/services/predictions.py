@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.predictions import Prediction
 from app.models.users import User
-from app.repositories.challenge_repository import ChallengeRepository
+from app.repositories.challenge_repository import ChallengeLogRepository, ChallengeRepository, UserChallengeRepository
 from app.repositories.health_survey_repository import HealthSurveyRepository
 from app.repositories.prediction_repository import PredictionRepository
 
@@ -49,6 +49,8 @@ class PredictionService:
         self.repo = PredictionRepository(session)
         self.survey_repo = HealthSurveyRepository(session)
         self.challenge_repo = ChallengeRepository(session)
+        self.uc_repo = UserChallengeRepository(session)
+        self.log_repo = ChallengeLogRepository(session)
 
     async def predict(self, user: User) -> Prediction:
         survey = await self.survey_repo.get_by_user_id(user.id)
@@ -72,6 +74,11 @@ class PredictionService:
             )
 
         score = result["score"]
+
+        # 금주 유지 모드 회복 점수 반영
+        recovery = await self._calc_alcohol_recovery(user.id, survey)
+        score = min(100, score + recovery)
+
         grade = _calc_grade(score)
 
         improvement_factors = result.get("improvement_factors", [])
@@ -107,6 +114,29 @@ class PredictionService:
             ]
 
         return prediction
+
+    async def _calc_alcohol_recovery(self, user_id: int, survey) -> int:
+        """금주 유지 모드의 회복 점수 계산"""
+        uc = await self.uc_repo.get_maintenance_by_user(user_id, "금주")
+        if not uc:
+            return 0
+
+        consecutive = await self.log_repo.get_consecutive_days(uc.id)
+
+        from app.services.challenges import _calc_recovery_rate
+        recovery_rate = _calc_recovery_rate(consecutive)
+        if recovery_rate == 0:
+            return 0
+
+        from ai_worker.tasks.predict import _alcohol_penalty
+        alcohol_data = {
+            "음주여부": survey.drinking,
+            "1회음주량": survey.drink_amount,
+            "주당음주빈도": survey.weekly_drink_freq,
+            "월폭음빈도": survey.monthly_binge_freq,
+        }
+        penalty = _alcohol_penalty(alcohol_data)
+        return round(abs(penalty) * recovery_rate)
 
     async def get_predictions(self, user: User) -> list[Prediction]:
         return await self.repo.get_by_user_id(user.id)

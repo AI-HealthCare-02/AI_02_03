@@ -2,10 +2,11 @@ import pandas as pd
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_worker.tasks.predict import _load_model, _proba_to_score
+from ai_worker.tasks.predict import _alcohol_penalty, _load_model, _proba_to_score
 from app.dtos.health_surveys import SurveyCreateRequest, SurveyUpdateRequest, SurveyUpdateResponse
 from app.models.health_surveys import HealthSurvey
 from app.models.users import User
+from app.repositories.challenge_repository import ChallengeLogRepository, UserChallengeRepository
 from app.repositories.health_survey_repository import HealthSurveyRepository
 from app.repositories.prediction_repository import PredictionRepository
 from app.repositories.user_repository import UserRepository
@@ -20,13 +21,19 @@ def _calc_grade(score: int) -> str:
         return "정상"
     elif score >= 55:
         return "경미"
-    elif score >= 30:
+    elif score >= 35:
         return "중등도"
     else:
         return "중증"
 
 
 def _calc_score_from_survey(survey: HealthSurvey) -> int:
+    alcohol_data = {
+        "음주여부": survey.drinking,
+        "1회음주량": survey.drink_amount,
+        "주당음주빈도": survey.weekly_drink_freq,
+        "월폭음빈도": survey.monthly_binge_freq,
+    }
     features = {
         "나이": survey.age,
         "성별": survey.gender,
@@ -34,10 +41,6 @@ def _calc_score_from_survey(survey: HealthSurvey) -> int:
         "몸무게": survey.weight,
         "BMI": survey.bmi,
         "허리둘레": survey.waist,
-        "음주여부": survey.drinking,
-        "1회음주량": survey.drink_amount,
-        "주당음주빈도": survey.weekly_drink_freq,
-        "월폭음빈도": survey.monthly_binge_freq,
         "운동여부": survey.exercise,
         "주당운동횟수": survey.weekly_exercise_count,
         "흡연여부": survey.smoking,
@@ -50,7 +53,9 @@ def _calc_score_from_survey(survey: HealthSurvey) -> int:
     }
     model = _load_model()
     proba = model.predict_proba(pd.DataFrame([features]))[0]
-    return _proba_to_score(proba)
+    base_score = _proba_to_score(proba)
+    penalty = _alcohol_penalty(alcohol_data)
+    return min(max(10, base_score + penalty), 100)
 
 
 # 주류별 1잔 기준 순수 알코올(g) / 14g(NHANES standard drink)
@@ -98,6 +103,8 @@ class HealthSurveyService:
         self._session = session
         self.repo = HealthSurveyRepository(session)
         self.user_repo = UserRepository(session)
+        self.uc_repo = UserChallengeRepository(session)
+        self.log_repo = ChallengeLogRepository(session)
 
     async def create_survey(self, user: User, data: SurveyCreateRequest) -> HealthSurvey:
         existing = await self.repo.get_by_user_id(user.id)
@@ -151,6 +158,28 @@ class HealthSurveyService:
             )
         return survey
 
+    async def _calc_alcohol_recovery(self, user_id: int, survey) -> int:
+        """금주 유지 모드의 회복 점수 계산"""
+        uc = await self.uc_repo.get_maintenance_by_user(user_id, "금주")
+        if not uc:
+            return 0
+
+        consecutive = await self.log_repo.get_consecutive_days(uc.id)
+
+        from app.services.challenges import _calc_recovery_rate
+        recovery_rate = _calc_recovery_rate(consecutive)
+        if recovery_rate == 0:
+            return 0
+
+        alcohol_data = {
+            "음주여부": survey.drinking,
+            "1회음주량": survey.drink_amount,
+            "주당음주빈도": survey.weekly_drink_freq,
+            "월폭음빈도": survey.monthly_binge_freq,
+        }
+        penalty = _alcohol_penalty(alcohol_data)
+        return round(abs(penalty) * recovery_rate)
+
     async def update_survey(self, user: User, data: SurveyUpdateRequest) -> SurveyUpdateResponse:
         survey = await self.get_survey(user)
 
@@ -190,10 +219,18 @@ class HealthSurveyService:
         )
         update_data.update(raw)
 
+        # 음주 재개 시 금주 유지 모드 해제
+        if data.drinking and data.drinking != "음주안함":
+            maintenance_uc = await self.uc_repo.get_maintenance_by_user(user.id, "금주")
+            if maintenance_uc:
+                await self.uc_repo.update(maintenance_uc, {"is_maintenance": False})
+
         updated = await self.repo.update(survey, update_data)
 
-        # 업데이트된 설문으로 새 점수 계산
+        # 업데이트된 설문으로 새 점수 계산 (금주 회복 포함)
         new_score = _calc_score_from_survey(updated)
+        recovery = await self._calc_alcohol_recovery(user.id, updated)
+        new_score = min(100, new_score + recovery)
         new_grade = _calc_grade(new_score)
 
         return SurveyUpdateResponse(
