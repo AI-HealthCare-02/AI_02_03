@@ -1,71 +1,62 @@
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Card, CardContent } from "../components/ui/card";
 import { ChevronRight, LogOut } from "lucide-react";
+import api from "../../lib/api";
+
+interface UserInfo {
+  id: number;
+  email: string;
+  nickname: string;
+  is_onboarded: boolean;
+  created_at: string;
+}
 
 export function AccountManagement() {
   const navigate = useNavigate();
-  
-  // Mock user data
-  const user = {
-    name: "김건강",
-    email: "healthy@example.com",
-  };
+  const [user, setUser] = useState<UserInfo | null>(null);
 
-  // Email masking function
+  useEffect(() => {
+    api.get<UserInfo>("/api/v1/users/me").then((res) => setUser(res.data));
+  }, []);
+
   const maskEmail = (email: string) => {
     const [username, domain] = email.split("@");
-    if (username.length <= 3) {
-      return `${username.charAt(0)}***@${domain}`;
-    }
+    if (username.length <= 3) return `${username.charAt(0)}***@${domain}`;
     return `${username.substring(0, 3)}***@${domain}`;
   };
 
-  const handleLogout = () => {
-    // TODO: Implement logout logic
-    alert("로그아웃되었습니다.");
+  const handleLogout = async () => {
+    await api.post("/api/v1/auth/logout");
+    localStorage.removeItem("access_token");
     navigate("/login");
   };
 
   const menuItems = [
-    {
-      title: "내 정보 조회",
-      link: "/mypage/account/info",
-    },
-    {
-      title: "닉네임 설정",
-      link: "/mypage/account/nickname",
-    },
-    {
-      title: "비밀번호 변경",
-      link: "/mypage/account/password",
-    },
-    {
-      title: "회원 탈퇴",
-      link: "/mypage/account/delete",
-    },
+    { title: "내 정보 조회", link: "/mypage/account/info" },
+    { title: "닉네임 설정", link: "/mypage/account/nickname" },
+    { title: "비밀번호 변경", link: "/mypage/account/password" },
+    { title: "회원 탈퇴", link: "/mypage/account/delete" },
   ];
 
   return (
     <div className="space-y-6 pb-8">
-      {/* Page Header */}
       <div className="space-y-1">
         <h2 className="text-3xl font-bold text-gray-900">계정 관리</h2>
         <p className="text-gray-600">계정 정보를 관리하고 설정을 변경하세요</p>
       </div>
 
-      {/* User Info Card */}
       <Card className="border-2 border-emerald-100">
         <CardContent className="p-6">
           <div className="space-y-3">
             <h3 className="text-xl font-bold text-gray-900">
-              안녕하세요, {user.name}님!
+              안녕하세요, {user?.nickname ?? "..."}님!
             </h3>
-            <p className="text-gray-600">{maskEmail(user.email)}</p>
+            {user && <p className="text-gray-600">{maskEmail(user.email)}</p>}
           </div>
         </CardContent>
       </Card>
 
-      {/* Menu List */}
       <div className="space-y-3">
         {menuItems.map((item) => (
           <Link key={item.link} to={item.link}>
@@ -80,7 +71,6 @@ export function AccountManagement() {
           </Link>
         ))}
 
-        {/* Logout Button */}
         <Card
           className="border-2 border-gray-100 hover:border-red-300 hover:shadow-md transition-all cursor-pointer group"
           onClick={handleLogout}

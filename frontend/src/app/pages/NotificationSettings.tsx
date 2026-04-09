@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Label } from "../components/ui/label";
 import { Switch } from "../components/ui/switch";
@@ -12,38 +12,66 @@ import {
   AlertTriangle,
   Moon,
 } from "lucide-react";
+import api from "../../lib/api";
+
+interface NotificationSetting {
+  id: number;
+  user_id: number;
+  push_enabled: boolean;
+  appointment_reminder: boolean;
+  challenge_reminder: boolean;
+  weekly_report: boolean;
+  updated_at: string;
+}
 
 export function NotificationSettings() {
-  const [allNotifications, setAllNotifications] = useState(true);
+  // 백엔드 연동 필드
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [challengeReminder, setChallengeReminder] = useState(true);
+  const [weeklyReport, setWeeklyReport] = useState(true);
+  const [appointmentReminder, setAppointmentReminder] = useState(true);
+
+  // 로컬 전용 필드 (백엔드 미지원)
   const [notificationTime, setNotificationTime] = useState("09:00");
   const [nightMode, setNightMode] = useState(false);
-  
-  // 생활습관 알림
   const [dailyAction, setDailyAction] = useState(true);
-  const [challengeReminder, setChallengeReminder] = useState(true);
   const [streakReminder, setStreakReminder] = useState(true);
-  
-  // 건강 알림
   const [riskChange, setRiskChange] = useState(true);
-  const [weeklyReport, setWeeklyReport] = useState(true);
   const [goalAchievement, setGoalAchievement] = useState(true);
-  
-  // 기록 알림
   const [mealReminder, setMealReminder] = useState(false);
   const [waterReminder, setWaterReminder] = useState(false);
-  
-  // 핵심 알림
   const [alcoholWarning, setAlcoholWarning] = useState(true);
   const [immediateRiskAlert, setImmediateRiskAlert] = useState(true);
   const [challengeFailWarning, setChallengeFailWarning] = useState(true);
 
-  const handleSave = () => {
-    alert("알림 설정이 저장되었습니다.");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get<NotificationSetting>("/api/v1/notifications/settings").then((res) => {
+      const s = res.data;
+      setPushEnabled(s.push_enabled);
+      setChallengeReminder(s.challenge_reminder);
+      setWeeklyReport(s.weekly_report);
+      setAppointmentReminder(s.appointment_reminder);
+    });
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.put("/api/v1/notifications/settings", {
+        push_enabled: pushEnabled,
+        challenge_reminder: challengeReminder,
+        weekly_report: weeklyReport,
+        appointment_reminder: appointmentReminder,
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="space-y-6 pb-8">
-      {/* Page Header */}
       <div className="space-y-1">
         <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
           <Bell className="size-8 text-emerald-600" />
@@ -69,8 +97,8 @@ export function NotificationSettings() {
             </div>
             <Switch
               id="all-notifications"
-              checked={allNotifications}
-              onCheckedChange={setAllNotifications}
+              checked={pushEnabled}
+              onCheckedChange={setPushEnabled}
               className="data-[state=checked]:bg-emerald-600"
             />
           </div>
@@ -95,11 +123,11 @@ export function NotificationSettings() {
               type="time"
               value={notificationTime}
               onChange={(e) => setNotificationTime(e.target.value)}
-              disabled={!allNotifications}
+              disabled={!pushEnabled}
               className="w-full h-12 px-4 border-2 border-gray-200 rounded-lg text-lg font-medium disabled:bg-gray-100 disabled:text-gray-400"
             />
           </div>
-          
+
           <div className="flex items-center justify-between py-3 border-t">
             <div className="flex items-center gap-2">
               <Moon className="size-4 text-indigo-600" />
@@ -111,7 +139,7 @@ export function NotificationSettings() {
               id="night-mode"
               checked={nightMode}
               onCheckedChange={setNightMode}
-              disabled={!allNotifications}
+              disabled={!pushEnabled}
               className="data-[state=checked]:bg-indigo-600"
             />
           </div>
@@ -135,11 +163,11 @@ export function NotificationSettings() {
               id="daily-action"
               checked={dailyAction}
               onCheckedChange={setDailyAction}
-              disabled={!allNotifications}
+              disabled={!pushEnabled}
               className="data-[state=checked]:bg-emerald-600"
             />
           </div>
-          
+
           <div className="flex items-center justify-between py-3 border-b">
             <Label htmlFor="challenge-reminder" className="text-sm font-medium text-gray-900 cursor-pointer">
               챌린지 수행 알림
@@ -148,11 +176,11 @@ export function NotificationSettings() {
               id="challenge-reminder"
               checked={challengeReminder}
               onCheckedChange={setChallengeReminder}
-              disabled={!allNotifications}
+              disabled={!pushEnabled}
               className="data-[state=checked]:bg-emerald-600"
             />
           </div>
-          
+
           <div className="flex items-center justify-between py-3">
             <Label htmlFor="streak-reminder" className="text-sm font-medium text-gray-900 cursor-pointer">
               스트릭 유지 알림
@@ -161,7 +189,7 @@ export function NotificationSettings() {
               id="streak-reminder"
               checked={streakReminder}
               onCheckedChange={setStreakReminder}
-              disabled={!allNotifications}
+              disabled={!pushEnabled}
               className="data-[state=checked]:bg-emerald-600"
             />
           </div>
@@ -185,11 +213,11 @@ export function NotificationSettings() {
               id="risk-change"
               checked={riskChange}
               onCheckedChange={setRiskChange}
-              disabled={!allNotifications}
+              disabled={!pushEnabled}
               className="data-[state=checked]:bg-purple-600"
             />
           </div>
-          
+
           <div className="flex items-center justify-between py-3 border-b">
             <Label htmlFor="weekly-report" className="text-sm font-medium text-gray-900 cursor-pointer">
               주간 리포트 알림
@@ -198,11 +226,11 @@ export function NotificationSettings() {
               id="weekly-report"
               checked={weeklyReport}
               onCheckedChange={setWeeklyReport}
-              disabled={!allNotifications}
+              disabled={!pushEnabled}
               className="data-[state=checked]:bg-purple-600"
             />
           </div>
-          
+
           <div className="flex items-center justify-between py-3">
             <Label htmlFor="goal-achievement" className="text-sm font-medium text-gray-900 cursor-pointer">
               목표 달성 알림
@@ -211,7 +239,7 @@ export function NotificationSettings() {
               id="goal-achievement"
               checked={goalAchievement}
               onCheckedChange={setGoalAchievement}
-              disabled={!allNotifications}
+              disabled={!pushEnabled}
               className="data-[state=checked]:bg-purple-600"
             />
           </div>
@@ -235,11 +263,11 @@ export function NotificationSettings() {
               id="meal-reminder"
               checked={mealReminder}
               onCheckedChange={setMealReminder}
-              disabled={!allNotifications}
+              disabled={!pushEnabled}
               className="data-[state=checked]:bg-blue-600"
             />
           </div>
-          
+
           <div className="flex items-center justify-between py-3">
             <Label htmlFor="water-reminder" className="text-sm font-medium text-gray-900 cursor-pointer">
               물 섭취 알림
@@ -248,14 +276,14 @@ export function NotificationSettings() {
               id="water-reminder"
               checked={waterReminder}
               onCheckedChange={setWaterReminder}
-              disabled={!allNotifications}
+              disabled={!pushEnabled}
               className="data-[state=checked]:bg-blue-600"
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* 6. 핵심 알림 (강조 영역) */}
+      {/* 6. 핵심 알림 */}
       <Card className="border-2 border-red-200 bg-red-50/30">
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -278,11 +306,11 @@ export function NotificationSettings() {
               id="alcohol-warning"
               checked={alcoholWarning}
               onCheckedChange={setAlcoholWarning}
-              disabled={!allNotifications}
+              disabled={!pushEnabled}
               className="data-[state=checked]:bg-red-600"
             />
           </div>
-          
+
           <div className="flex items-center justify-between py-3 border-b border-red-200">
             <div className="flex items-center gap-2">
               <AlertTriangle className="size-4 text-red-600" />
@@ -294,11 +322,11 @@ export function NotificationSettings() {
               id="immediate-risk"
               checked={immediateRiskAlert}
               onCheckedChange={setImmediateRiskAlert}
-              disabled={!allNotifications}
+              disabled={!pushEnabled}
               className="data-[state=checked]:bg-red-600"
             />
           </div>
-          
+
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center gap-2">
               <AlertTriangle className="size-4 text-red-600" />
@@ -310,7 +338,7 @@ export function NotificationSettings() {
               id="challenge-fail"
               checked={challengeFailWarning}
               onCheckedChange={setChallengeFailWarning}
-              disabled={!allNotifications}
+              disabled={!pushEnabled}
               className="data-[state=checked]:bg-red-600"
             />
           </div>
@@ -321,9 +349,10 @@ export function NotificationSettings() {
       <div className="sticky bottom-4 pt-4">
         <Button
           onClick={handleSave}
+          disabled={saving}
           className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-base font-bold"
         >
-          설정 저장
+          {saving ? "저장 중..." : "설정 저장"}
         </Button>
       </div>
     </div>
