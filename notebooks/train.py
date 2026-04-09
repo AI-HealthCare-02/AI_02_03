@@ -33,7 +33,7 @@ from xgboost import XGBClassifier
 # 경로 설정
 # ================================
 BASE_DIR  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_PATH = os.path.join(BASE_DIR, "data", "nhanes_preprocessed.csv")
+DATA_PATH = os.path.join(BASE_DIR, "data", "nhanes_fatty_liver.csv")
 MODEL_DIR = os.path.join(BASE_DIR, "ai_worker", "models")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
@@ -45,16 +45,18 @@ print(f"shape: {df.shape}")
 print(f"지방간 단계 분포:\n{df['지방간단계'].value_counts().sort_index()}")
 
 TARGET = "지방간단계"
-X = df.drop(columns=[TARGET, "지방간단계명"])
+ALCOHOL_COLS = ["음주여부", "1회음주량", "주당음주빈도", "월폭음빈도"]
+X = df.drop(columns=[TARGET, "지방간단계명"] + ALCOHOL_COLS)
 y = df[TARGET]
 
 # ================================
-# 피처 정의 및 전처리기
+# 피처 정의 및 전처리기 (음주 피처 제거 — Sick Quitter Effect)
 # ================================
 NUMERIC_FEATURES = ["나이", "키", "몸무게", "BMI", "허리둘레",
-                    "1회음주량", "주당음주빈도", "월폭음빈도", "주당운동횟수", "평균수면시간"]
-BINARY_FEATURES  = ["성별", "음주여부", "운동여부", "흡연여부", "현재흡연여부",
-                    "당뇨진단여부", "고혈압진단여부", "수면장애여부"]
+                    "주당운동횟수"]
+BINARY_FEATURES  = ["성별", "흡연여부",
+                    "당뇨진단여부", "고혈압진단여부", "수면장애여부",
+                    "간질환진단여부"]
 ORDINAL_FEATURES = ["식습관자가평가"]
 
 preprocessor = ColumnTransformer(transformers=[

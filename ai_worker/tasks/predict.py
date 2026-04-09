@@ -15,6 +15,9 @@ LABEL_MAP = {0: "정상", 1: "경미", 2: "중등도", 3: "중증"}
 
 _MIDPOINTS = np.array([12.5, 37.5, 62.5, 87.5])
 
+# 모델에서 제거된 음주 피처 (Sick Quitter Effect로 제외, 별도 감점 처리)
+_ALCOHOL_COLS = ["음주여부", "1회음주량", "주당음주빈도", "월폭음빈도"]
+
 # 개선 번들: 각 생활습관 카테고리별 목표값 + 매칭할 챌린지 type
 # condition: 이미 목표치에 도달했으면 번들 스킵
 _IMPROVEMENT_BUNDLES = [
@@ -22,12 +25,7 @@ _IMPROVEMENT_BUNDLES = [
         "category": "금주",
         "challenge_type": "금주",
         "condition": lambda r: r.get("음주여부") != "음주안함",
-        "changes": {
-            "음주여부": "음주안함",
-            "1회음주량": 0.0,
-            "주당음주빈도": 0.0,
-            "월폭음빈도": 0.0,
-        },
+        "changes": {},  # 모델 외부 감점 방식이므로 모델 입력 변경 없음
     },
     {
         "category": "운동",
@@ -77,37 +75,73 @@ def _load_model():
     return _model
 
 
-def _temperature_scale(proba: np.ndarray, T: float = 1.8) -> np.ndarray:
+def _temperature_scale(proba: np.ndarray, T: float = 1.4) -> np.ndarray:
     scaled = proba ** (1.0 / T)
     return scaled / scaled.sum()
 
 
 def _proba_to_score(proba: np.ndarray) -> int:
-    """확률로 건강 점수 산출 (10~100, 높을수록 건강)"""
+    """확률로 건강 점수 산출 (20~100, 높을수록 건강) — 모델 기반 점수만, 음주 감점 미포함"""
     scaled = _temperature_scale(proba)
     raw = float(np.dot(scaled, _MIDPOINTS))
-    score = (87.5 - raw) / 75.0 * 100
-    return min(max(10, round(score)), 100)
+    score = 20 + (87.5 - raw) / 75.0 * 80
+    return min(max(20, round(score)), 100)
 
 
-def _get_improvement_factors(input_df: pd.DataFrame, current_score: int, top_n: int = 3) -> list[dict]:
+def _alcohol_penalty(input_data: dict) -> int:
+    """
+    음주량 기반 점수 감점 (모델 외부 후처리).
+    주간 총 standard drinks = 1회음주량 × 주당음주빈도
+    폭음 빈도에 따라 추가 감점.
+    """
+    if input_data.get("음주여부") == "음주안함":
+        return 0
+
+    penalty = 0
+
+    # 주간 음주량 감점
+    weekly_total = input_data.get("1회음주량", 0) * input_data.get("주당음주빈도", 0)
+    if weekly_total >= 14:
+        penalty -= 15
+    elif weekly_total >= 7:
+        penalty -= 8
+    elif weekly_total >= 3.5:
+        penalty -= 3
+
+    # 폭음 빈도 추가 감점
+    binge = input_data.get("월폭음빈도", 0)
+    if binge >= 4:
+        penalty -= 5
+    elif binge >= 2:
+        penalty -= 3
+
+    return penalty
+
+
+def _get_improvement_factors(input_df: pd.DataFrame, current_score: int, alcohol_data: dict, top_n: int = 3) -> list[dict]:
     """
     Counterfactual 방식으로 개선 효과가 큰 생활습관 요인 반환.
     각 번들의 목표값으로 바꿔서 실제 score 변화를 측정하고 상위 top_n 반환.
+    금주 번들은 모델이 아닌 alcohol_penalty 차이로 계산.
     """
     model = _load_model()
     row = input_df.iloc[0].to_dict()
 
     results = []
     for bundle in _IMPROVEMENT_BUNDLES:
-        if not bundle["condition"](row):
+        if not bundle["condition"]({**row, **alcohol_data}):
             continue
 
-        changes = bundle.get("changes") or bundle["changes_fn"](row)
-        modified_df = pd.DataFrame([{**row, **changes}])
-        proba = model.predict_proba(modified_df)[0]
-        new_score = _proba_to_score(proba)
-        delta = new_score - current_score
+        if bundle["category"] == "금주":
+            # 금주 효과 = 현재 음주 감점분 제거
+            penalty = _alcohol_penalty(alcohol_data)
+            delta = abs(penalty)
+        else:
+            changes = bundle.get("changes") or bundle["changes_fn"](row)
+            modified_df = pd.DataFrame([{**row, **changes}])
+            proba = model.predict_proba(modified_df)[0]
+            new_score = _proba_to_score(proba)
+            delta = new_score - current_score
 
         if delta > 0:
             results.append({
@@ -134,12 +168,19 @@ def predict_fatty_liver(self, input_data: dict) -> dict:
     """
     try:
         model = _load_model()
-        input_df = pd.DataFrame([input_data])
+
+        # 음주 데이터는 별도 보관 (모델 피처에서 제외됨)
+        alcohol_data = {col: input_data.get(col) for col in _ALCOHOL_COLS}
+        model_data = {k: v for k, v in input_data.items() if k not in _ALCOHOL_COLS}
+        input_df = pd.DataFrame([model_data])
 
         proba = model.predict_proba(input_df)[0]
         stage = int(np.argmax(proba))
-        score = _proba_to_score(proba)
-        improvement_factors = _get_improvement_factors(input_df, score)
+        base_score = _proba_to_score(proba)
+        penalty = _alcohol_penalty(alcohol_data)
+        score = min(max(10, base_score + penalty), 100)
+
+        improvement_factors = _get_improvement_factors(input_df, base_score, alcohol_data)
 
         return {
             "stage": stage,
