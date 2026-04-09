@@ -10,7 +10,7 @@ RUN npm ci
 
 # 3. 소스 코드 복사 및 빌드
 COPY . .
-RUN npm run build
+RUN npx vite build
 
 # --- 배포용 nginx 이미지 ---
 FROM nginx:alpine
