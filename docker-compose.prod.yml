@@ -72,24 +72,28 @@ services:
       redis:
         condition: service_healthy
 
-  # 5. Nginx (웹 서버 - 요청 리버스 프록시로 전달)
-  # TODO: 도메인 연결 후 활성화
-  # nginx:
-  #   container_name: nginx
-  #   image: nginx:latest
-  #   volumes:
-  #     - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-  #     - static_volume:/vol/web/static
-  #     - media_volume:/vol/web/media
-  #     - certbot-conf:/etc/letsencrypt
-  #     - certbot-www:/var/www/certbot
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   networks:
-  #     - ws
-  #   depends_on:
-  #     - fastapi
+  # 5. Frontend (React 빌드 + Nginx 서빙)
+  frontend:
+    container_name: frontend
+    image: ${DOCKER_USER}/${DOCKER_REPOSITORY}:frontend-${FRONTEND_VERSION}
+    networks:
+      - ws
+    depends_on:
+      - fastapi
+
+  # 6. Nginx (리버스 프록시 - 80 포트로 프론트/백 라우팅)
+  nginx:
+    container_name: nginx
+    image: nginx:latest
+    volumes:
+      - ./nginx/prod_http.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "80:80"
+    networks:
+      - ws
+    depends_on:
+      - fastapi
+      - frontend
 
   # 6. certbot: SSL 인증서 발급담당
   # TODO: 도메인 연결 후 활성화

@@ -1,15 +1,27 @@
 import logging
+import sys
 
-from app.core.config import Config
-from app.core.logger import setup_logger
+from ai_worker.core.config import Config
 
 
 def get_config() -> Config:
     return Config()
 
 
+def setup_logger(name: str = "ai_worker", level: int = logging.INFO) -> logging.Logger:
+    _logger = logging.getLogger(name)
+    if _logger.handlers:
+        return _logger
+    _logger.setLevel(level)
+    formatter = logging.Formatter("[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s")
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    _logger.addHandler(console_handler)
+    _logger.propagate = False
+    return _logger
+
+
 def get_logger() -> logging.Logger:
-    # 앱 전역에서 사용할 로거
     return setup_logger()
 
 
