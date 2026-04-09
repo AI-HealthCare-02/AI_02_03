@@ -7,7 +7,7 @@ import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
 import { Mail, Lock, User, ArrowRight, LogIn } from "lucide-react";
 import { authService } from "../../services/auth";
-import liverIcon from "../../assets/characters/liver_happy.PNG";
+import liverIcon from "../../assets/characters/liver_excellent.png";
 
 export function Signup() {
   const navigate = useNavigate();

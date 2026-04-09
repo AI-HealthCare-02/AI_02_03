@@ -9,7 +9,7 @@ import { Separator } from "../components/ui/separator";
 import { Mail, Lock, ArrowRight, UserPlus } from "lucide-react";
 import { authService } from "../../services/auth";
 import { useAuthStore } from "../../store/authStore";
-import liverIcon from "../../assets/characters/liver_happy.PNG";
+import liverIcon from "../../assets/characters/liver_excellent.png";
 
 export function Login() {
   const navigate = useNavigate();

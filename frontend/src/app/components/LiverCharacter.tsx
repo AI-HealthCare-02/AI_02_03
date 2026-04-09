@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 
-// TODO: 실제 간 캐릭터 이미지로 교체하세요
-// src/assets/liver/ 폴더에 아래 파일명으로 이미지를 넣으면 자동 적용됩니다:
-// liver-excellent.png, liver-good.png, liver-warning.png, liver-danger.png
+import liverExcellent from "../../assets/characters/liver_excellent.png";
+import liverGood from "../../assets/characters/liver_good.png";
+import liverWarning from "../../assets/characters/liver_warning.png";
+import liverDanger from "../../assets/characters/liver_danger.png";
 
 type HealthStatus = "excellent" | "good" | "warning" | "danger";
 
@@ -86,6 +87,15 @@ export function LiverCharacter({ healthScore, className = "" }: LiverCharacterPr
 
   const statusInfo = getStatusInfo();
 
+const liverImage =
+  status === "excellent"
+    ? liverExcellent
+    : status === "good"
+    ? liverGood
+    : status === "warning"
+    ? liverWarning
+    : liverDanger;
+
   return (
     <div className={`text-center space-y-6 ${className}`}>
       <div
@@ -103,7 +113,11 @@ export function LiverCharacter({ healthScore, className = "" }: LiverCharacterPr
           />
 
           {/* Character: 실제 이미지 or 플레이스홀더 */}
-          <LiverPlaceholder status={status} />
+          <img
+  src={liverImage}
+  alt="간 캐릭터"
+  className="w-48 h-48 object-contain mx-auto relative z-10"
+/>
 
           {/* Floating animation shadow */}
           <div
