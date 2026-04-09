@@ -24,7 +24,11 @@ class UserChallengeResponse(BaseModel):
     user_challenge_id: int
     challenge_name: str
     type: str
+    description: str
+    duration_days: int
     status: str
+    progress: int = 0
+    days_left: int = 0
     joined_at: datetime
     completed_at: datetime | None = None
 

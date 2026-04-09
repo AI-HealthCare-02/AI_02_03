@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -104,17 +104,28 @@ class ChallengeService:
 
     async def get_my_challenges(self, user: User, status_filter: str | None) -> list[UserChallengeResponse]:
         ucs = await self.uc_repo.get_by_user_id(user.id, status_filter)
-        return [
-            UserChallengeResponse(
-                user_challenge_id=uc.id,
-                challenge_name=uc.challenge.name,
-                type=uc.challenge.type,
-                status=uc.status,
-                joined_at=uc.joined_at,
-                completed_at=uc.completed_at,
+        result = []
+        for uc in ucs:
+            completed_logs = await self.log_repo.count_completed(uc.id)
+            required = uc.challenge.required_logs
+            progress = min(100, round(completed_logs / required * 100)) if required > 0 else 0
+            end_date = (uc.joined_at + timedelta(days=uc.challenge.duration_days)).date()
+            days_left = max(0, (end_date - date.today()).days)
+            result.append(
+                UserChallengeResponse(
+                    user_challenge_id=uc.id,
+                    challenge_name=uc.challenge.name,
+                    type=uc.challenge.type,
+                    description=uc.challenge.description,
+                    duration_days=uc.challenge.duration_days,
+                    status=uc.status,
+                    progress=progress,
+                    days_left=days_left,
+                    joined_at=uc.joined_at,
+                    completed_at=uc.completed_at,
+                )
             )
-            for uc in ucs
-        ]
+        return result
 
     async def complete_challenge(self, user: User, user_challenge_id: int) -> ChallengeCompleteResponse:
         uc = await self.uc_repo.get_by_id_and_user(user_challenge_id, user.id)

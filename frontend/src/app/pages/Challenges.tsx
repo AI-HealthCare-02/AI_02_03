@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import api from "../../lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -48,102 +49,92 @@ type Challenge = {
   daysLeft?: number;
 };
 
+interface UserChallengeAPI {
+  user_challenge_id: number;
+  challenge_name: string;
+  type: string;
+  description: string;
+  duration_days: number;
+  status: string;
+  progress: number;
+  days_left: number;
+}
+
+interface ChallengeAPI {
+  id: number;
+  type: string;
+  name: string;
+  description: string;
+  duration_days: number;
+  required_logs: number;
+  is_recommended: boolean;
+}
+
+const TYPE_ICON: Record<string, any> = {
+  운동: Activity,
+  식습관: Utensils,
+  식단: Utensils,
+  수면: Moon,
+  수분: Droplet,
+  금주: Trophy,
+  체중관리: Weight,
+};
+const typeIcon = (type: string) => TYPE_ICON[type] ?? Heart;
+
+const toChallenge = (c: ChallengeAPI): Challenge => ({
+  id: c.id,
+  title: c.name,
+  description: c.description,
+  icon: typeIcon(c.type),
+  duration: `${c.duration_days}일`,
+  participants: 0,
+  difficulty: "초급",
+  category: c.type,
+});
+
+const ucToChallenge = (uc: UserChallengeAPI): Challenge => ({
+  id: uc.user_challenge_id,
+  title: uc.challenge_name,
+  description: uc.description,
+  icon: typeIcon(uc.type),
+  duration: `${uc.duration_days}일`,
+  participants: 0,
+  difficulty: "초급",
+  category: uc.type,
+  progress: uc.progress,
+  daysLeft: uc.days_left,
+});
+
 type DietAnalysisState = "idle" | "loading" | "result";
 
 export function Challenges() {
   const [dietState, setDietState] = useState<DietAnalysisState>("idle");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [activeChallenges] = useState<Challenge[]>([
-    {
-      id: 1,
-      title: "30일 걷기 챌린지",
-      description: "매일 30분 이상 걷기를 실천하세요",
-      icon: Activity,
-      duration: "30일",
-      participants: 1250,
-      difficulty: "초급",
-      category: "운동",
-      progress: 75,
-      daysLeft: 7,
-    },
-    {
-      id: 2,
-      title: "설탕 줄이기 챌린지",
-      description: "첨가당 섭취를 하루 25g 이하로 제한하기",
-      icon: Utensils,
-      duration: "30일",
-      participants: 890,
-      difficulty: "중급",
-      category: "식습관",
-      progress: 60,
-      daysLeft: 12,
-    },
-    {
-      id: 3,
-      title: "규칙적인 수면 챌린지",
-      description: "매일 같은 시간에 잠들고 7시간 이상 수면",
-      icon: Moon,
-      duration: "21일",
-      participants: 645,
-      difficulty: "중급",
-      category: "수면",
-      progress: 45,
-      daysLeft: 16,
-    },
-  ]);
+  const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([]);
+  const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
+  const [joining, setJoining] = useState<number | null>(null);
 
-  const [availableChallenges] = useState<Challenge[]>([
-    {
-      id: 4,
-      title: "물 마시기 챌린지",
-      description: "하루 2L 이상의 물 마시기",
-      icon: Droplet,
-      duration: "14일",
-      participants: 2100,
-      difficulty: "초급",
-      category: "수분",
-    },
-    {
-      id: 5,
-      title: "체중 관리 챌린지",
-      description: "건강한 방법으로 체중 5% 감량하기",
-      icon: Weight,
-      duration: "90일",
-      participants: 567,
-      difficulty: "고급",
-      category: "체중관리",
-    },
-    {
-      id: 6,
-      title: "근력 운동 챌린지",
-      description: "주 3회 이상 근력 운동 실천하기",
-      icon: Heart,
-      duration: "30일",
-      participants: 823,
-      difficulty: "중급",
-      category: "운동",
-    },
-    {
-      id: 7,
-      title: "채소 먹기 챌린지",
-      description: "매 끼니마 채소 반 접시 이상 섭취",
-      icon: Utensils,
-      duration: "21일",
-      participants: 1456,
-      difficulty: "초급",
-      category: "식습관",
-    },
-    {
-      id: 8,
-      title: "금주 챌린지",
-      description: "30일간 음주하지 않기",
-      icon: Trophy,
-      duration: "30일",
-      participants: 432,
-      difficulty: "고급",
-      category: "생활습관",
-    },
-  ]);
+  const fetchActiveChallenges = async () => {
+    const r = await api.get<UserChallengeAPI[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } });
+    setActiveChallenges(r.data.map(ucToChallenge));
+  };
+
+  useEffect(() => {
+    fetchActiveChallenges();
+    api.get<ChallengeAPI[]>("/api/v1/challenges").then((r) => setAvailableChallenges(r.data.map(toChallenge)));
+  }, []);
+
+  const handleJoin = async (challengeId: number) => {
+    setJoining(challengeId);
+    try {
+      await api.post(`/api/v1/challenges/${challengeId}/join`);
+      await fetchActiveChallenges();
+    } catch {
+      // 이미 참여 중이거나 오류
+    } finally {
+      setJoining(null);
+    }
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -211,7 +202,7 @@ export function Challenges() {
         <TabsContent value="available" className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             {availableChallenges.map((challenge) => (
-              <AvailableChallengeCard key={challenge.id} challenge={challenge} />
+              <AvailableChallengeCard key={challenge.id} challenge={challenge} onJoin={handleJoin} joining={joining} />
             ))}
             
             {/* Add Custom Challenge Card */}
@@ -387,12 +378,20 @@ function ActiveChallengeCard({ challenge }: { challenge: Challenge }) {
   );
 }
 
-function AvailableChallengeCard({ challenge }: { challenge: Challenge }) {
+function AvailableChallengeCard({
+  challenge,
+  onJoin,
+  joining,
+}: {
+  challenge: Challenge;
+  onJoin?: (id: number) => void;
+  joining?: number | null;
+}) {
   const Icon = challenge.icon;
   const difficultyColors = {
-    "초급": "bg-green-100 text-green-900 border-green-200",
-    "중급": "bg-yellow-100 text-yellow-900 border-yellow-200",
-    "고급": "bg-red-100 text-red-900 border-red-200",
+    초급: "bg-green-100 text-green-900 border-green-200",
+    중급: "bg-yellow-100 text-yellow-900 border-yellow-200",
+    고급: "bg-red-100 text-red-900 border-red-200",
   };
 
   return (
@@ -427,8 +426,12 @@ function AvailableChallengeCard({ challenge }: { challenge: Challenge }) {
           </div>
         </div>
 
-        <Button className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700">
-          챌린지 시작하기
+        <Button
+          className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+          onClick={() => onJoin?.(challenge.id)}
+          disabled={joining === challenge.id}
+        >
+          {joining === challenge.id ? "참여 중..." : "챌린지 시작하기"}
         </Button>
       </CardContent>
     </Card>

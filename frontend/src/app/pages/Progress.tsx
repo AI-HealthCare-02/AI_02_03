@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import api from "../../lib/api";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -44,37 +45,21 @@ export function Progress() {
   const [dietState, setDietState] = useState<DietAnalysisState>("idle");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
-  // Mock data
   const streakDays = 14;
   const weeklyRate = 78;
-  const activeChallenges = 3;
   const earnedBadges = 8;
-  const healthScore = 78;
 
-  // Health score history
-  const [healthScoreHistory] = useState([
-    { day: "1일", score: 45 },
-    { day: "5일", score: 52 },
-    { day: "10일", score: 62 },
-    { day: "15일", score: 68 },
-    { day: "20일", score: 72 },
-    { day: "25일", score: 76 },
-    { day: "오늘", score: 78 },
-  ]);
+  const [healthScore, setHealthScore] = useState(0);
+  const [activeChallengesCount, setActiveChallengesCount] = useState(0);
+  const [healthScoreHistory, setHealthScoreHistory] = useState<{ day: string; score: number }[]>([]);
+  const [weightData, setWeightData] = useState<{ day: string; value: number }[]>([]);
+  const [alcoholData, setAlcoholData] = useState<{ day: string; amount: number }[]>([]);
+  const [smokingData, setSmokingData] = useState<{ day: string; amount: number }[]>([]);
+  const [activeChallengesList, setActiveChallengesList] = useState<Challenge[]>([]);
+  const [availableChallengesList, setAvailableChallengesList] = useState<Challenge[]>([]);
+  const [joiningChallenge, setJoiningChallenge] = useState<number | null>(null);
 
-  // BMI data
-  const [bmiData] = useState([
-    { day: "월", value: 24.2 },
-    { day: "화", value: 24.1 },
-    { day: "수", value: 24.0 },
-    { day: "목", value: 23.9 },
-    { day: "금", value: 23.8 },
-    { day: "토", value: 23.7 },
-    { day: "일", value: 23.6 },
-  ]);
-
-  // Sleep data
-  const [sleepData] = useState([
+  const sleepData = [
     { day: "월", hours: 7.2 },
     { day: "화", hours: 6.5 },
     { day: "수", hours: 7.8 },
@@ -82,92 +67,142 @@ export function Progress() {
     { day: "금", hours: 6.8 },
     { day: "토", hours: 8.2 },
     { day: "일", hours: 7.9 },
-  ]);
+  ];
 
-  // Alcohol data
-  const [alcoholData] = useState([
-    { day: "월", amount: 0 },
-    { day: "화", amount: 0 },
-    { day: "수", amount: 1 },
-    { day: "목", amount: 0 },
-    { day: "금", amount: 2 },
-    { day: "토", amount: 3 },
-    { day: "일", amount: 0 },
-  ]);
+  const TYPE_ICON: Record<string, any> = {
+    운동: Activity,
+    식습관: Scale,
+    식단: Scale,
+    수면: BedDouble,
+    수분: Activity,
+    금주: Award,
+    체중관리: Scale,
+  };
+  const typeIcon = (type: string) => TYPE_ICON[type] ?? Activity;
 
-  // Smoking data
-  const [smokingData] = useState([
-    { day: "월", amount: 0 },
-    { day: "화", amount: 0 },
-    { day: "수", amount: 0 },
-    { day: "목", amount: 0 },
-    { day: "금", amount: 0 },
-    { day: "토", amount: 0 },
-    { day: "일", amount: 0 },
-  ]);
+  const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
-  // Challenges data
-  const [activeChallengesList] = useState<Challenge[]>([
-    {
-      id: 1,
-      title: "30일 걷기 챌린지",
-      description: "매일 30분 이상 걷기를 실천하세요",
-      icon: Activity,
-      duration: "30일",
-      participants: 1250,
-      difficulty: "초급",
-      category: "운동",
-      progress: 75,
-      daysLeft: 7,
-    },
-    {
-      id: 2,
-      title: "설탕 줄이기 챌린지",
-      description: "첨가당 섭취를 하루 25g 이하로 제한하기",
-      icon: Activity,
-      duration: "30일",
-      participants: 890,
-      difficulty: "중급",
-      category: "식습관",
-      progress: 60,
-      daysLeft: 12,
-    },
-    {
-      id: 3,
-      title: "규칙적인 수면 챌린지",
-      description: "매일 같은 시간에 잠들고 7시간 이상 수면",
-      icon: BedDouble,
-      duration: "21일",
-      participants: 645,
-      difficulty: "중급",
-      category: "수면",
-      progress: 45,
-      daysLeft: 16,
-    },
-  ]);
+  useEffect(() => {
+    // 건강 점수 히스토리
+    api
+      .get<{ score: number; grade: string; created_at: string }[]>("/api/v1/predictions/me")
+      .then((r) => {
+        if (r.data.length > 0) {
+          setHealthScore(Math.round(r.data[0].score));
+          setHealthScoreHistory(
+            r.data
+              .slice(0, 7)
+              .reverse()
+              .map((p, i) => ({ day: `${i + 1}회`, score: Math.round(p.score) }))
+          );
+        }
+      })
+      .catch(() => {});
 
-  const [availableChallengesList] = useState<Challenge[]>([
-    {
-      id: 4,
-      title: "물 마시기 챌린지",
-      description: "하루 2L 이상의 물 마시기",
-      icon: Activity,
-      duration: "14일",
-      participants: 2100,
-      difficulty: "초급",
-      category: "수분",
-    },
-    {
-      id: 5,
-      title: "체중 관리 챌린지",
-      description: "목표 체중까지 건강하게 감량하기",
-      icon: Scale,
-      duration: "60일",
-      participants: 1580,
-      difficulty: "중급",
-      category: "운동",
-    },
-  ]);
+    // 건강 로그 (체중, 음주, 흡연)
+    const now = new Date();
+    api
+      .get<
+        {
+          log_date: string;
+          weight: number | null;
+          alcohol_amount: number | null;
+          smoking_amount: number | null;
+        }[]
+      >("/api/v1/health-logs/me", { params: { year: now.getFullYear(), month: now.getMonth() + 1 } })
+      .then((r) => {
+        const recent = r.data.slice(0, 7).reverse();
+        setWeightData(recent.map((l) => ({ day: DAYS[new Date(l.log_date).getDay()], value: l.weight ?? 0 })));
+        setAlcoholData(recent.map((l) => ({ day: DAYS[new Date(l.log_date).getDay()], amount: l.alcohol_amount ?? 0 })));
+        setSmokingData(
+          recent.map((l) => ({ day: DAYS[new Date(l.log_date).getDay()], amount: l.smoking_amount ?? 0 }))
+        );
+      })
+      .catch(() => {});
+
+    // 진행 중 챌린지
+    api
+      .get<
+        {
+          user_challenge_id: number;
+          challenge_name: string;
+          type: string;
+          description: string;
+          duration_days: number;
+          progress: number;
+          days_left: number;
+        }[]
+      >("/api/v1/user-challenges/me", { params: { status: "진행중" } })
+      .then((r) => {
+        setActiveChallengesCount(r.data.length);
+        setActiveChallengesList(
+          r.data.map((uc) => ({
+            id: uc.user_challenge_id,
+            title: uc.challenge_name,
+            description: uc.description,
+            icon: typeIcon(uc.type),
+            duration: `${uc.duration_days}일`,
+            participants: 0,
+            difficulty: "초급" as const,
+            category: uc.type,
+            progress: uc.progress,
+            daysLeft: uc.days_left,
+          }))
+        );
+      })
+      .catch(() => {});
+
+    // 참여 가능 챌린지
+    api
+      .get<{ id: number; type: string; name: string; description: string; duration_days: number }[]>(
+        "/api/v1/challenges"
+      )
+      .then((r) =>
+        setAvailableChallengesList(
+          r.data.map((c) => ({
+            id: c.id,
+            title: c.name,
+            description: c.description,
+            icon: typeIcon(c.type),
+            duration: `${c.duration_days}일`,
+            participants: 0,
+            difficulty: "초급" as const,
+            category: c.type,
+          }))
+        )
+      )
+      .catch(() => {});
+  }, []);
+
+  const handleJoinChallenge = async (challengeId: number) => {
+    setJoiningChallenge(challengeId);
+    try {
+      await api.post(`/api/v1/challenges/${challengeId}/join`);
+      const r = await api.get<{ user_challenge_id: number; challenge_name: string; type: string; description: string; duration_days: number; progress: number; days_left: number }[]>(
+        "/api/v1/user-challenges/me",
+        { params: { status: "진행중" } }
+      );
+      setActiveChallengesCount(r.data.length);
+      setActiveChallengesList(
+        r.data.map((uc) => ({
+          id: uc.user_challenge_id,
+          title: uc.challenge_name,
+          description: uc.description,
+          icon: typeIcon(uc.type),
+          duration: `${uc.duration_days}일`,
+          participants: 0,
+          difficulty: "초급" as const,
+          category: uc.type,
+          progress: uc.progress,
+          daysLeft: uc.days_left,
+        }))
+      );
+    } catch {
+      // 이미 참여 중
+    } finally {
+      setJoiningChallenge(null);
+    }
+  };
 
   // Badges data
   const [badges] = useState([
@@ -282,7 +317,7 @@ export function Progress() {
                     <Activity className="size-5 text-purple-600" />
                   </div>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">{activeChallenges}개</p>
+                <p className="text-2xl font-bold text-gray-900">{activeChallengesCount}개</p>
                 <p className="text-sm text-gray-600">활성 챌린지</p>
               </CardContent>
             </Card>
@@ -352,15 +387,21 @@ export function Progress() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="text-center p-3 bg-emerald-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">현재</p>
-                  <p className="text-xl font-bold text-emerald-600">78점</p>
+                  <p className="text-xl font-bold text-emerald-600">{healthScore}점</p>
                 </div>
                 <div className="text-center p-3 bg-blue-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">최고</p>
-                  <p className="text-xl font-bold text-blue-600">80점</p>
+                  <p className="text-xl font-bold text-blue-600">
+                    {healthScoreHistory.length > 0 ? Math.max(...healthScoreHistory.map((h) => h.score)) : "-"}점
+                  </p>
                 </div>
                 <div className="text-center p-3 bg-purple-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">평균</p>
-                  <p className="text-xl font-bold text-purple-600">66점</p>
+                  <p className="text-xl font-bold text-purple-600">
+                    {healthScoreHistory.length > 0
+                      ? Math.round(healthScoreHistory.reduce((s, h) => s + h.score, 0) / healthScoreHistory.length)
+                      : "-"}점
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -368,25 +409,27 @@ export function Progress() {
 
           {/* Health Metrics Grid */}
           <div className="grid md:grid-cols-2 gap-4">
-            {/* BMI */}
+            {/* 체중 */}
             <Card className="border-2 border-emerald-100">
               <CardContent className="pt-6">
                 <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <Scale className="size-4 text-emerald-600" />
-                  BMI
+                  체중(kg)
                 </h4>
                 <ResponsiveContainer width="100%" height={150}>
-                  <LineChart data={bmiData}>
+                  <LineChart data={weightData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="day" tick={{ fontSize: 10 }} />
-                    <YAxis domain={[23, 25]} tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip />
                     <Line type="monotone" dataKey="value" stroke="#22C55E" strokeWidth={2} dot={{ fill: "#22C55E", r: 3 }} />
                   </LineChart>
                 </ResponsiveContainer>
                 <div className="mt-2 text-center">
-                  <p className="text-xl font-bold text-gray-900">23.6</p>
-                  <p className="text-xs text-gray-600">현재 BMI</p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {weightData.length > 0 ? `${weightData[weightData.length - 1].value}kg` : "-"}
+                  </p>
+                  <p className="text-xs text-gray-600">최근 기록</p>
                 </div>
               </CardContent>
             </Card>
@@ -431,7 +474,9 @@ export function Progress() {
                   </BarChart>
                 </ResponsiveContainer>
                 <div className="mt-2 text-center">
-                  <p className="text-xl font-bold text-gray-900">6잔</p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {alcoholData.reduce((s, d) => s + d.amount, 0)}잔
+                  </p>
                   <p className="text-xs text-gray-600">이번 주 총량</p>
                 </div>
               </CardContent>
@@ -454,7 +499,9 @@ export function Progress() {
                   </BarChart>
                 </ResponsiveContainer>
                 <div className="mt-2 text-center">
-                  <p className="text-xl font-bold text-gray-900">0개</p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {smokingData.reduce((s, d) => s + d.amount, 0)}개
+                  </p>
                   <p className="text-xs text-gray-600">이번 주 총량</p>
                 </div>
               </CardContent>
@@ -532,8 +579,12 @@ export function Progress() {
                         </div>
                       </div>
                     </div>
-                    <Button className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700">
-                      참여하기
+                    <Button
+                      className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+                      onClick={() => handleJoinChallenge(challenge.id)}
+                      disabled={joiningChallenge === challenge.id}
+                    >
+                      {joiningChallenge === challenge.id ? "참여 중..." : "참여하기"}
                     </Button>
                   </CardContent>
                 </Card>
