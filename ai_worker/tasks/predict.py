@@ -5,9 +5,9 @@ import joblib
 import numpy as np
 import pandas as pd
 
-warnings.filterwarnings("ignore", message="X does not have valid feature names")
-
 from ai_worker.main import app
+
+warnings.filterwarnings("ignore", message="X does not have valid feature names")
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "../models/fatty_liver_model.pkl")
 
@@ -75,7 +75,7 @@ def _load_model():
     return _model
 
 
-def _temperature_scale(proba: np.ndarray, T: float = 1.4) -> np.ndarray:
+def _temperature_scale(proba: np.ndarray, T: float = 1.4) -> np.ndarray:  # noqa: N803
     scaled = proba ** (1.0 / T)
     return scaled / scaled.sum()
 
@@ -118,7 +118,9 @@ def _alcohol_penalty(input_data: dict) -> int:
     return penalty
 
 
-def _get_improvement_factors(input_df: pd.DataFrame, current_score: int, alcohol_data: dict, top_n: int = 3) -> list[dict]:
+def _get_improvement_factors(
+    input_df: pd.DataFrame, current_score: int, alcohol_data: dict, top_n: int = 3
+) -> list[dict]:
     """
     Counterfactual 방식으로 개선 효과가 큰 생활습관 요인 반환.
     각 번들의 목표값으로 바꿔서 실제 score 변화를 측정하고 상위 top_n 반환.
@@ -144,11 +146,13 @@ def _get_improvement_factors(input_df: pd.DataFrame, current_score: int, alcohol
             delta = new_score - current_score
 
         if delta > 0:
-            results.append({
-                "category": bundle["category"],
-                "challenge_type": bundle["challenge_type"],
-                "score_delta": delta,
-            })
+            results.append(
+                {
+                    "category": bundle["category"],
+                    "challenge_type": bundle["challenge_type"],
+                    "score_delta": delta,
+                }
+            )
 
     results.sort(key=lambda x: x["score_delta"], reverse=True)
     return results[:top_n]
@@ -190,4 +194,4 @@ def predict_fatty_liver(self, input_data: dict) -> dict:
             "improvement_factors": improvement_factors,
         }
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=5)
+        raise self.retry(exc=exc, countdown=5)  # noqa: B904

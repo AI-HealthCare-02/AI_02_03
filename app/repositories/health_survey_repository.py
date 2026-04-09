@@ -9,9 +9,7 @@ class HealthSurveyRepository:
         self._session = session
 
     async def get_by_user_id(self, user_id: int) -> HealthSurvey | None:
-        result = await self._session.execute(
-            select(HealthSurvey).where(HealthSurvey.user_id == user_id)
-        )
+        result = await self._session.execute(select(HealthSurvey).where(HealthSurvey.user_id == user_id))
         return result.scalar_one_or_none()
 
     async def create(self, data: dict) -> HealthSurvey:

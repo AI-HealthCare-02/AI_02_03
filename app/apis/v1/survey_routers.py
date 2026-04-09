@@ -11,7 +11,6 @@ from app.dtos.health_surveys import (
     SurveyCreateResponse,
     SurveyInfoResponse,
     SurveyUpdateRequest,
-    SurveyUpdateResponse,
 )
 from app.models.users import User
 from app.services.health_surveys import HealthSurveyService

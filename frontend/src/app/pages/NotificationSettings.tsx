@@ -21,17 +21,25 @@ interface NotificationSetting {
   appointment_reminder: boolean;
   challenge_reminder: boolean;
   weekly_report: boolean;
+  notification_time: string;
+  night_mode_enabled: boolean;
+  daily_action_reminder: boolean;
+  streak_reminder: boolean;
+  risk_change_alert: boolean;
+  goal_achievement_alert: boolean;
+  meal_reminder: boolean;
+  water_reminder: boolean;
+  alcohol_warning: boolean;
+  immediate_risk_alert: boolean;
+  challenge_fail_warning: boolean;
   updated_at: string;
 }
 
 export function NotificationSettings() {
-  // 백엔드 연동 필드
   const [pushEnabled, setPushEnabled] = useState(true);
+  const [appointmentReminder, setAppointmentReminder] = useState(true);
   const [challengeReminder, setChallengeReminder] = useState(true);
   const [weeklyReport, setWeeklyReport] = useState(true);
-  const [appointmentReminder, setAppointmentReminder] = useState(true);
-
-  // 로컬 전용 필드 (백엔드 미지원)
   const [notificationTime, setNotificationTime] = useState("09:00");
   const [nightMode, setNightMode] = useState(false);
   const [dailyAction, setDailyAction] = useState(true);
@@ -50,9 +58,20 @@ export function NotificationSettings() {
     api.get<NotificationSetting>("/api/v1/notifications/settings").then((res) => {
       const s = res.data;
       setPushEnabled(s.push_enabled);
+      setAppointmentReminder(s.appointment_reminder);
       setChallengeReminder(s.challenge_reminder);
       setWeeklyReport(s.weekly_report);
-      setAppointmentReminder(s.appointment_reminder);
+      setNotificationTime(s.notification_time);
+      setNightMode(s.night_mode_enabled);
+      setDailyAction(s.daily_action_reminder);
+      setStreakReminder(s.streak_reminder);
+      setRiskChange(s.risk_change_alert);
+      setGoalAchievement(s.goal_achievement_alert);
+      setMealReminder(s.meal_reminder);
+      setWaterReminder(s.water_reminder);
+      setAlcoholWarning(s.alcohol_warning);
+      setImmediateRiskAlert(s.immediate_risk_alert);
+      setChallengeFailWarning(s.challenge_fail_warning);
     });
   }, []);
 
@@ -61,9 +80,20 @@ export function NotificationSettings() {
     try {
       await api.put("/api/v1/notifications/settings", {
         push_enabled: pushEnabled,
+        appointment_reminder: appointmentReminder,
         challenge_reminder: challengeReminder,
         weekly_report: weeklyReport,
-        appointment_reminder: appointmentReminder,
+        notification_time: notificationTime,
+        night_mode_enabled: nightMode,
+        daily_action_reminder: dailyAction,
+        streak_reminder: streakReminder,
+        risk_change_alert: riskChange,
+        goal_achievement_alert: goalAchievement,
+        meal_reminder: mealReminder,
+        water_reminder: waterReminder,
+        alcohol_warning: alcoholWarning,
+        immediate_risk_alert: immediateRiskAlert,
+        challenge_fail_warning: challengeFailWarning,
       });
     } finally {
       setSaving(false);

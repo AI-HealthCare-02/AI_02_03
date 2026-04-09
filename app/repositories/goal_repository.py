@@ -1,5 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.goals import Goal
 
 
@@ -21,9 +22,7 @@ class GoalRepository:
         return list(result.scalars().all())
 
     async def get_goal(self, goal_id: int, user_id: int) -> Goal | None:
-        result = await self._session.execute(
-            select(Goal).where(Goal.id == goal_id, Goal.user_id == user_id)
-        )
+        result = await self._session.execute(select(Goal).where(Goal.id == goal_id, Goal.user_id == user_id))
         return result.scalar_one_or_none()
 
     async def update_goal(self, goal: Goal, data: dict) -> Goal:

@@ -81,6 +81,7 @@ asyncio_mode = "auto"
 # 기본 라인 길이 설정
 line-length = 120
 target-version = "py312"
+exclude = ["notebooks", ".venv"]
 
 [tool.ruff.lint]
 # 사용할 린트 규칙들 선택
@@ -99,7 +100,7 @@ ignore = ["UP046", "E501"]
 # 특정 파일에서 무시할 규칙들
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-"db/migrations/*" = ["ALL"]
+"app/db/migrations/*" = ["ALL"]
 
 [tool.ruff.format]
 # 포매터 설정

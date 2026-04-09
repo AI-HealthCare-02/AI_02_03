@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Float, Integer, String, ForeignKey
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.databases import Base
@@ -40,6 +40,8 @@ class HealthSurvey(Base):
     hypertension: Mapped[str] = mapped_column(String(10), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now, onupdate=datetime.now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.now, onupdate=datetime.now, nullable=False
+    )
 
     user = relationship("User", back_populates="health_survey")

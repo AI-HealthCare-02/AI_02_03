@@ -67,11 +67,11 @@ class PredictionService:
 
         try:
             result = task_result.get(timeout=30)
-        except Exception:
+        except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="AI 예측 서비스에 연결할 수 없습니다.",
-            )
+            ) from e
 
         score = result["score"]
 
@@ -82,35 +82,28 @@ class PredictionService:
         grade = _calc_grade(score)
 
         improvement_factors = result.get("improvement_factors", [])
-        prediction = await self.repo.create({
-            "user_id": user.id,
-            "score": score,
-            "grade": grade,
-            "character_state": result["stage_label"],
-            "shap_factors": improvement_factors,
-        })
+        prediction = await self.repo.create(
+            {
+                "user_id": user.id,
+                "score": score,
+                "grade": grade,
+                "character_state": result["stage_label"],
+                "shap_factors": improvement_factors,
+            }
+        )
 
         # counterfactual 개선 요인 기반 추천 챌린지
         challenge_types = [f["challenge_type"] for f in improvement_factors]
         all_challenges = await self.challenge_repo.get_all()
-        matched = [
-            {"id": c.id, "name": c.name, "type": c.type}
-            for c in all_challenges
-            if c.type in challenge_types
-        ]
+        matched = [{"id": c.id, "name": c.name, "type": c.type} for c in all_challenges if c.type in challenge_types]
 
         if matched:
             prediction.recommended_challenges = matched
         else:
             # 개선 여지 없음(이미 건강) → 운동 챌린지 우선 추천
-            general = [
-                {"id": c.id, "name": c.name, "type": c.type}
-                for c in all_challenges
-                if c.type == "운동"
-            ]
+            general = [{"id": c.id, "name": c.name, "type": c.type} for c in all_challenges if c.type == "운동"]
             prediction.recommended_challenges = general or [
-                {"id": c.id, "name": c.name, "type": c.type}
-                for c in all_challenges[:2]
+                {"id": c.id, "name": c.name, "type": c.type} for c in all_challenges[:2]
             ]
 
         return prediction
@@ -124,11 +117,13 @@ class PredictionService:
         consecutive = await self.log_repo.get_consecutive_days(uc.id)
 
         from app.services.challenges import _calc_recovery_rate
+
         recovery_rate = _calc_recovery_rate(consecutive)
         if recovery_rate == 0:
             return 0
 
         from app.utils.score import _alcohol_penalty
+
         alcohol_data = {
             "음주여부": survey.drinking,
             "1회음주량": survey.drink_amount,

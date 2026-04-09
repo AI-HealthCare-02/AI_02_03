@@ -21,5 +21,8 @@ class User(Base):
     medications = relationship("Medication", back_populates="user", cascade="all, delete-orphan")
     goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
     appointments = relationship("Appointment", back_populates="user", cascade="all, delete-orphan")
-    notification_settings = relationship("NotificationSetting", back_populates="user", cascade="all, delete-orphan", uselist=False)
+    notification_settings = relationship(
+        "NotificationSetting", back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
     user_challenges = relationship("UserChallenge", back_populates="user", cascade="all, delete-orphan")
+    daily_health_logs = relationship("DailyHealthLog", back_populates="user", cascade="all, delete-orphan")

@@ -3,7 +3,6 @@ import asyncio
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.utils.score import _alcohol_penalty
 from app.dtos.health_surveys import SurveyCreateRequest, SurveyUpdateRequest, SurveyUpdateResponse
 from app.models.health_surveys import HealthSurvey
 from app.models.users import User
@@ -11,6 +10,7 @@ from app.repositories.challenge_repository import ChallengeLogRepository, UserCh
 from app.repositories.health_survey_repository import HealthSurveyRepository
 from app.repositories.prediction_repository import PredictionRepository
 from app.repositories.user_repository import UserRepository
+from app.utils.score import _alcohol_penalty
 
 
 def _calc_bmi(weight: float, height: float) -> float:
@@ -167,6 +167,7 @@ class HealthSurveyService:
         consecutive = await self.log_repo.get_consecutive_days(uc.id)
 
         from app.services.challenges import _calc_recovery_rate
+
         recovery_rate = _calc_recovery_rate(consecutive)
         if recovery_rate == 0:
             return 0

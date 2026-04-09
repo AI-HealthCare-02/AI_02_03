@@ -75,9 +75,7 @@ CHALLENGES = [
 async def seed():
     async with async_session_maker() as session:
         for data in CHALLENGES:
-            exists = await session.execute(
-                select(Challenge).where(Challenge.name == data["name"])
-            )
+            exists = await session.execute(select(Challenge).where(Challenge.name == data["name"]))
             if exists.scalar_one_or_none():
                 print(f"[SKIP] {data['name']}")
                 continue

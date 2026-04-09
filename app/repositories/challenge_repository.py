@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -16,9 +16,7 @@ class ChallengeRepository:
         return list(result.scalars().all())
 
     async def get_by_id(self, challenge_id: int) -> Challenge | None:
-        result = await self._session.execute(
-            select(Challenge).where(Challenge.id == challenge_id)
-        )
+        result = await self._session.execute(select(Challenge).where(Challenge.id == challenge_id))
         return result.scalar_one_or_none()
 
 
@@ -45,9 +43,7 @@ class UserChallengeRepository:
         return result.scalar_one_or_none()
 
     async def get_by_user_id(self, user_id: int, status: str | None = None) -> list[UserChallenge]:
-        q = select(UserChallenge).where(UserChallenge.user_id == user_id).options(
-            selectinload(UserChallenge.challenge)
-        )
+        q = select(UserChallenge).where(UserChallenge.user_id == user_id).options(selectinload(UserChallenge.challenge))
         if status:
             q = q.where(UserChallenge.status == status)
         result = await self._session.execute(q.order_by(UserChallenge.joined_at.desc()))
@@ -74,7 +70,7 @@ class UserChallengeRepository:
             .join(Challenge)
             .where(
                 UserChallenge.user_id == user_id,
-                UserChallenge.is_maintenance == True,
+                UserChallenge.is_maintenance.is_(True),
                 Challenge.type == challenge_type,
             )
             .options(selectinload(UserChallenge.challenge))
@@ -84,9 +80,8 @@ class UserChallengeRepository:
     async def get_expired_maintenances(self, cutoff: datetime) -> list[UserChallenge]:
         """체크인 기한이 지난 유지 모드 챌린지 목록 (2주 미응답 감지용)"""
         result = await self._session.execute(
-            select(UserChallenge)
-            .where(
-                UserChallenge.is_maintenance == True,
+            select(UserChallenge).where(
+                UserChallenge.is_maintenance.is_(True),
                 UserChallenge.last_checkin_at < cutoff,
             )
         )
@@ -122,7 +117,7 @@ class ChallengeLogRepository:
         result = await self._session.execute(
             select(ChallengeLog).where(
                 ChallengeLog.user_challenge_id == user_challenge_id,
-                ChallengeLog.is_completed == True,
+                ChallengeLog.is_completed.is_(True),
             )
         )
         return len(result.scalars().all())
@@ -133,7 +128,7 @@ class ChallengeLogRepository:
             select(ChallengeLog.log_date)
             .where(
                 ChallengeLog.user_challenge_id == user_challenge_id,
-                ChallengeLog.is_completed == True,
+                ChallengeLog.is_completed.is_(True),
             )
             .order_by(ChallengeLog.log_date.desc())
         )

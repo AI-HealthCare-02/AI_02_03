@@ -10,7 +10,6 @@ from app.dtos.challenges import (
     ChallengeResponse,
     UserChallengeResponse,
 )
-from app.models.challenges import Challenge, UserChallenge
 from app.models.users import User
 from app.repositories.challenge_repository import (
     ChallengeLogRepository,
@@ -35,10 +34,10 @@ _IMPROVEMENT_MESSAGES = {
 
 # 금주 유지 연속 일수 → 회복률 매핑
 _RECOVERY_TIERS = [
-    (30, 1.0),   # 30일 이상: 100% 회복
+    (30, 1.0),  # 30일 이상: 100% 회복
     (21, 0.75),  # 21일 이상: 75%
-    (14, 0.5),   # 14일 이상: 50%
-    (7, 0.3),    # 7일 이상: 30%
+    (14, 0.5),  # 14일 이상: 50%
+    (7, 0.3),  # 7일 이상: 30%
 ]
 
 
@@ -80,9 +79,7 @@ class ChallengeService:
 
         # 최근 예측의 개선 요인으로 추천 챌린지 판단
         latest = await self.prediction_repo.get_latest_by_user_id(user.id)
-        recommended_types = _get_recommended_challenge_types(
-            latest.shap_factors if latest else []
-        )
+        recommended_types = _get_recommended_challenge_types(latest.shap_factors if latest else [])
 
         result = []
         for c in challenges:
@@ -155,7 +152,9 @@ class ChallengeService:
             survey_changes = {"field": "weekly_exercise_count", "before": before_val, "after": new_val}
 
         # 새 점수 계산
-        from app.services.health_surveys import _calc_score_from_survey, _calc_grade as _grade
+        from app.services.health_surveys import _calc_grade as _grade
+        from app.services.health_surveys import _calc_score_from_survey
+
         updated_survey = await self.survey_repo.get_by_user_id(user.id)
         new_score = float(_calc_score_from_survey(updated_survey)) if updated_survey else score_before
 
@@ -165,7 +164,8 @@ class ChallengeService:
         new_grade = _grade(int(new_score))
 
         return ChallengeCompleteResponse(
-            detail="챌린지를 완료하였습니다." + (" 금주 유지 모드가 시작됩니다." if uc.challenge.type == "금주" else ""),
+            detail="챌린지를 완료하였습니다."
+            + (" 금주 유지 모드가 시작됩니다." if uc.challenge.type == "금주" else ""),
             score_before=score_before,
             new_score=new_score,
             new_grade=new_grade,
@@ -184,6 +184,7 @@ class ChallengeService:
             return 0
 
         from app.utils.score import _alcohol_penalty
+
         alcohol_data = {
             "음주여부": survey.drinking,
             "1회음주량": survey.drink_amount,

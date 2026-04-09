@@ -3,7 +3,8 @@ import io
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
-from fastapi.responses import ORJSONResponse as Response, StreamingResponse
+from fastapi.responses import ORJSONResponse as Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.databases import get_db
@@ -50,5 +51,5 @@ async def download_activity_report(
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=\"health_report.csv\""},
+        headers={"Content-Disposition": 'attachment; filename="health_report.csv"'},
     )
