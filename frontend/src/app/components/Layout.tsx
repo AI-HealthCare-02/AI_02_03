@@ -18,18 +18,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Avatar, AvatarFallback } from "./ui/avatar";
 import { useState } from "react";
+import { useAuthStore } from "../../store/authStore";
 
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  
-  // Mock login state - Replace with actual auth logic
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [userName] = useState("홍길동");
-  
+
+  const { isLoggedIn, user, logout } = useAuthStore();
+  const userName = user?.nickname ?? "";
+
   const isActive = (path: string) => {
     if (path === "/") {
       return location.pathname === "/";
@@ -37,8 +37,8 @@ export function Layout() {
     return location.pathname.startsWith(path);
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
+  const handleLogout = async () => {
+    await logout();
     setShowLogoutDialog(false);
     navigate("/login");
   };
