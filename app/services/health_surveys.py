@@ -89,13 +89,21 @@ def _calc_monthly_binge(drink_amount_std: float, weekly_drink_freq: float) -> fl
 
 
 def _calc_diet(questions: list[int]) -> tuple[int, str]:
-    score = sum(questions)
-    if score >= 28:
+    # 긍정 문항: 0(채소), 3(규칙적 식사), 5(단백질) → 그대로
+    # 부정 문항: 1(단 음식), 2(튀김/패스트푸드), 4(과식), 6(야식) → 역산 (6 - x)
+    NEGATIVE = {1, 2, 4, 6}
+    score = sum(6 - q if i in NEGATIVE else q for i, q in enumerate(questions))
+    # 범위: 7~35점, 5단계 균등 분할
+    if score >= 31:
+        return score, "매우좋음"
+    elif score >= 25:
         return score, "좋음"
-    elif score >= 21:
+    elif score >= 19:
         return score, "보통"
-    else:
+    elif score >= 13:
         return score, "나쁨"
+    else:
+        return score, "매우나쁨"
 
 
 class HealthSurveyService:
@@ -137,6 +145,13 @@ class HealthSurveyService:
             "current_smoking": data.current_smoking,
             "sleep_hours": data.sleep_hours,
             "sleep_disorder": data.sleep_disorder,
+            "diet_q1": data.diet_questions[0],
+            "diet_q2": data.diet_questions[1],
+            "diet_q3": data.diet_questions[2],
+            "diet_q4": data.diet_questions[3],
+            "diet_q5": data.diet_questions[4],
+            "diet_q6": data.diet_questions[5],
+            "diet_q7": data.diet_questions[6],
             "diet_score": diet_score,
             "diet_eval": diet_eval,
             "diabetes": data.diabetes,
@@ -197,6 +212,13 @@ class HealthSurveyService:
 
         if data.diet_questions:
             diet_score, diet_eval = _calc_diet(data.diet_questions)
+            update_data["diet_q1"] = data.diet_questions[0]
+            update_data["diet_q2"] = data.diet_questions[1]
+            update_data["diet_q3"] = data.diet_questions[2]
+            update_data["diet_q4"] = data.diet_questions[3]
+            update_data["diet_q5"] = data.diet_questions[4]
+            update_data["diet_q6"] = data.diet_questions[5]
+            update_data["diet_q7"] = data.diet_questions[6]
             update_data["diet_score"] = diet_score
             update_data["diet_eval"] = diet_eval
 
