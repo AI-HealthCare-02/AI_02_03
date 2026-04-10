@@ -78,14 +78,15 @@ export function OnboardingStep1() {
     e.preventDefault();
 
     if (validateForm()) {
-      // Calculate BMI
-      const height = parseFloat(formData.height) / 100; // convert to meters
-      const weight = parseFloat(formData.weight);
-      const bmi = (weight / (height * height)).toFixed(1);
-
-      console.log("Step 1 Data:", { ...formData, bmi });
-      
-      // Navigate to step 2
+      const age = differenceInYears(new Date(), birthDate!);
+      const step1Data = {
+        age,
+        gender: formData.gender === "male" ? "남성" : "여성",
+        height: parseFloat(formData.height),
+        weight: parseFloat(formData.weight),
+        waist: waistUnknown ? parseFloat(formData.height) * 0.5 : parseFloat(formData.waist),
+      };
+      sessionStorage.setItem("onboarding_step1", JSON.stringify(step1Data));
       navigate("/onboarding/step2");
     }
   };

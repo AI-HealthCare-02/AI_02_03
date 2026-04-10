@@ -1,4 +1,5 @@
 import { useState } from "react";
+import api from "../../lib/api";
 import { useNavigate } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -40,16 +41,25 @@ export function OnboardingStep3() {
     e.preventDefault();
 
     if (validateForm()) {
-      console.log("Step 3 Data:", formData);
-      
-      // Show loading screen
       setIsAnalyzing(true);
-
-      // Simulate analysis (3 seconds)
-      setTimeout(() => {
-        // Navigate to home page after analysis
+      try {
+        const step1 = JSON.parse(sessionStorage.getItem("onboarding_step1") || "{}");
+        const step2 = JSON.parse(sessionStorage.getItem("onboarding_step2") || "{}");
+        const payload = {
+          ...step1,
+          ...step2,
+          diabetes: formData.diabetes === "yes" ? "있음" : "없음",
+          hypertension: formData.hypertension === "yes" ? "있음" : "없음",
+          sleep_disorder: formData.sleepDisorder === "yes" ? "있음" : "없음",
+        };
+        await api.post("/api/v1/surveys", payload);
+        await api.post("/api/v1/predictions", {});
+        sessionStorage.removeItem("onboarding_step1");
+        sessionStorage.removeItem("onboarding_step2");
         navigate("/");
-      }, 3000);
+      } catch {
+        setIsAnalyzing(false);
+      }
     }
   };
 

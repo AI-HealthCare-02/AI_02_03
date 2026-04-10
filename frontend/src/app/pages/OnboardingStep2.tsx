@@ -109,8 +109,26 @@ export function OnboardingStep2() {
     e.preventDefault();
 
     if (validateForm()) {
-      console.log("Step 2 Data:", formData);
-      // Navigate to step 3
+      const drinkTypeMap: Record<string, string> = { soju: "소주", beer: "맥주" };
+      const step2Data = {
+        drinking: formData.drinksAlcohol === "yes" ? "음주함" : "음주안함",
+        drink_type:
+          formData.drinksAlcohol === "yes"
+            ? (drinkTypeMap[formData.alcoholType] ?? formData.alcoholTypeOther ?? "기타")
+            : null,
+        drink_amount: formData.drinksAlcohol === "yes" ? parseFloat(formData.drinksPerSession) : 0,
+        weekly_drink_freq: formData.drinksAlcohol === "yes" ? parseFloat(formData.drinkingFrequency) : 0,
+        exercise: formData.exercises === "yes" ? "운동함" : "운동안함",
+        weekly_exercise_count: formData.exercises === "yes" ? parseInt(formData.exerciseFrequency) : 0,
+        smoking:
+          formData.smokes === "yes" ? "현재흡연" : formData.smokes === "past" ? "과거흡연" : "비흡연",
+        current_smoking: formData.smokes === "yes" ? `${formData.cigarettesPerDay}개비` : "안함",
+        sleep_hours: parseFloat(formData.sleepHours),
+        diet_questions: ["dietQ1", "dietQ2", "dietQ3", "dietQ4", "dietQ5", "dietQ6", "dietQ7"].map((q) =>
+          parseInt(formData[q as keyof typeof formData] as string)
+        ),
+      };
+      sessionStorage.setItem("onboarding_step2", JSON.stringify(step2Data));
       navigate("/onboarding/step3");
     }
   };

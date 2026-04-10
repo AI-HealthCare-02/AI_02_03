@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import api from "../../lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
 import { Badge } from "../components/ui/badge";
@@ -25,6 +26,21 @@ import {
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 
+interface Appointment {
+  id: number;
+  hospital_name: string;
+  visit_date: string;
+  memo: string | null;
+}
+
+interface Medication {
+  id: number;
+  name: string;
+  dosage: string;
+  schedule: string;
+  taken_today: boolean;
+}
+
 export function Home() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [todayHabits] = useState([
@@ -34,53 +50,37 @@ export function Home() {
     { id: 4, name: "7시간 이상 수면", icon: Moon, completed: false, category: "수면" },
   ]);
 
-  // Today's appointments
-  const [todayAppointments] = useState([
-    {
-      id: 1,
-      time: "14:00",
-      hospital: "서울대학교병원",
-      memo: "정기 검진",
-    },
-  ]);
+  const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [healthScore, setHealthScore] = useState(0);
+  const [activeChallenges, setActiveChallenges] = useState(0);
 
-  // Today's medications
-  const [medications] = useState([
-    {
-      id: 1,
-      name: "우루사",
-      times: ["08:00", "20:00"],
-      completed: [true, false],
-    },
-    {
-      id: 2,
-      name: "밀크씨슬",
-      times: ["12:00"],
-      completed: [false],
-    },
-  ]);
+  useEffect(() => {
+    api.get<Appointment[]>("/api/v1/appointments/me").then((r) => {
+      setAllAppointments(r.data);
+    }).catch(() => {});
 
-  const toggleMedicationComplete = (medId: number, timeIndex: number) => {
-    // Mock function for demo
-    console.log(`Toggle medication ${medId}, time ${timeIndex}`);
+    api.get<Medication[]>("/api/v1/medications/me").then((r) => {
+      setMedications(r.data);
+    }).catch(() => {});
+
+    api.get<{ score: number }[]>("/api/v1/predictions/me").then((r) => {
+      if (r.data.length > 0) setHealthScore(Math.round(r.data[0].score));
+    }).catch(() => {});
+
+    api.get<{ status: string }[]>("/api/v1/user-challenges/me").then((r) => {
+      setActiveChallenges(r.data.filter((c) => c.status === "진행중").length);
+    }).catch(() => {});
+  }, []);
+
+  const handleToggleTaken = async (id: number, current: boolean) => {
+    await api.patch(`/api/v1/medications/${id}/taken`, { taken_today: !current });
+    api.get<Medication[]>("/api/v1/medications/me").then((r) => setMedications(r.data)).catch(() => {});
   };
 
   const completedToday = todayHabits.filter(h => h.completed).length;
   const totalHabits = todayHabits.length;
   const progressPercent = (completedToday / totalHabits) * 100;
-
-  // Calculate overall health score based on various factors
-  const streakDays = 14;
-  const activeChallenges = 3;
-  const totalChallenges = 5;
-  const earnedBadges = 8;
-
-  const healthScore = Math.round(
-    (progressPercent * 0.4) + // Today's progress: 40%
-    (Math.min(streakDays / 30, 1) * 100 * 0.3) + // Streak: 30%
-    ((activeChallenges / totalChallenges) * 100 * 0.2) + // Active challenges: 20%
-    (Math.min(earnedBadges / 10, 1) * 100 * 0.1) // Badges: 10%
-  );
 
   return (
     <div className="space-y-8 pb-8">
@@ -208,35 +208,45 @@ export function Home() {
                     onSelect={setSelectedDate}
                     locale={ko}
                     className="rounded-md"
+                    modifiers={{
+                      hasAppointment: allAppointments.map((a) => new Date(a.visit_date)),
+                    }}
+                    modifiersClassNames={{
+                      hasAppointment: "bg-blue-200 text-blue-900 font-bold rounded-full",
+                    }}
                   />
                 </div>
 
                 {/* Appointments - Right Side */}
                 <div className="flex-1 flex flex-col min-w-0">
-                  {/* Title - Always Visible */}
-                  <p className="text-sm font-medium text-gray-700 mb-3">병원 일정</p>
-                  
-                  {/* Appointments List or Empty Message */}
-                  {todayAppointments.length > 0 ? (
-                    <div className="space-y-2">
-                      {todayAppointments.map((apt) => (
-                        <div key={apt.id} className="flex items-start gap-2">
-                          <Hospital className="size-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 text-sm">{apt.hospital}</p>
-                            <p className="text-sm text-gray-600">{apt.time}</p>
-                            {apt.memo && (
-                              <p className="text-xs text-gray-500 mt-1">{apt.memo}</p>
-                            )}
+                  <p className="text-sm font-medium text-gray-700 mb-3">
+                    {selectedDate ? format(selectedDate, "MM월 dd일", { locale: ko }) : "오늘"} 병원 일정
+                  </p>
+                  {(() => {
+                    const filtered = allAppointments.filter(
+                      (a) => new Date(a.visit_date).toDateString() === (selectedDate ?? new Date()).toDateString()
+                    );
+                    return filtered.length > 0 ? (
+                      <div className="space-y-2">
+                        {filtered.map((apt) => (
+                          <div key={apt.id} className="flex items-start gap-2">
+                            <Hospital className="size-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 text-sm">{apt.hospital_name}</p>
+                              <p className="text-sm text-gray-600">{format(new Date(apt.visit_date), "HH:mm")}</p>
+                              {apt.memo && (
+                                <p className="text-xs text-gray-500 mt-1">{apt.memo}</p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center">
-                      <p className="text-sm text-gray-400">오늘 예정된 일정이 없습니다.</p>
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center">
+                        <p className="text-sm text-gray-400">예정된 일정이 없습니다.</p>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -244,22 +254,24 @@ export function Home() {
             {/* Today's Medications */}
             <div className="pt-3 border-t border-blue-100">
               <p className="text-sm font-medium text-gray-700 mb-2">오늘의 복약</p>
-              {medications.map((med) =>
-                med.times.map((time, idx) => (
+              {medications.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-2">복약 정보가 없습니다</p>
+              ) : (
+                medications.map((med) => (
                   <div
-                    key={`${med.id}-${idx}`}
+                    key={med.id}
                     className="flex items-center justify-between p-2 bg-white rounded border border-blue-100 mb-2"
                   >
                     <div className="flex items-center gap-2">
                       <Pill className="size-4 text-purple-600" />
                       <div>
                         <p className="text-sm font-medium">{med.name}</p>
-                        <p className="text-xs text-gray-500">{time}</p>
+                        <p className="text-xs text-gray-500">{med.schedule}</p>
                       </div>
                     </div>
                     <Checkbox
-                      checked={med.completed[idx]}
-                      onCheckedChange={() => toggleMedicationComplete(med.id, idx)}
+                      checked={med.taken_today}
+                      onCheckedChange={() => handleToggleTaken(med.id, med.taken_today)}
                     />
                   </div>
                 ))
@@ -300,7 +312,7 @@ export function Home() {
                 <Activity className="size-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">3/5</p>
+                <p className="text-2xl font-bold text-gray-900">{activeChallenges}개</p>
                 <p className="text-sm text-gray-600">활성 챌린지</p>
               </div>
             </div>

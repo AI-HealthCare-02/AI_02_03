@@ -26,3 +26,4 @@ scripts/
 predict_test.py
 
 *.pem
+ubuntu@*
