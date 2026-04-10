@@ -59,3 +59,25 @@ async def token_refresh(
     return Response(
         content=TokenRefreshResponse(access_token=str(access_token)).model_dump(), status_code=status.HTTP_200_OK
     )
+
+
+@auth_router.get("/check-email", status_code=status.HTTP_200_OK)
+async def check_email(
+    email: str,
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> Response:
+    await auth_service.check_email_exists(email)
+    return Response(content={"available": True}, status_code=status.HTTP_200_OK)
+
+
+@auth_router.get("/check-nickname", status_code=status.HTTP_200_OK)
+async def check_nickname(
+    nickname: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Response:
+    from app.repositories.user_repository import UserRepository
+    repo = UserRepository(db)
+    exists = await repo.exists_by_nickname(nickname)
+    if exists:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="이미 사용중인 닉네임입니다.")
+    return Response(content={"available": True}, status_code=status.HTTP_200_OK)

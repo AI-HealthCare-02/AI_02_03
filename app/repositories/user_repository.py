@@ -45,3 +45,9 @@ class UserRepository:
                 setattr(user, key, value)
         await self._session.flush()
         await self._session.refresh(user)
+
+    async def exists_by_nickname(self, nickname: str) -> bool:
+        result = await self._session.execute(
+            select(exists().where(User.nickname == nickname))
+        )
+        return bool(result.scalar())

@@ -4,6 +4,7 @@ from app.apis.v1.activity_routers import activity_router
 from app.apis.v1.appointment_routers import router as appointment_router
 from app.apis.v1.auth_routers import auth_router
 from app.apis.v1.challenge_routers import challenge_router
+from app.apis.v1.dashboard_routers import dashboard_router
 from app.apis.v1.goal_routers import goal_router
 from app.apis.v1.medication_routers import medication_router
 from app.apis.v1.notification_routers import notification_router
@@ -22,6 +23,4 @@ v1_routers.include_router(goal_router)
 v1_routers.include_router(activity_router)
 v1_routers.include_router(notification_router)
 v1_routers.include_router(medication_router)
-from app.apis.v1.dashboard_routers import dashboard_router
-
 v1_routers.include_router(dashboard_router)
