@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { Activity, TrendingUp, Home, LogIn, UserPlus, Calendar, User, LogOut, Settings } from "lucide-react";
+import { Activity, TrendingUp, Home, LogIn, UserPlus, User, LogOut, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,

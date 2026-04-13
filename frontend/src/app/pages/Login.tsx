@@ -32,8 +32,9 @@ export function Login() {
       await authService.login({ email: formData.email, password: formData.password });
       await fetchMe();
       navigate("/");
-    } catch (err: any) {
-      setError(err.response?.data?.error_detail || "이메일 또는 비밀번호가 올바르지 않습니다.");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error_detail?: string } } })?.response?.data?.error_detail;
+      setError(msg || "이메일 또는 비밀번호가 올바르지 않습니다.");
     } finally {
       setLoading(false);
     }

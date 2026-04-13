@@ -9,7 +9,7 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Progress } from "../components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import { Calendar } from "../components/ui/calendar";
-import { Activity, ArrowRight, ArrowLeft, Info, CalendarIcon } from "lucide-react";
+import { Activity, ArrowRight, Info, CalendarIcon } from "lucide-react";
 import { format, differenceInYears } from "date-fns";
 import { ko } from "date-fns/locale";
 

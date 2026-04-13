@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type React from "react";
 import { Link } from "react-router";
 import api from "../../lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -40,7 +41,7 @@ type Challenge = {
   id: number;
   title: string;
   description: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   duration: string;
   participants: number;
   difficulty: "초급" | "중급" | "고급";
@@ -70,7 +71,7 @@ interface ChallengeAPI {
   is_recommended: boolean;
 }
 
-const TYPE_ICON: Record<string, any> = {
+const TYPE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   운동: Activity,
   식습관: Utensils,
   식단: Utensils,

@@ -12,29 +12,6 @@ interface LiverCharacterProps {
   className?: string;
 }
 
-// 이미지가 없을 때 보여줄 SVG 플레이스홀더
-function LiverPlaceholder({ status }: { status: HealthStatus }) {
-  const configs = {
-    excellent: { emoji: "🟢", color: "#10b981", face: "😊", label: "최상" },
-    good:      { emoji: "🟡", color: "#f59e0b", face: "🙂", label: "양호" },
-    warning:   { emoji: "🟠", color: "#f97316", face: "😥", label: "주의" },
-    danger:    { emoji: "🔴", color: "#ef4444", face: "😢", label: "위험" },
-  };
-  const cfg = configs[status];
-
-  return (
-    <div className="flex flex-col items-center justify-center w-48 h-48 mx-auto">
-      <div
-        className="w-36 h-36 rounded-full flex items-center justify-center text-6xl shadow-lg"
-        style={{ backgroundColor: cfg.color + "22", border: `3px solid ${cfg.color}` }}
-      >
-        {cfg.face}
-      </div>
-      <span className="mt-2 text-sm font-medium" style={{ color: cfg.color }}>간 상태: {cfg.label}</span>
-    </div>
-  );
-}
-
 export function LiverCharacter({ healthScore, className = "" }: LiverCharacterProps) {
   const [status, setStatus] = useState<HealthStatus>("excellent");
   const [isAnimating, setIsAnimating] = useState(false);

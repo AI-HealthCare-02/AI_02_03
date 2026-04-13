@@ -9,6 +9,7 @@ import { AccountManagement } from "./pages/AccountManagement";
 import { MyInfo } from "./pages/MyInfo";
 import { ActivityHistory } from "./pages/ActivityHistory";
 import { NotificationSettings } from "./pages/NotificationSettings";
+import { HealthDataManagement } from "./pages/HealthDataManagement";
 import { Signup } from "./pages/Signup";
 import { Login } from "./pages/Login";
 import { OnboardingStep0 } from "./pages/OnboardingStep0";
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
       { path: "mypage/account/info", Component: MyInfo },
       { path: "mypage/history", Component: ActivityHistory },
       { path: "mypage/notifications", Component: NotificationSettings },
+      { path: "mypage/survey", Component: HealthDataManagement },
     ],
   },
   {

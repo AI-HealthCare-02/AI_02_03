@@ -15,23 +15,19 @@ import {
   BedDouble,
   Wine,
   Cigarette,
-  Upload,
-  Loader2,
-  Sparkles,
   TrendingUp,
   CheckCircle2,
   Clock,
   Users,
 } from "lucide-react";
+import type React from "react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-
-type DietAnalysisState = "idle" | "loading" | "result";
 
 interface Challenge {
   id: number;
   title: string;
   description: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   duration: string;
   participants: number;
   difficulty: "초급" | "중급" | "고급";
@@ -40,18 +36,26 @@ interface Challenge {
   daysLeft?: number;
 }
 
+const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+const TYPE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+  운동: Activity,
+  식습관: Scale,
+  식단: Scale,
+  수면: BedDouble,
+  수분: Activity,
+  금주: Award,
+  체중관리: Scale,
+};
+const typeIcon = (type: string): React.ComponentType<{ className?: string }> => TYPE_ICON[type] ?? Activity;
+
 export function Progress() {
   const [activeTab, setActiveTab] = useState("health");
-  const [dietState, setDietState] = useState<DietAnalysisState>("idle");
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-
   const [streakDays, setStreakDays] = useState(0);
   const [weeklyRate, setWeeklyRate] = useState(0);
   const [earnedBadges, setEarnedBadges] = useState(0);
 
   const [healthScore, setHealthScore] = useState(0);
-  const [latestGrade, setLatestGrade] = useState("");
-  const [improvementFactors, setImprovementFactors] = useState<any[]>([]);
   const [lifestyleSummary, setLifestyleSummary] = useState<{ bmi: number; sleep_hours: number; drink_amount: number; exercise: string } | null>(null);
   const [activeChallengesCount, setActiveChallengesCount] = useState(0);
   const [healthScoreHistory, setHealthScoreHistory] = useState<{ day: string; score: number }[]>([]);
@@ -65,27 +69,11 @@ export function Progress() {
   const sleepHours = lifestyleSummary?.sleep_hours ?? 0;
   const sleepData = [{ day: "설문 기준", hours: sleepHours }];
 
-  const TYPE_ICON: Record<string, any> = {
-    운동: Activity,
-    식습관: Scale,
-    식단: Scale,
-    수면: BedDouble,
-    수분: Activity,
-    금주: Award,
-    체중관리: Scale,
-  };
-  const typeIcon = (type: string) => TYPE_ICON[type] ?? Activity;
-
-  const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
-
   useEffect(() => {
     // 대시보드 (건강 점수 + 개선 요인 + 생활습관 요약)
     api
       .get<{
         latest_score: number;
-        latest_grade: string;
-        character_state: string;
-        improvement_factors: any[];
         score_history: { score: number; created_at: string }[];
         lifestyle_summary: { bmi: number; sleep_hours: number; drink_amount: number; exercise: string };
         streak_days: number;
@@ -93,8 +81,6 @@ export function Progress() {
       }>("/api/v1/dashboard")
       .then((r) => {
         setHealthScore(Math.round(r.data.latest_score));
-        setLatestGrade(r.data.latest_grade);
-        setImprovementFactors(r.data.improvement_factors);
         setLifestyleSummary(r.data.lifestyle_summary);
         setStreakDays(r.data.streak_days);
         setWeeklyRate(r.data.weekly_rate);
@@ -230,24 +216,6 @@ export function Progress() {
     { id: 4, date: "2024-04-08 점심", food: "채소 볶음밥", calories: 420, rating: "좋음", image: "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&h=300&fit=crop" },
     { id: 5, date: "2024-04-08 아침", food: "오트밀", calories: 250, rating: "훌륭함", image: "https://images.unsplash.com/photo-1517686469429-8bdb88b9f907?w=400&h=300&fit=crop" },
   ]);
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUploadedImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleAnalyze = () => {
-    setDietState("loading");
-    setTimeout(() => {
-      setDietState("result");
-    }, 2000);
-  };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {

@@ -37,8 +37,8 @@ export function Signup() {
         nickname: formData.nickname,
       });
       navigate("/onboarding/step0");
-    } catch (err: any) {
-      const data = err.response?.data;
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: Record<string, string> } })?.response?.data;
       if (data?.error_detail) {
         setError(data.error_detail);
       } else if (data?.email) {

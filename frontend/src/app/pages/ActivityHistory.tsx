@@ -252,7 +252,7 @@ export function ActivityHistory() {
                   <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}kg`} />
                   <Tooltip
                     contentStyle={{ backgroundColor: "white", border: "1px solid #e5e7eb", borderRadius: "8px" }}
-                    formatter={(v: number) => [`${v}kg`, "체중"]}
+                    formatter={(v) => [`${v}kg`, "체중"]}
                   />
                   <Line type="monotone" dataKey="weight" stroke="#10b981" strokeWidth={2} dot={{ fill: "#10b981", r: 4 }} />
                 </LineChart>
@@ -281,7 +281,7 @@ export function ActivityHistory() {
                   <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}분`} />
                   <Tooltip
                     contentStyle={{ backgroundColor: "white", border: "1px solid #e5e7eb", borderRadius: "8px" }}
-                    formatter={(v: number) => [`${v}분`, "운동"]}
+                    formatter={(v) => [`${v}분`, "운동"]}
                   />
                   <Bar dataKey="duration" fill="#3b82f6" radius={[8, 8, 0, 0]} />
                 </BarChart>
@@ -310,7 +310,7 @@ export function ActivityHistory() {
                   <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}잔`} />
                   <Tooltip
                     contentStyle={{ backgroundColor: "white", border: "1px solid #e5e7eb", borderRadius: "8px" }}
-                    formatter={(v: number) => [`${v}잔`, "음주"]}
+                    formatter={(v) => [`${v}잔`, "음주"]}
                   />
                   <Bar dataKey="amount" fill="#a855f7" radius={[8, 8, 0, 0]} />
                 </BarChart>
@@ -339,7 +339,7 @@ export function ActivityHistory() {
                   <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}개`} />
                   <Tooltip
                     contentStyle={{ backgroundColor: "white", border: "1px solid #e5e7eb", borderRadius: "8px" }}
-                    formatter={(v: number) => [`${v}개`, "흡연"]}
+                    formatter={(v) => [`${v}개`, "흡연"]}
                   />
                   <Bar dataKey="amount" fill="#f97316" radius={[8, 8, 0, 0]} />
                 </BarChart>

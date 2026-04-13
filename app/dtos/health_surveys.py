@@ -103,6 +103,13 @@ class SurveyInfoResponse(BaseSerializerModel):
     current_smoking: str
     sleep_hours: float
     sleep_disorder: str
+    diet_q1: int
+    diet_q2: int
+    diet_q3: int
+    diet_q4: int
+    diet_q5: int
+    diet_q6: int
+    diet_q7: int
     diet_score: int
     diet_eval: str
     diabetes: str
