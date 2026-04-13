@@ -152,21 +152,18 @@ class ChallengeService:
 
         update_data = {"status": "완료", "completed_at": datetime.now()}
 
-        # 금주 챌린지 완료 → 유지 모드 진입
-        if uc.challenge.type == "금주":
+        # 금주·금연 챌린지 완료 → 유지 모드 진입
+        if uc.challenge.type in ("금주", "금연"):
             update_data["is_maintenance"] = True
             update_data["last_checkin_at"] = datetime.now()
 
         await self.uc_repo.update(uc, update_data)
 
-        # 챌린지 완료 후 설문 자동 업데이트 (운동 챌린지)
+        # 챌린지 완료 후 설문 자동 업데이트
         survey_changes = None
         survey = await self.survey_repo.get_by_user_id(user.id)
-        if survey and uc.challenge.type == "운동":
-            before_val = survey.weekly_exercise_count
-            new_val = min(before_val + 1, 7)
-            await self.survey_repo.update(survey, {"weekly_exercise_count": new_val, "exercise": "운동함"})
-            survey_changes = {"field": "weekly_exercise_count", "before": before_val, "after": new_val}
+        if survey:
+            survey_changes = await self._apply_challenge_survey_update(uc, survey)
 
         # 새 점수 계산
         from app.services.health_surveys import _calc_grade as _grade
@@ -183,14 +180,104 @@ class ChallengeService:
         from app.services.badges import BadgeService
         await BadgeService(self._session).evaluate_and_grant(user.id)
 
+        _maintenance_msg = {
+            "금주": " 금주 유지 모드가 시작됩니다.",
+            "금연": " 금연 유지 모드가 시작됩니다.",
+        }
         return ChallengeCompleteResponse(
-            detail="챌린지를 완료하였습니다."
-            + (" 금주 유지 모드가 시작됩니다." if uc.challenge.type == "금주" else ""),
+            detail="챌린지를 완료하였습니다." + _maintenance_msg.get(uc.challenge.type, ""),
             score_before=score_before,
             new_score=new_score,
             new_grade=new_grade,
             survey_changes=survey_changes,
         )
+
+    # 챌린지명 키워드 → (diet_q 필드, 방향: +1 or -1)
+    # 긍정 문항(q1 채소, q4 규칙식사, q6 단백질): +1
+    # 부정 문항(q5 과식, q7 야식): -1
+    _DIET_CHALLENGE_MAP: dict[str, tuple[str, int]] = {
+        "채소": ("diet_q1", 1),
+        "균형": ("diet_q4", 1),
+        "소식": ("diet_q5", -1),
+        "야식": ("diet_q7", -1),
+    }
+
+    async def _apply_challenge_survey_update(self, uc, survey) -> dict | None:
+        """챌린지 완료 시 타입/이름별 설문 업데이트 로직"""
+        ctype = uc.challenge.type
+        cname = uc.challenge.name
+
+        if ctype == "운동":
+            before = survey.weekly_exercise_count
+            target = 7 if "만보" in cname else 3
+            new_val = max(before, target)
+            if new_val != before or survey.exercise != "운동함":
+                await self.survey_repo.update(survey, {"weekly_exercise_count": new_val, "exercise": "운동함"})
+            return {"field": "weekly_exercise_count", "before": before, "after": new_val}
+
+        elif ctype in ("식단", "식습관"):
+            from app.services.health_surveys import _calc_diet
+
+            # 챌린지명 키워드로 해당 문항 찾기
+            matched = next(
+                ((field, direction) for kw, (field, direction) in self._DIET_CHALLENGE_MAP.items() if kw in cname),
+                None,
+            )
+            if not matched:
+                return None
+
+            field, direction = matched
+            before_val = getattr(survey, field)
+            new_val = max(1, min(5, before_val + direction))
+            if new_val == before_val:
+                return None
+
+            # diet_q1~q7 전체 목록 재구성 후 score/eval 재계산
+            qs = [getattr(survey, f"diet_q{i}") for i in range(1, 8)]
+            q_idx = int(field[-1]) - 1  # "diet_q1" → 0
+            qs[q_idx] = new_val
+            new_score, new_eval = _calc_diet(qs)
+
+            await self.survey_repo.update(survey, {
+                field: new_val,
+                "diet_score": new_score,
+                "diet_eval": new_eval,
+            })
+            return {"field": field, "before": before_val, "after": new_val}
+
+        elif ctype == "수면":
+            if "환경" in cname and survey.sleep_disorder == "있음":
+                await self.survey_repo.update(survey, {"sleep_disorder": "없음"})
+                return {"field": "sleep_disorder", "before": "있음", "after": "없음"}
+            else:
+                before = survey.sleep_hours
+                new_val = round(min(before + 0.5, 8.0), 1)
+                if new_val != before:
+                    await self.survey_repo.update(survey, {"sleep_hours": new_val})
+                return {"field": "sleep_hours", "before": before, "after": new_val}
+
+        elif ctype == "체중감량":
+            target_kg = 5.0 if "5kg" in cname else 2.0
+            before_weight = survey.weight
+            new_weight = round(max(before_weight - target_kg, 30.0), 1)
+            h = survey.height / 100
+            new_bmi = round(new_weight / (h ** 2), 1)
+            new_waist = round(survey.waist * (new_bmi / survey.bmi), 1) if survey.bmi > 0 else survey.waist
+            await self.survey_repo.update(survey, {
+                "weight": new_weight,
+                "bmi": new_bmi,
+                "waist": new_waist,
+            })
+            return {"field": "weight", "before": before_weight, "after": new_weight}
+
+        elif ctype == "금연":
+            updates: dict = {}
+            if survey.current_smoking == "흡연":
+                updates["current_smoking"] = "안함"
+            await self.survey_repo.update(survey, updates) if updates else None
+            return {"field": "current_smoking", "before": survey.current_smoking, "after": "안함"} if updates else None
+
+        return None
 
     async def _calc_alcohol_recovery(self, user_id: int, survey) -> int:
         """금주 유지 모드의 회복 점수 계산"""
