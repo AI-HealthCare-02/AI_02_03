@@ -50,6 +50,9 @@ export function Progress() {
   const earnedBadges = 8;
 
   const [healthScore, setHealthScore] = useState(0);
+  const [latestGrade, setLatestGrade] = useState("");
+  const [improvementFactors, setImprovementFactors] = useState<any[]>([]);
+  const [lifestyleSummary, setLifestyleSummary] = useState<{ bmi: number; sleep_hours: number; drink_amount: number; exercise: string } | null>(null);
   const [activeChallengesCount, setActiveChallengesCount] = useState(0);
   const [healthScoreHistory, setHealthScoreHistory] = useState<{ day: string; score: number }[]>([]);
   const [weightData, setWeightData] = useState<{ day: string; value: number }[]>([]);
@@ -83,19 +86,27 @@ export function Progress() {
   const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
   useEffect(() => {
-    // 건강 점수 히스토리
+    // 대시보드 (건강 점수 + 개선 요인 + 생활습관 요약)
     api
-      .get<{ score: number; grade: string; created_at: string }[]>("/api/v1/predictions/me")
+      .get<{
+        latest_score: number;
+        latest_grade: string;
+        character_state: string;
+        improvement_factors: any[];
+        score_history: { score: number; created_at: string }[];
+        lifestyle_summary: { bmi: number; sleep_hours: number; drink_amount: number; exercise: string };
+      }>("/api/v1/dashboard")
       .then((r) => {
-        if (r.data.length > 0) {
-          setHealthScore(Math.round(r.data[0].score));
-          setHealthScoreHistory(
-            r.data
-              .slice(0, 7)
-              .reverse()
-              .map((p, i) => ({ day: `${i + 1}회`, score: Math.round(p.score) }))
-          );
-        }
+        setHealthScore(Math.round(r.data.latest_score));
+        setLatestGrade(r.data.latest_grade);
+        setImprovementFactors(r.data.improvement_factors);
+        setLifestyleSummary(r.data.lifestyle_summary);
+        setHealthScoreHistory(
+          r.data.score_history
+            .slice(0, 7)
+            .reverse()
+            .map((p, i) => ({ day: `${i + 1}회`, score: Math.round(p.score) }))
+        );
       })
       .catch(() => {});
 

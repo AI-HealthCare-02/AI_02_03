@@ -124,11 +124,11 @@ export function ActivityHistory() {
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      const res = await api.get("/api/v1/activity/report?format=csv", { responseType: "blob" });
+      const res = await api.get("/api/v1/activity/report?format=pdf", { responseType: "blob" });
       const url = URL.createObjectURL(res.data as Blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "health_report.csv";
+      a.download = "health_report.pdf";
       a.click();
       URL.revokeObjectURL(url);
     } finally {
