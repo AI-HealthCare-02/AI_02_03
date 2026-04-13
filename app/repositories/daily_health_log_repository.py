@@ -31,6 +31,14 @@ class DailyHealthLogRepository:
         )
         return list(result.scalars().all())
 
+    async def get_all_by_user(self, user_id: int) -> list[DailyHealthLog]:
+        result = await self._session.execute(
+            select(DailyHealthLog)
+            .where(DailyHealthLog.user_id == user_id)
+            .order_by(DailyHealthLog.log_date.desc())
+        )
+        return list(result.scalars().all())
+
     async def create(self, data: dict) -> DailyHealthLog:
         log = DailyHealthLog(**data)
         self._session.add(log)
