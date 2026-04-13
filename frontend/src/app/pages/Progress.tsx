@@ -47,7 +47,7 @@ export function Progress() {
 
   const [streakDays, setStreakDays] = useState(0);
   const [weeklyRate, setWeeklyRate] = useState(0);
-  const earnedBadges = 8;
+  const [earnedBadges, setEarnedBadges] = useState(0);
 
   const [healthScore, setHealthScore] = useState(0);
   const [latestGrade, setLatestGrade] = useState("");
@@ -62,15 +62,8 @@ export function Progress() {
   const [availableChallengesList, setAvailableChallengesList] = useState<Challenge[]>([]);
   const [joiningChallenge, setJoiningChallenge] = useState<number | null>(null);
 
-  const sleepData = [
-    { day: "월", hours: 7.2 },
-    { day: "화", hours: 6.5 },
-    { day: "수", hours: 7.8 },
-    { day: "목", hours: 7.5 },
-    { day: "금", hours: 6.8 },
-    { day: "토", hours: 8.2 },
-    { day: "일", hours: 7.9 },
-  ];
+  const sleepHours = lifestyleSummary?.sleep_hours ?? 0;
+  const sleepData = [{ day: "설문 기준", hours: sleepHours }];
 
   const TYPE_ICON: Record<string, any> = {
     운동: Activity,
@@ -187,6 +180,14 @@ export function Progress() {
         )
       )
       .catch(() => {});
+
+    api.get<{ earned_count: number }>("/api/v1/badges/me/count").then((r) => {
+      setEarnedBadges(r.data.earned_count);
+    }).catch(() => {});
+
+    api.get<{ key: string; name: string; description: string; emoji: string; earned: boolean }[]>("/api/v1/badges/me").then((r) => {
+      setBadges(r.data);
+    }).catch(() => {});
   }, []);
 
   const handleJoinChallenge = async (challengeId: number) => {
@@ -219,21 +220,7 @@ export function Progress() {
     }
   };
 
-  // Badges data
-  const [badges] = useState([
-    { id: 1, name: "첫 걸음", description: "첫 챌린지 시작", emoji: "🎯", earned: true },
-    { id: 2, name: "1주 연속", description: "7일 연속 달성", emoji: "🔥", earned: true },
-    { id: 3, name: "2주 연속", description: "14일 연속 달성", emoji: "⭐", earned: true },
-    { id: 4, name: "완벽한 주", description: "일주일 100% 달성", emoji: "💎", earned: true },
-    { id: 5, name: "얼리버드", description: "아침 운동 10회", emoji: "🌅", earned: true },
-    { id: 6, name: "식습관 마스터", description: "식습관 챌린지 완료", emoji: "🥗", earned: true },
-    { id: 7, name: "워터 챔피언", description: "물 마시기 30일", emoji: "💧", earned: true },
-    { id: 8, name: "체중 관리자", description: "목표 체중 달성", emoji: "🎊", earned: true },
-    { id: 9, name: "1개월 달성", description: "30일 연속 달성", emoji: "🏆", earned: false },
-    { id: 10, name: "완벽한 달", description: "한 달 100% 달성", emoji: "👑", earned: false },
-    { id: 11, name: "운동 마니아", description: "운동 챌린지 5개 완료", emoji: "💪", earned: false },
-    { id: 12, name: "레전드", description: "100일 연속 달성", emoji: "🌟", earned: false },
-  ]);
+  const [badges, setBadges] = useState<{ key: string; name: string; description: string; emoji: string; earned: boolean }[]>([]);
 
   // Recent meals
   const [recentMeals] = useState([
@@ -466,8 +453,8 @@ export function Progress() {
                   </BarChart>
                 </ResponsiveContainer>
                 <div className="mt-2 text-center">
-                  <p className="text-xl font-bold text-gray-900">7.4시간</p>
-                  <p className="text-xs text-gray-600">평균 수면</p>
+                  <p className="text-xl font-bold text-gray-900">{sleepHours}시간</p>
+                  <p className="text-xs text-gray-600">평균 수면 (설문 기준)</p>
                 </div>
               </CardContent>
             </Card>
@@ -635,7 +622,7 @@ export function Progress() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {badges.map((badge) => (
               <Card
-                key={badge.id}
+                key={badge.key}
                 className={`border-2 text-center transition-all ${
                   badge.earned
                     ? "bg-gradient-to-br from-amber-50 to-white border-amber-200 shadow-sm"

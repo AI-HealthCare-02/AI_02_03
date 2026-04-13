@@ -10,15 +10,16 @@ import { Calendar } from "../components/ui/calendar";
 import { LiverCharacter } from "../components/LiverCharacter";
 import {
   Activity,
-  Droplet,
+  Dumbbell,
   Utensils,
   Moon,
+  Wine,
+  Cigarette,
   CheckCircle2,
   TrendingUp,
   Target,
   Award,
   ChevronRight,
-  Calendar as CalendarIcon,
   Clock,
   Hospital,
   Pill,
@@ -41,19 +42,31 @@ interface Medication {
   taken_today: boolean;
 }
 
+interface UserChallenge {
+  user_challenge_id: number;
+  challenge_name: string;
+  type: string;
+  status: string;
+  today_completed: boolean;
+}
+
+const TYPE_ICON: Record<string, React.ElementType> = {
+  운동: Dumbbell,
+  식단: Utensils,
+  식습관: Utensils,
+  수면: Moon,
+  금주: Wine,
+  금연: Cigarette,
+};
+
 export function Home() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [todayHabits] = useState([
-    { id: 1, name: "30분 걷기", icon: Activity, completed: true, category: "운동" },
-    { id: 2, name: "물 2L 마시기", icon: Droplet, completed: true, category: "수분" },
-    { id: 3, name: "채소 중심 식사", icon: Utensils, completed: false, category: "식습관" },
-    { id: 4, name: "7시간 이상 수면", icon: Moon, completed: false, category: "수면" },
-  ]);
-
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [healthScore, setHealthScore] = useState(0);
-  const [activeChallenges, setActiveChallenges] = useState(0);
+  const [streakDays, setStreakDays] = useState(0);
+  const [activeChallenges, setActiveChallenges] = useState<UserChallenge[]>([]);
+  const [earnedBadgeCount, setEarnedBadgeCount] = useState(0);
 
   useEffect(() => {
     api.get<Appointment[]>("/api/v1/appointments/me").then((r) => {
@@ -64,12 +77,20 @@ export function Home() {
       setMedications(r.data);
     }).catch(() => {});
 
-    api.get<{ score: number }[]>("/api/v1/predictions/me").then((r) => {
-      if (r.data.length > 0) setHealthScore(Math.round(r.data[0].score));
+    api.get<{
+      latest_score: number;
+      streak_days: number;
+    }>("/api/v1/dashboard").then((r) => {
+      setHealthScore(Math.round(r.data.latest_score));
+      setStreakDays(r.data.streak_days);
     }).catch(() => {});
 
-    api.get<{ status: string }[]>("/api/v1/user-challenges/me").then((r) => {
-      setActiveChallenges(r.data.filter((c) => c.status === "진행중").length);
+    api.get<UserChallenge[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } }).then((r) => {
+      setActiveChallenges(r.data);
+    }).catch(() => {});
+
+    api.get<{ earned_count: number }>("/api/v1/badges/me/count").then((r) => {
+      setEarnedBadgeCount(r.data.earned_count);
     }).catch(() => {});
   }, []);
 
@@ -78,9 +99,9 @@ export function Home() {
     api.get<Medication[]>("/api/v1/medications/me").then((r) => setMedications(r.data)).catch(() => {});
   };
 
-  const completedToday = todayHabits.filter(h => h.completed).length;
-  const totalHabits = todayHabits.length;
-  const progressPercent = (completedToday / totalHabits) * 100;
+  const completedToday = activeChallenges.filter(c => c.today_completed).length;
+  const totalHabits = activeChallenges.length;
+  const progressPercent = totalHabits > 0 ? (completedToday / totalHabits) * 100 : 0;
 
   return (
     <div className="space-y-8 pb-8">
@@ -106,7 +127,7 @@ export function Home() {
                   <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200 p-3 relative">
                     <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l-2 border-t-2 border-emerald-200 rotate-45"></div>
                     <p className="text-center text-sm font-medium text-gray-800">
-                      오늘은 물 6잔 마시기! 💧
+                      오늘도 챌린지를 완료해보세요! 💪
                     </p>
                     <p className="text-center text-xs text-gray-600 mt-1">
                       건강 습관을 더 신경 써주세요!
@@ -140,35 +161,42 @@ export function Home() {
 
               <Progress value={progressPercent} className="h-3" />
 
-              <div className="grid gap-3">
-                {todayHabits.map((habit) => (
-                  <div
-                    key={habit.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
-                      habit.completed
-                        ? "bg-white border-emerald-200"
-                        : "bg-gray-50 border-gray-200"
-                    }`}
-                  >
-                    <div className={`size-10 rounded-lg flex items-center justify-center ${
-                      habit.completed ? "bg-emerald-100" : "bg-gray-200"
-                    }`}>
-                      <habit.icon className={`size-5 ${
-                        habit.completed ? "text-emerald-600" : "text-gray-500"
-                      }`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className={habit.completed ? "text-gray-900" : "text-gray-600"}>
-                        {habit.name}
-                      </p>
-                      <p className="text-xs text-gray-500">{habit.category}</p>
-                    </div>
-                    {habit.completed && (
-                      <CheckCircle2 className="size-5 text-emerald-600" />
-                    )}
-                  </div>
-                ))}
-              </div>
+              {totalHabits === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">진행중인 챌린지가 없습니다.</p>
+              ) : (
+                <div className="grid gap-3">
+                  {activeChallenges.map((challenge) => {
+                    const Icon = TYPE_ICON[challenge.type] ?? Activity;
+                    return (
+                      <div
+                        key={challenge.user_challenge_id}
+                        className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                          challenge.today_completed
+                            ? "bg-white border-emerald-200"
+                            : "bg-gray-50 border-gray-200"
+                        }`}
+                      >
+                        <div className={`size-10 rounded-lg flex items-center justify-center ${
+                          challenge.today_completed ? "bg-emerald-100" : "bg-gray-200"
+                        }`}>
+                          <Icon className={`size-5 ${
+                            challenge.today_completed ? "text-emerald-600" : "text-gray-500"
+                          }`} />
+                        </div>
+                        <div className="flex-1">
+                          <p className={challenge.today_completed ? "text-gray-900" : "text-gray-600"}>
+                            {challenge.challenge_name}
+                          </p>
+                          <p className="text-xs text-gray-500">{challenge.type}</p>
+                        </div>
+                        {challenge.today_completed && (
+                          <CheckCircle2 className="size-5 text-emerald-600" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* New Challenge Button - Small Size */}
               <Link to="/challenges">
@@ -298,7 +326,7 @@ export function Home() {
                 <TrendingUp className="size-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">14일</p>
+                <p className="text-2xl font-bold text-gray-900">{streakDays}일</p>
                 <p className="text-sm text-gray-600">연속 참여</p>
               </div>
             </div>
@@ -312,7 +340,7 @@ export function Home() {
                 <Activity className="size-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{activeChallenges}개</p>
+                <p className="text-2xl font-bold text-gray-900">{activeChallenges.length}개</p>
                 <p className="text-sm text-gray-600">활성 챌린지</p>
               </div>
             </div>
@@ -326,7 +354,7 @@ export function Home() {
                 <Award className="size-6 text-amber-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">8개</p>
+                <p className="text-2xl font-bold text-gray-900">{earnedBadgeCount}개</p>
                 <p className="text-sm text-gray-600">획득 뱃지</p>
               </div>
             </div>
@@ -343,8 +371,8 @@ export function Home() {
         </CardHeader>
         <CardContent>
           <p className="text-gray-700 leading-relaxed">
-            지방간 예방을 위해 하루 30분 이상의 유산소 운동을 권장합니다. 
-            빠르게 걷기, 자전거 타기, 수영 등이 효과적이며, 꾸준한 운동은 
+            지방간 예방을 위해 하루 30분 이상의 유산소 운동을 권장합니다.
+            빠르게 걷기, 자전거 타기, 수영 등이 효과적이며, 꾸준한 운동은
             간 건강 개선에 큰 도움이 됩니다.
           </p>
         </CardContent>
