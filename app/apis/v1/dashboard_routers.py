@@ -8,6 +8,7 @@ from app.db.databases import get_db
 from app.dependencies.security import get_request_user
 from app.dtos.dashboard import DashboardResponse, LifestyleSummary, ScoreHistoryItem
 from app.models.users import User
+from app.repositories.challenge_repository import ChallengeLogRepository, UserChallengeRepository
 from app.repositories.health_survey_repository import HealthSurveyRepository
 from app.repositories.prediction_repository import PredictionRepository
 
@@ -21,6 +22,8 @@ async def get_dashboard(
 ) -> Response:
     prediction_repo = PredictionRepository(db)
     survey_repo = HealthSurveyRepository(db)
+    uc_repo = UserChallengeRepository(db)
+    log_repo = ChallengeLogRepository(db)
 
     predictions = await prediction_repo.get_by_user_id(user.id)
     if not predictions:
@@ -35,6 +38,11 @@ async def get_dashboard(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="설문 데이터가 없습니다.",
         )
+
+    active_ucs = await uc_repo.get_by_user_id(user.id, status="진행중")
+    active_uc_ids = [uc.id for uc in active_ucs]
+    streak_days = await log_repo.get_streak_days(active_uc_ids)
+    weekly_rate = await log_repo.get_weekly_rate(active_uc_ids)
 
     latest = predictions[0]
 
@@ -53,6 +61,8 @@ async def get_dashboard(
             drink_amount=survey.drink_amount,
             exercise=survey.exercise,
         ),
+        streak_days=streak_days,
+        weekly_rate=weekly_rate,
     )
 
     return Response(result.model_dump(mode="json"), status_code=status.HTTP_200_OK)

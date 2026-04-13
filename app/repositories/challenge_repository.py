@@ -1,6 +1,7 @@
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -145,3 +146,48 @@ class ChallengeLogRepository:
             elif d < expected:
                 break
         return consecutive
+
+    async def get_streak_days(self, active_uc_ids: list[int]) -> int:
+        """진행중 챌린지 전부를 매일 완료한 연속 일수"""
+        if not active_uc_ids:
+            return 0
+
+        result = await self._session.execute(
+            select(ChallengeLog.log_date, ChallengeLog.user_challenge_id).where(
+                ChallengeLog.user_challenge_id.in_(active_uc_ids),
+                ChallengeLog.is_completed.is_(True),
+            )
+        )
+        by_date: dict[date, set[int]] = defaultdict(set)
+        for log_date, uc_id in result.all():
+            by_date[log_date].add(uc_id)
+
+        active_set = set(active_uc_ids)
+        consecutive = 0
+        expected = date.today()
+        while True:
+            if expected not in by_date or not active_set.issubset(by_date[expected]):
+                break
+            consecutive += 1
+            expected -= timedelta(days=1)
+        return consecutive
+
+    async def get_weekly_rate(self, active_uc_ids: list[int]) -> float:
+        """이번 주 달성률: 완료 로그 수 / (진행중 챌린지 수 × 7) × 100"""
+        if not active_uc_ids:
+            return 0.0
+
+        today = date.today()
+        week_start = today - timedelta(days=today.weekday())  # 이번 주 월요일
+
+        result = await self._session.execute(
+            select(func.count(ChallengeLog.id)).where(
+                ChallengeLog.user_challenge_id.in_(active_uc_ids),
+                ChallengeLog.is_completed.is_(True),
+                ChallengeLog.log_date >= week_start,
+                ChallengeLog.log_date <= today,
+            )
+        )
+        completed = result.scalar() or 0
+        total_expected = len(active_uc_ids) * 7
+        return round(completed / total_expected * 100, 1)

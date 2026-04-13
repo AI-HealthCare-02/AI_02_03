@@ -22,3 +22,5 @@ class DashboardResponse(BaseModel):
     improvement_factors: list  # counterfactual 기반 개선 요인
     score_history: list[ScoreHistoryItem]
     lifestyle_summary: LifestyleSummary
+    streak_days: int
+    weekly_rate: float
