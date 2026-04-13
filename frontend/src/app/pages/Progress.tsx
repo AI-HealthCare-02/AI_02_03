@@ -45,8 +45,8 @@ export function Progress() {
   const [dietState, setDietState] = useState<DietAnalysisState>("idle");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
-  const streakDays = 14;
-  const weeklyRate = 78;
+  const [streakDays, setStreakDays] = useState(0);
+  const [weeklyRate, setWeeklyRate] = useState(0);
   const earnedBadges = 8;
 
   const [healthScore, setHealthScore] = useState(0);
@@ -95,12 +95,16 @@ export function Progress() {
         improvement_factors: any[];
         score_history: { score: number; created_at: string }[];
         lifestyle_summary: { bmi: number; sleep_hours: number; drink_amount: number; exercise: string };
+        streak_days: number;
+        weekly_rate: number;
       }>("/api/v1/dashboard")
       .then((r) => {
         setHealthScore(Math.round(r.data.latest_score));
         setLatestGrade(r.data.latest_grade);
         setImprovementFactors(r.data.improvement_factors);
         setLifestyleSummary(r.data.lifestyle_summary);
+        setStreakDays(r.data.streak_days);
+        setWeeklyRate(r.data.weekly_rate);
         setHealthScoreHistory(
           r.data.score_history
             .slice(0, 7)
