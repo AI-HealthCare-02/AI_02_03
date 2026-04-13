@@ -29,6 +29,7 @@ class UserChallengeResponse(BaseModel):
     status: str
     progress: int = 0
     days_left: int = 0
+    today_completed: bool = False
     joined_at: datetime
     completed_at: datetime | None = None
 

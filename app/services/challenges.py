@@ -100,6 +100,10 @@ class ChallengeService:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="이미 진행 중인 챌린지입니다.")
 
         uc = await self.uc_repo.create(user.id, challenge_id)
+
+        from app.services.badges import BadgeService
+        await BadgeService(self._session).evaluate_and_grant(user.id)
+
         return ChallengeJoinResponse(detail="챌린지에 참여하였습니다.", user_challenge_id=uc.id)
 
     async def get_my_challenges(self, user: User, status_filter: str | None) -> list[UserChallengeResponse]:
@@ -111,6 +115,7 @@ class ChallengeService:
             progress = min(100, round(completed_logs / required * 100)) if required > 0 else 0
             end_date = (uc.joined_at + timedelta(days=uc.challenge.duration_days)).date()
             days_left = max(0, (end_date - date.today()).days)
+            today_log = await self.log_repo.get_today_log(uc.id)
             result.append(
                 UserChallengeResponse(
                     user_challenge_id=uc.id,
@@ -121,6 +126,7 @@ class ChallengeService:
                     status=uc.status,
                     progress=progress,
                     days_left=days_left,
+                    today_completed=bool(today_log and today_log.is_completed),
                     joined_at=uc.joined_at,
                     completed_at=uc.completed_at,
                 )
@@ -173,6 +179,9 @@ class ChallengeService:
         recovery = await self._calc_alcohol_recovery(user.id, updated_survey)
         new_score = min(100, new_score + recovery)
         new_grade = _grade(int(new_score))
+
+        from app.services.badges import BadgeService
+        await BadgeService(self._session).evaluate_and_grant(user.id)
 
         return ChallengeCompleteResponse(
             detail="챌린지를 완료하였습니다."
@@ -265,6 +274,9 @@ class ChallengeService:
 
         motivation = _MOTIVATION_MESSAGES[completed_logs % len(_MOTIVATION_MESSAGES)]
         improvement = _IMPROVEMENT_MESSAGES.get(uc.challenge.type, "꾸준한 실천이 건강을 만들어요.")
+
+        from app.services.badges import BadgeService
+        await BadgeService(self._session).evaluate_and_grant(user.id)
 
         return ChallengeLogResponse(
             detail="기록이 저장됐습니다.",
