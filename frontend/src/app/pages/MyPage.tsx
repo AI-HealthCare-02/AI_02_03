@@ -13,6 +13,8 @@ import {
   TrendingDown,
   TrendingUp,
   Minus,
+  Sparkles,
+  Flame,
 } from "lucide-react";
 import api from "../../lib/api";
 
@@ -31,6 +33,17 @@ interface PredictionItem {
   created_at: string;
 }
 
+interface ImprovementFactor {
+  category: string;
+  challenge_type: string;
+  score_delta: number;
+}
+
+interface DashboardData {
+  streak_days: number;
+  improvement_factors: ImprovementFactor[];
+}
+
 function gradeToRisk(grade: string): "LOW" | "MID" | "HIGH" {
   if (grade === "정상") return "LOW";
   if (grade === "중증") return "HIGH";
@@ -40,17 +53,31 @@ function gradeToRisk(grade: string): "LOW" | "MID" | "HIGH" {
 function getRiskStyle(level: "LOW" | "MID" | "HIGH") {
   switch (level) {
     case "LOW":
-      return { bg: "bg-emerald-100", text: "text-emerald-900", border: "border-emerald-300", label: "정상" };
+      return { bg: "bg-emerald-100", text: "text-emerald-900", border: "border-emerald-300" };
     case "MID":
-      return { bg: "bg-yellow-100", text: "text-yellow-900", border: "border-yellow-300", label: "주의" };
+      return { bg: "bg-yellow-100", text: "text-yellow-900", border: "border-yellow-300" };
     case "HIGH":
-      return { bg: "bg-red-100", text: "text-red-900", border: "border-red-300", label: "위험" };
+      return { bg: "bg-red-100", text: "text-red-900", border: "border-red-300" };
   }
 }
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function getAiRecommendation(factors: ImprovementFactor[]): string {
+  if (!factors.length) return "오늘도 건강한 하루를 보내세요!";
+  const top = factors[0];
+  const messages: Record<string, string> = {
+    금주: "오늘은 술을 피하고 물을 충분히 마셔보세요.",
+    운동: "오늘 30분 이상 유산소 운동을 해보세요.",
+    금연: "담배 없는 하루를 만들어 보세요. 간 건강이 달라져요.",
+    수면: "오늘은 일찍 자고 7시간 이상 수면을 취해보세요.",
+    식습관: "채소 위주의 균형 잡힌 식단을 실천해보세요.",
+    체중감량: "오늘 식사량을 조금 줄이고 걷기를 추가해보세요.",
+  };
+  return messages[top.category] ?? "오늘도 건강한 하루를 보내세요!";
 }
 
 const menuItems = [
@@ -91,16 +118,19 @@ const menuItems = [
 export function MyPage() {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [predictions, setPredictions] = useState<PredictionItem[]>([]);
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get<UserInfo>("/api/v1/users/me"),
       api.get<PredictionItem[]>("/api/v1/predictions/me"),
+      api.get<DashboardData>("/api/v1/dashboard").catch(() => null),
     ])
-      .then(([userRes, predRes]) => {
+      .then(([userRes, predRes, dashRes]) => {
         setUser(userRes.data);
         setPredictions(predRes.data);
+        if (dashRes) setDashboard(dashRes.data);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -141,9 +171,9 @@ export function MyPage() {
                     <p className="text-xs text-gray-500">가입일: {formatDate(user.created_at)}</p>
                   )}
                 </div>
-                <Link to="/mypage/account" className="w-full">
+                <Link to="/mypage/profile" className="w-full">
                   <Button variant="outline" className="w-full border-2">
-                    계정 관리
+                    프로필 수정
                   </Button>
                 </Link>
               </div>
@@ -160,6 +190,7 @@ export function MyPage() {
                 <p className="text-gray-400 text-sm">불러오는 중...</p>
               ) : latestPred && riskStyle ? (
                 <>
+                  {/* 등급 + 점수 변화 */}
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600 font-medium">간 건강 등급</p>
                     <div className="flex items-center justify-between">
@@ -191,6 +222,7 @@ export function MyPage() {
                     </div>
                   </div>
 
+                  {/* 최근 점수 */}
                   <div className="pt-2 border-t">
                     <p className="text-sm text-gray-600 font-medium mb-1">최근 점수</p>
                     <p className="text-3xl font-bold text-gray-900">
@@ -200,6 +232,40 @@ export function MyPage() {
                       {formatDate(latestPred.created_at)} 기준
                     </p>
                   </div>
+
+                  {/* AI 추천 */}
+                  {dashboard && (
+                    <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-lg">
+                      <div className="flex items-start gap-2 mb-2">
+                        <Sparkles className="size-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm font-medium text-purple-900">오늘 해야 할 행동</p>
+                      </div>
+                      <p className="text-sm text-gray-700 ml-7">
+                        {getAiRecommendation(dashboard.improvement_factors)}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 연속 기록 */}
+                  {dashboard && dashboard.streak_days > 0 && (
+                    <div className="p-4 bg-gradient-to-br from-orange-50 to-red-50 border border-orange-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Flame className="size-6 text-orange-600" />
+                          <div>
+                            <p className="text-sm text-gray-600">현재 연속 기록</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                              {dashboard.streak_days}일
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">연속 달성 중!</p>
+                          <p className="text-xs text-orange-600 font-medium">계속 이어가세요 🔥</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <p className="text-sm text-gray-400">예측 결과가 없습니다</p>
