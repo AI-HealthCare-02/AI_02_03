@@ -7,6 +7,7 @@ import { Label } from "../components/ui/label";
 import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
 import { Progress } from "../components/ui/progress";
 import { Activity, ArrowLeft, Info, Shield, Heart, Moon as MoonIcon, CheckCircle2 } from "lucide-react";
+import liverExcellent from "../../assets/characters/liver_excellent.png";
 
 export function OnboardingStep3() {
   const navigate = useNavigate();
@@ -77,11 +78,12 @@ export function OnboardingStep3() {
           {/* Animated Liver Character */}
           <div className="relative flex items-center justify-center">
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-300 to-teal-300 rounded-full blur-3xl opacity-40 animate-pulse" />
-            <div className="relative w-40 h-40 mx-auto flex items-center justify-center animate-bounce" style={{ animationDuration: "2s" }}>
-              <div className="w-28 h-28 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-6xl shadow-xl">
-                🔍
-              </div>
-            </div>
+            <img
+              src={liverExcellent}
+              alt="간 캐릭터"
+              className="relative w-40 h-40 mx-auto object-contain animate-bounce"
+              style={{ animationDuration: "2s" }}
+            />
           </div>
 
           {/* Loading Text */}

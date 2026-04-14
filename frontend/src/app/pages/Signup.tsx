@@ -7,10 +7,12 @@ import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
 import { Mail, Lock, User, ArrowRight, LogIn } from "lucide-react";
 import { authService } from "../../services/auth";
+import { useAuthStore } from "../../store/authStore";
 import liverIcon from "../../assets/characters/liver_excellent.png";
 
 export function Signup() {
   const navigate = useNavigate();
+  const { fetchMe } = useAuthStore();
   const [formData, setFormData] = useState({
     nickname: "",
     email: "",
@@ -36,6 +38,11 @@ export function Signup() {
         password: formData.password,
         nickname: formData.nickname,
       });
+      await authService.login({
+        email: formData.email,
+        password: formData.password,
+      });
+      await fetchMe();
       navigate("/onboarding/step0");
     } catch (err: unknown) {
       const data = (err as { response?: { data?: Record<string, string> } })?.response?.data;

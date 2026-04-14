@@ -15,9 +15,11 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 COPY pyproject.toml uv.lock ./
 
 # 3. pyproject.toml에 명시된 의존성 패키지 중에서 'app' 그룹만 설치합니다.
-RUN uv sync --group app --no-dev --frozen
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --group app --no-dev --frozen --link-mode=copy
 
 # 4. 로컬 소스 코드를 컨테이너 내부로 복사합니다.
+COPY alembic.ini ./
 COPY ./app ./app
 
 # 5. 해당 이미지를 활용하여 도커컨테이너 실행시 실행되는 명령어입니다.
