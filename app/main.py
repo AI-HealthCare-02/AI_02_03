@@ -9,7 +9,10 @@ from app.apis.v1 import v1_routers
 from app.core import config
 from app.db.databases import engine
 
-celery_app = Celery(broker=f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/0")
+celery_app = Celery(
+    broker=f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/0",
+    backend=f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/0",
+)
 
 
 @asynccontextmanager

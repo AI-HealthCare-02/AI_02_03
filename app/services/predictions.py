@@ -20,26 +20,31 @@ def _calc_grade(score: float) -> str:
 
 
 def _survey_to_features(survey) -> dict:
+    """ML 모델 피처 13개 + 패널티 계산용 비모델 피처를 함께 전달.
+    ai_worker에서 _PENALTY_COLS를 분리해 패널티 계산에만 사용.
+    """
     return {
+        # ── ML 모델 피처 (13개) ──────────────────────────
         "나이": survey.age,
         "성별": survey.gender,
         "키": survey.height,
         "몸무게": survey.weight,
         "BMI": survey.bmi,
         "허리둘레": survey.waist,
+        "주당운동횟수": survey.weekly_exercise_count,
+        "흡연여부": survey.smoking,
+        "당뇨진단여부": survey.diabetes,
+        "고혈압진단여부": survey.hypertension,
+        "수면장애여부": survey.sleep_disorder,
+        "식습관자가평가": survey.diet_eval,
+        "간질환진단여부": "없음",
+        # ── 패널티 계산용 (모델 미포함) ─────────────────
         "음주여부": survey.drinking,
         "1회음주량": survey.drink_amount,
         "주당음주빈도": survey.weekly_drink_freq,
         "월폭음빈도": survey.monthly_binge_freq,
-        "운동여부": survey.exercise,
-        "주당운동횟수": survey.weekly_exercise_count,
-        "흡연여부": survey.smoking,
         "현재흡연여부": survey.current_smoking,
-        "당뇨진단여부": survey.diabetes,
-        "고혈압진단여부": survey.hypertension,
-        "수면장애여부": survey.sleep_disorder,
         "평균수면시간": survey.sleep_hours,
-        "식습관자가평가": survey.diet_eval,
     }
 
 
@@ -68,16 +73,17 @@ class PredictionService:
         try:
             result = task_result.get(timeout=30)
         except Exception as e:
+            import logging
+            logging.getLogger(__name__).error("Celery task failed: %s", repr(e))
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="AI 예측 서비스에 연결할 수 없습니다.",
+                detail=f"AI 예측 서비스에 연결할 수 없습니다. ({repr(e)})",
             ) from e
 
         score = result["score"]
 
-        # 금주 유지 모드 회복 점수 반영
-        recovery = await self._calc_alcohol_recovery(user.id, survey)
-        score = min(100, score + recovery)
+        # 전체 패널티 + 유지 모드 회복 반영
+        score = await self._apply_all_penalties(user.id, survey, score)
 
         grade = _calc_grade(score)
 
@@ -108,30 +114,42 @@ class PredictionService:
 
         return prediction
 
-    async def _calc_alcohol_recovery(self, user_id: int, survey) -> int:
-        """금주 유지 모드의 회복 점수 계산"""
-        uc = await self.uc_repo.get_maintenance_by_user(user_id, "금주")
-        if not uc:
-            return 0
-
-        consecutive = await self.log_repo.get_consecutive_days(uc.id)
-
+    async def _apply_all_penalties(self, user_id: int, survey, base_score: float) -> float:
+        """4개 패널티 적용 + 유지 모드 회복 반영"""
         from app.services.challenges import _calc_recovery_rate
+        from app.utils.score import (
+            _alcohol_penalty,
+            _exercise_penalty,
+            _sleep_penalty,
+            _smoking_penalty,
+        )
 
-        recovery_rate = _calc_recovery_rate(consecutive)
-        if recovery_rate == 0:
-            return 0
-
-        from app.utils.score import _alcohol_penalty
-
-        alcohol_data = {
-            "음주여부": survey.drinking,
-            "1회음주량": survey.drink_amount,
-            "주당음주빈도": survey.weekly_drink_freq,
-            "월폭음빈도": survey.monthly_binge_freq,
+        penalties = {
+            "금주": _alcohol_penalty({
+                "음주여부": survey.drinking,
+                "1회음주량": survey.drink_amount,
+                "주당음주빈도": survey.weekly_drink_freq,
+                "월폭음빈도": survey.monthly_binge_freq,
+            }),
+            "운동": _exercise_penalty(survey.weekly_exercise_count),
+            "금연": _smoking_penalty(survey.current_smoking, survey.smoking),
+            "수면": _sleep_penalty(survey.sleep_hours, survey.sleep_disorder),
         }
-        penalty = _alcohol_penalty(alcohol_data)
-        return round(abs(penalty) * recovery_rate)
+
+        total_penalty = sum(penalties.values())
+
+        total_recovery = 0
+        for ctype, penalty in penalties.items():
+            if penalty >= 0:
+                continue
+            uc = await self.uc_repo.get_maintenance_by_user(user_id, ctype)
+            if not uc:
+                continue
+            consecutive = await self.log_repo.get_consecutive_days(uc.id)
+            rate = _calc_recovery_rate(consecutive)
+            total_recovery += round(abs(penalty) * rate)
+
+        return min(100.0, max(10.0, base_score + total_penalty + total_recovery))
 
     async def get_predictions(self, user: User) -> list[Prediction]:
         return await self.repo.get_by_user_id(user.id)

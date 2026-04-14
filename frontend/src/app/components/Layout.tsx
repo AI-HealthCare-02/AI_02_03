@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation, useNavigate } from "react-router";
+import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router";
 import { Activity, TrendingUp, Home, LogIn, UserPlus, User, LogOut, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -28,6 +28,9 @@ export function Layout() {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const { isLoggedIn, user, logout } = useAuthStore();
+
+  if (!isLoggedIn) return <Navigate to="/login" replace />;
+
   const userName = user?.nickname ?? "";
 
   const isActive = (path: string) => {

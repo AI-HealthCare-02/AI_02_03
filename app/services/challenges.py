@@ -32,13 +32,23 @@ _IMPROVEMENT_MESSAGES = {
     "금주": "금주는 간 지방 축적을 빠르게 줄여줄 수 있어요.",
 }
 
-# 금주 유지 연속 일수 → 회복률 매핑
+# 유지 모드 진입 챌린지 타입 (패널티 회복 방식)
+_MAINTENANCE_TYPES = {"운동", "수면", "금연", "금주"}
+
+# 금주 유지 연속 일수 → 회복률 매핑 (모든 패널티 타입 공통)
 _RECOVERY_TIERS = [
-    (30, 1.0),  # 30일 이상: 100% 회복
-    (21, 0.75),  # 21일 이상: 75%
-    (14, 0.5),  # 14일 이상: 50%
-    (7, 0.3),  # 7일 이상: 30%
+    (30, 1.0),
+    (21, 0.75),
+    (14, 0.5),
+    (7, 0.3),
 ]
+
+_MAINTENANCE_MESSAGES = {
+    "운동": " 운동 유지 모드가 시작됩니다. 꾸준히 기록해 패널티를 줄여보세요.",
+    "수면": " 수면 유지 모드가 시작됩니다. 꾸준히 기록해 패널티를 줄여보세요.",
+    "금연": " 금연 유지 모드가 시작됩니다.",
+    "금주": " 금주 유지 모드가 시작됩니다.",
+}
 
 
 def _calc_grade(score: float) -> str:
@@ -53,12 +63,10 @@ def _calc_grade(score: float) -> str:
 
 
 def _get_recommended_challenge_types(improvement_factors: list) -> list[str]:
-    """개선 요인에서 챌린지 type 목록 반환"""
     return [f["challenge_type"] for f in improvement_factors] if improvement_factors else []
 
 
 def _calc_recovery_rate(consecutive_days: int) -> float:
-    """연속 금주 일수 → 회복률"""
     for threshold, rate in _RECOVERY_TIERS:
         if consecutive_days >= threshold:
             return rate
@@ -76,18 +84,14 @@ class ChallengeService:
 
     async def get_challenges(self, user: User) -> list[ChallengeResponse]:
         challenges = await self.repo.get_all()
-
-        # 최근 예측의 개선 요인으로 추천 챌린지 판단
         latest = await self.prediction_repo.get_latest_by_user_id(user.id)
         recommended_types = _get_recommended_challenge_types(latest.shap_factors if latest else [])
 
         result = []
         for c in challenges:
-            is_recommended = c.type in recommended_types
             resp = ChallengeResponse.model_validate(c)
-            resp.is_recommended = is_recommended
+            resp.is_recommended = c.type in recommended_types
             result.append(resp)
-
         return result
 
     async def join_challenge(self, user: User, challenge_id: int) -> ChallengeJoinResponse:
@@ -150,20 +154,20 @@ class ChallengeService:
         latest = await self.prediction_repo.get_latest_by_user_id(user.id)
         score_before = latest.score if latest else 0.0
 
-        update_data = {"status": "완료", "completed_at": datetime.now()}
+        update_data: dict = {"status": "완료", "completed_at": datetime.now()}
 
-        # 금주·금연 챌린지 완료 → 유지 모드 진입
-        if uc.challenge.type in ("금주", "금연"):
+        # 패널티 회복 방식 챌린지 → 유지 모드 진입
+        if uc.challenge.type in _MAINTENANCE_TYPES:
             update_data["is_maintenance"] = True
             update_data["last_checkin_at"] = datetime.now()
 
         await self.uc_repo.update(uc, update_data)
 
-        # 챌린지 완료 후 설문 자동 업데이트
+        # 설문 업데이트 방식 챌린지 (식습관/식단/체중감량)
         survey_changes = None
         survey = await self.survey_repo.get_by_user_id(user.id)
-        if survey:
-            survey_changes = await self._apply_challenge_survey_update(uc, survey)
+        if survey and uc.challenge.type not in _MAINTENANCE_TYPES:
+            survey_changes = await self._apply_survey_update(uc, survey)
 
         # 새 점수 계산
         from app.services.health_surveys import _calc_grade as _grade
@@ -172,29 +176,24 @@ class ChallengeService:
         updated_survey = await self.survey_repo.get_by_user_id(user.id)
         new_score = float(_calc_score_from_survey(updated_survey)) if updated_survey else score_before
 
-        # 금주 유지 모드면 회복 점수 반영
-        recovery = await self._calc_alcohol_recovery(user.id, updated_survey)
-        new_score = min(100, new_score + recovery)
+        # 전체 패널티 + 회복 반영
+        new_score = await self._apply_all_penalties(user.id, updated_survey, new_score)
         new_grade = _grade(int(new_score))
 
         from app.services.badges import BadgeService
         await BadgeService(self._session).evaluate_and_grant(user.id)
 
-        _maintenance_msg = {
-            "금주": " 금주 유지 모드가 시작됩니다.",
-            "금연": " 금연 유지 모드가 시작됩니다.",
-        }
+        detail = "챌린지를 완료하였습니다." + _MAINTENANCE_MESSAGES.get(uc.challenge.type, "")
         return ChallengeCompleteResponse(
-            detail="챌린지를 완료하였습니다." + _maintenance_msg.get(uc.challenge.type, ""),
+            detail=detail,
             score_before=score_before,
             new_score=new_score,
             new_grade=new_grade,
             survey_changes=survey_changes,
         )
 
-    # 챌린지명 키워드 → (diet_q 필드, 방향: +1 or -1)
-    # 긍정 문항(q1 채소, q4 규칙식사, q6 단백질): +1
-    # 부정 문항(q5 과식, q7 야식): -1
+    # ─── 설문 업데이트 방식 (식습관/식단/체중감량만) ────────────────────────
+
     _DIET_CHALLENGE_MAP: dict[str, tuple[str, int]] = {
         "채소": ("diet_q1", 1),
         "균형": ("diet_q4", 1),
@@ -202,23 +201,13 @@ class ChallengeService:
         "야식": ("diet_q7", -1),
     }
 
-    async def _apply_challenge_survey_update(self, uc, survey) -> dict | None:
-        """챌린지 완료 시 타입/이름별 설문 업데이트 로직"""
+    async def _apply_survey_update(self, uc, survey) -> dict | None:
         ctype = uc.challenge.type
         cname = uc.challenge.name
 
-        if ctype == "운동":
-            before = survey.weekly_exercise_count
-            target = 7 if "만보" in cname else 3
-            new_val = max(before, target)
-            if new_val != before or survey.exercise != "운동함":
-                await self.survey_repo.update(survey, {"weekly_exercise_count": new_val, "exercise": "운동함"})
-            return {"field": "weekly_exercise_count", "before": before, "after": new_val}
-
-        elif ctype in ("식단", "식습관"):
+        if ctype in ("식단", "식습관"):
             from app.services.health_surveys import _calc_diet
 
-            # 챌린지명 키워드로 해당 문항 찾기
             matched = next(
                 ((field, direction) for kw, (field, direction) in self._DIET_CHALLENGE_MAP.items() if kw in cname),
                 None,
@@ -232,9 +221,8 @@ class ChallengeService:
             if new_val == before_val:
                 return None
 
-            # diet_q1~q7 전체 목록 재구성 후 score/eval 재계산
             qs = [getattr(survey, f"diet_q{i}") for i in range(1, 8)]
-            q_idx = int(field[-1]) - 1  # "diet_q1" → 0
+            q_idx = int(field[-1]) - 1
             qs[q_idx] = new_val
             new_score, new_eval = _calc_diet(qs)
 
@@ -244,17 +232,6 @@ class ChallengeService:
                 "diet_eval": new_eval,
             })
             return {"field": field, "before": before_val, "after": new_val}
-
-        elif ctype == "수면":
-            if "환경" in cname and survey.sleep_disorder == "있음":
-                await self.survey_repo.update(survey, {"sleep_disorder": "없음"})
-                return {"field": "sleep_disorder", "before": "있음", "after": "없음"}
-            else:
-                before = survey.sleep_hours
-                new_val = round(min(before + 0.5, 8.0), 1)
-                if new_val != before:
-                    await self.survey_repo.update(survey, {"sleep_hours": new_val})
-                return {"field": "sleep_hours", "before": before, "after": new_val}
 
         elif ctype == "체중감량":
             target_kg = 5.0 if "5kg" in cname else 2.0
@@ -270,27 +247,20 @@ class ChallengeService:
             })
             return {"field": "weight", "before": before_weight, "after": new_weight}
 
-        elif ctype == "금연":
-            updates: dict = {}
-            if survey.current_smoking == "흡연":
-                updates["current_smoking"] = "안함"
-            await self.survey_repo.update(survey, updates) if updates else None
-            return {"field": "current_smoking", "before": survey.current_smoking, "after": "안함"} if updates else None
-
         return None
 
-    async def _calc_alcohol_recovery(self, user_id: int, survey) -> int:
-        """금주 유지 모드의 회복 점수 계산"""
-        uc = await self.uc_repo.get_maintenance_by_user(user_id, "금주")
-        if not uc:
-            return 0
+    # ─── 패널티 + 회복 통합 계산 ─────────────────────────────────────────────
 
-        consecutive = await self.log_repo.get_consecutive_days(uc.id)
-        recovery_rate = _calc_recovery_rate(consecutive)
-        if recovery_rate == 0:
-            return 0
+    async def _apply_all_penalties(self, user_id: int, survey, base_score: float) -> float:
+        if not survey:
+            return base_score
 
-        from app.utils.score import _alcohol_penalty
+        from app.utils.score import (
+            _alcohol_penalty,
+            _exercise_penalty,
+            _sleep_penalty,
+            _smoking_penalty,
+        )
 
         alcohol_data = {
             "음주여부": survey.drinking,
@@ -298,28 +268,53 @@ class ChallengeService:
             "주당음주빈도": survey.weekly_drink_freq,
             "월폭음빈도": survey.monthly_binge_freq,
         }
-        penalty = _alcohol_penalty(alcohol_data)
+
+        penalties = {
+            "금주": _alcohol_penalty(alcohol_data),
+            "운동": _exercise_penalty(survey.weekly_exercise_count),
+            "금연": _smoking_penalty(survey.current_smoking, survey.smoking),
+            "수면": _sleep_penalty(survey.sleep_hours, survey.sleep_disorder),
+        }
+
+        total_penalty = sum(penalties.values())
+        total_recovery = sum(
+            await self._calc_penalty_recovery(user_id, ctype, penalty)
+            for ctype, penalty in penalties.items()
+        )
+
+        return min(100.0, max(10.0, base_score + total_penalty + total_recovery))
+
+    async def _calc_penalty_recovery(self, user_id: int, challenge_type: str, penalty: int) -> int:
+        """유지 모드 연속 일수에 따라 해당 타입의 패널티를 회복"""
+        if penalty >= 0:
+            return 0
+        uc = await self.uc_repo.get_maintenance_by_user(user_id, challenge_type)
+        if not uc:
+            return 0
+        consecutive = await self.log_repo.get_consecutive_days(uc.id)
+        recovery_rate = _calc_recovery_rate(consecutive)
         return round(abs(penalty) * recovery_rate)
 
-    async def weekly_checkin(self, user: User, still_sober: bool) -> dict:
-        """금주 유지 주간 체크인"""
-        uc = await self.uc_repo.get_maintenance_by_user(user.id, "금주")
+    # ─── 유지 모드 체크인 ─────────────────────────────────────────────────────
+
+    async def maintenance_checkin(self, user: User, challenge_type: str, still_maintaining: bool) -> dict:
+        """유지 모드 체크인 (금주/금연/운동/수면 공통)"""
+        uc = await self.uc_repo.get_maintenance_by_user(user.id, challenge_type)
         if not uc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="금주 유지 모드가 아닙니다.",
+                detail=f"{challenge_type} 유지 모드가 아닙니다.",
             )
 
-        if not still_sober:
-            # 음주 재개 → 유지 모드 해제
+        if not still_maintaining:
             await self.uc_repo.update(uc, {"is_maintenance": False})
             return {
-                "detail": "금주 유지 모드가 종료되었습니다. 다시 도전해보세요!",
+                "detail": f"{challenge_type} 유지 모드가 종료되었습니다. 다시 도전해보세요!",
                 "is_maintenance": False,
+                "recovery_rate": 0,
                 "recovery_points": 0,
             }
 
-        # 체크인 로그 기록 + 타임스탬프 갱신
         await self.log_repo.create(uc.id, is_completed=True)
         await self.uc_repo.update(uc, {"last_checkin_at": datetime.now()})
 
@@ -327,18 +322,44 @@ class ChallengeService:
         recovery_rate = _calc_recovery_rate(consecutive)
 
         survey = await self.survey_repo.get_by_user_id(user.id)
-        recovery = await self._calc_alcohol_recovery(user.id, survey)
+
+        from app.utils.score import (
+            _alcohol_penalty,
+            _exercise_penalty,
+            _sleep_penalty,
+            _smoking_penalty,
+        )
+
+        penalty_fn_map = {
+            "금주": lambda: _alcohol_penalty({
+                "음주여부": survey.drinking,
+                "1회음주량": survey.drink_amount,
+                "주당음주빈도": survey.weekly_drink_freq,
+                "월폭음빈도": survey.monthly_binge_freq,
+            }),
+            "운동": lambda: _exercise_penalty(survey.weekly_exercise_count),
+            "금연": lambda: _smoking_penalty(survey.current_smoking, survey.smoking),
+            "수면": lambda: _sleep_penalty(survey.sleep_hours, survey.sleep_disorder),
+        }
+
+        penalty = penalty_fn_map[challenge_type]() if survey else 0
+        recovery_points = round(abs(penalty) * recovery_rate)
 
         return {
-            "detail": f"금주 {consecutive}일째 유지 중! 회복률 {int(recovery_rate * 100)}%",
+            "detail": f"{challenge_type} {consecutive}일째 유지 중! 회복률 {int(recovery_rate * 100)}%",
             "is_maintenance": True,
             "consecutive_days": consecutive,
             "recovery_rate": recovery_rate,
-            "recovery_points": recovery,
+            "recovery_points": recovery_points,
         }
 
+    # ─── 기존 금주 전용 체크인 (하위 호환) ───────────────────────────────────
+
+    async def weekly_checkin(self, user: User, still_sober: bool) -> dict:
+        return await self.maintenance_checkin(user, "금주", still_sober)
+
     async def expire_stale_maintenances(self) -> int:
-        """2주 미응답 유지 모드 자동 해제 (스케줄러에서 호출)"""
+        """2주 미응답 유지 모드 자동 해제"""
         cutoff = datetime.now() - timedelta(days=14)
         stale = await self.uc_repo.get_expired_maintenances(cutoff)
         for uc in stale:

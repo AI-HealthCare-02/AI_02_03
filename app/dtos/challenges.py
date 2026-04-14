@@ -60,7 +60,11 @@ class WeeklyCheckinRequest(BaseModel):
     still_sober: bool
 
 
-class WeeklyCheckinResponse(BaseModel):
+class MaintenanceCheckinRequest(BaseModel):
+    still_maintaining: bool
+
+
+class MaintenanceCheckinResponse(BaseModel):
     detail: str
     is_maintenance: bool
     consecutive_days: int = 0

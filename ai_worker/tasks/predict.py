@@ -15,52 +15,116 @@ LABEL_MAP = {0: "정상", 1: "경미", 2: "중등도", 3: "중증"}
 
 _MIDPOINTS = np.array([12.5, 37.5, 62.5, 87.5])
 
-# 모델에서 제거된 음주 피처 (Sick Quitter Effect로 제외, 별도 감점 처리)
-_ALCOHOL_COLS = ["음주여부", "1회음주량", "주당음주빈도", "월폭음빈도"]
+# 모델에 들어가지 않는 패널티 계산용 피처 (앱 레이어에서 패널티 적용)
+_PENALTY_COLS = [
+    "음주여부", "1회음주량", "주당음주빈도", "월폭음빈도",  # 음주
+    "현재흡연여부",                                          # 흡연 (현재)
+    "평균수면시간",                                          # 수면 시간
+]
 
-# 개선 번들: 각 생활습관 카테고리별 목표값 + 매칭할 챌린지 type
-# condition: 이미 목표치에 도달했으면 번들 스킵
+# ── 패널티 함수 (counterfactual 델타 추정용) ──────────────────────────────────
+
+def _alcohol_penalty(p: dict) -> int:
+    if p.get("음주여부") == "음주안함":
+        return 0
+    penalty = 0
+    weekly = p.get("1회음주량", 0) * p.get("주당음주빈도", 0)
+    if weekly >= 14:
+        penalty -= 15
+    elif weekly >= 7:
+        penalty -= 8
+    elif weekly >= 3.5:
+        penalty -= 3
+    binge = p.get("월폭음빈도", 0)
+    if binge >= 4:
+        penalty -= 5
+    elif binge >= 2:
+        penalty -= 3
+    return max(penalty, -20)
+
+
+def _exercise_penalty(weekly_count: int) -> int:
+    if weekly_count >= 5:
+        return 0
+    elif weekly_count >= 3:
+        return -3
+    elif weekly_count >= 1:
+        return -7
+    return -10
+
+
+def _smoking_penalty(current_smoking: str, smoking_history: str) -> int:
+    if current_smoking == "흡연":
+        return -15
+    if smoking_history not in ("없음", "비흡연", "흡연경험없음"):
+        return -5
+    return 0
+
+
+def _sleep_penalty(sleep_hours: float, sleep_disorder: str) -> int:
+    penalty = 0
+    if sleep_disorder == "있음":
+        penalty -= 5
+    if sleep_hours < 6:
+        penalty -= 5
+    elif sleep_hours < 7:
+        penalty -= 2
+    return max(penalty, -10)
+
+
+# ── 개선 번들 ─────────────────────────────────────────────────────────────────
+# penalty_based=True  → delta = abs(current penalty)   (패널티 회복 방식)
+# penalty_based=False → delta = ML score 변화           (설문 업데이트 방식)
+
 _IMPROVEMENT_BUNDLES = [
     {
         "category": "금주",
         "challenge_type": "금주",
-        "condition": lambda r: r.get("음주여부") != "음주안함",
-        "changes": {},  # 모델 외부 감점 방식이므로 모델 입력 변경 없음
+        "penalty_based": True,
+        "condition": lambda row, p: p.get("음주여부") != "음주안함",
+        "penalty_fn": lambda row, p: _alcohol_penalty(p),
     },
     {
         "category": "운동",
         "challenge_type": "운동",
-        "condition": lambda r: r.get("주당운동횟수", 0) < 5,
-        "changes": {
-            "운동여부": "운동함",
-            "주당운동횟수": 5,
-        },
+        "penalty_based": True,
+        "condition": lambda row, p: row.get("주당운동횟수", 0) < 5,
+        "penalty_fn": lambda row, p: _exercise_penalty(int(row.get("주당운동횟수", 0))),
     },
     {
-        "category": "식습관",
-        "challenge_type": "식단",
-        "condition": lambda r: r.get("식습관자가평가") != "좋음",
-        "changes": {
-            "식습관자가평가": "좋음",
-        },
+        "category": "금연",
+        "challenge_type": "금연",
+        "penalty_based": True,
+        "condition": lambda row, p: p.get("현재흡연여부") == "흡연",
+        "penalty_fn": lambda row, p: _smoking_penalty(
+            p.get("현재흡연여부", "안함"), row.get("흡연여부", "없음")
+        ),
     },
     {
         "category": "수면",
         "challenge_type": "수면",
-        "condition": lambda r: r.get("평균수면시간", 8) < 7 or r.get("수면장애여부") == "있음",
-        "changes": {
-            "평균수면시간": 7.5,
-            "수면장애여부": "없음",
-        },
+        "penalty_based": True,
+        "condition": lambda row, p: p.get("평균수면시간", 8) < 7 or row.get("수면장애여부") == "있음",
+        "penalty_fn": lambda row, p: _sleep_penalty(
+            p.get("평균수면시간", 8), row.get("수면장애여부", "없음")
+        ),
+    },
+    {
+        "category": "식습관",
+        "challenge_type": "식습관",
+        "penalty_based": False,
+        "condition": lambda row, p: row.get("식습관자가평가") not in ("좋음", "매우좋음"),
+        "changes": {"식습관자가평가": "좋음"},
     },
     {
         "category": "체중감량",
-        "challenge_type": "식단",
-        "condition": lambda r: r.get("BMI", 0) > 23,
-        "changes_fn": lambda r: {
-            "몸무게": round(22.5 * (r["키"] / 100) ** 2, 1),
+        "challenge_type": "체중감량",
+        "penalty_based": False,
+        "condition": lambda row, p: row.get("BMI", 0) > 23,
+        "changes_fn": lambda row: {
+            "몸무게": round(22.5 * (row["키"] / 100) ** 2, 1),
             "BMI": 22.5,
-            "허리둘레": round(r["허리둘레"] * (22.5 / r["BMI"]), 1),
+            "허리둘레": round(row["허리둘레"] * (22.5 / row["BMI"]), 1),
         },
     },
 ]
@@ -81,78 +145,45 @@ def _temperature_scale(proba: np.ndarray, T: float = 1.4) -> np.ndarray:  # noqa
 
 
 def _proba_to_score(proba: np.ndarray) -> int:
-    """확률로 건강 점수 산출 (20~100, 높을수록 건강) — 모델 기반 점수만, 음주 감점 미포함"""
+    """확률로 건강 점수 산출 (20~100) — 패널티 미포함 순수 ML 점수"""
     scaled = _temperature_scale(proba)
     raw = float(np.dot(scaled, _MIDPOINTS))
     score = 20 + (87.5 - raw) / 75.0 * 80
     return min(max(20, round(score)), 100)
 
 
-def _alcohol_penalty(input_data: dict) -> int:
-    """
-    음주량 기반 점수 감점 (모델 외부 후처리).
-    주간 총 standard drinks = 1회음주량 × 주당음주빈도
-    폭음 빈도에 따라 추가 감점.
-    """
-    if input_data.get("음주여부") == "음주안함":
-        return 0
-
-    penalty = 0
-
-    # 주간 음주량 감점
-    weekly_total = input_data.get("1회음주량", 0) * input_data.get("주당음주빈도", 0)
-    if weekly_total >= 14:
-        penalty -= 15
-    elif weekly_total >= 7:
-        penalty -= 8
-    elif weekly_total >= 3.5:
-        penalty -= 3
-
-    # 폭음 빈도 추가 감점
-    binge = input_data.get("월폭음빈도", 0)
-    if binge >= 4:
-        penalty -= 5
-    elif binge >= 2:
-        penalty -= 3
-
-    return penalty
-
-
 def _get_improvement_factors(
-    input_df: pd.DataFrame, current_score: int, alcohol_data: dict, top_n: int = 3
+    input_df: pd.DataFrame, base_score: int, penalty_data: dict, top_n: int = 3
 ) -> list[dict]:
     """
     Counterfactual 방식으로 개선 효과가 큰 생활습관 요인 반환.
-    각 번들의 목표값으로 바꿔서 실제 score 변화를 측정하고 상위 top_n 반환.
-    금주 번들은 모델이 아닌 alcohol_penalty 차이로 계산.
+    - 패널티 방식(금주/운동/금연/수면): abs(current penalty) = 회복 가능한 점수
+    - ML 방식(식습관/체중감량): 목표값으로 변경 후 ML 점수 차이
     """
     model = _load_model()
     row = input_df.iloc[0].to_dict()
 
     results = []
     for bundle in _IMPROVEMENT_BUNDLES:
-        if not bundle["condition"]({**row, **alcohol_data}):
+        if not bundle["condition"](row, penalty_data):
             continue
 
-        if bundle["category"] == "금주":
-            # 금주 효과 = 현재 음주 감점분 제거
-            penalty = _alcohol_penalty(alcohol_data)
+        if bundle["penalty_based"]:
+            penalty = bundle["penalty_fn"](row, penalty_data)
             delta = abs(penalty)
         else:
             changes = bundle.get("changes") or bundle["changes_fn"](row)
             modified_df = pd.DataFrame([{**row, **changes}])
             proba = model.predict_proba(modified_df)[0]
             new_score = _proba_to_score(proba)
-            delta = new_score - current_score
+            delta = new_score - base_score
 
         if delta > 0:
-            results.append(
-                {
-                    "category": bundle["category"],
-                    "challenge_type": bundle["challenge_type"],
-                    "score_delta": delta,
-                }
-            )
+            results.append({
+                "category": bundle["category"],
+                "challenge_type": bundle["challenge_type"],
+                "score_delta": delta,
+            })
 
     results.sort(key=lambda x: x["score_delta"], reverse=True)
     return results[:top_n]
@@ -165,7 +196,7 @@ def predict_fatty_liver(self, input_data: dict) -> dict:
 
     Returns:
         {
-          "stage": int, "stage_label": str, "score": int,
+          "stage": int, "stage_label": str, "score": int (패널티 미포함 ML 점수),
           "probability": dict,
           "improvement_factors": [{"category": str, "challenge_type": str, "score_delta": int}]
         }
@@ -173,23 +204,22 @@ def predict_fatty_liver(self, input_data: dict) -> dict:
     try:
         model = _load_model()
 
-        # 음주 데이터는 별도 보관 (모델 피처에서 제외됨)
-        alcohol_data = {col: input_data.get(col) for col in _ALCOHOL_COLS}
-        model_data = {k: v for k, v in input_data.items() if k not in _ALCOHOL_COLS}
+        # 패널티 계산용 피처 분리 (모델에 넣지 않음)
+        penalty_data = {col: input_data.get(col) for col in _PENALTY_COLS}
+        model_data = {k: v for k, v in input_data.items() if k not in _PENALTY_COLS}
         input_df = pd.DataFrame([model_data])
 
         proba = model.predict_proba(input_df)[0]
         stage = int(np.argmax(proba))
         base_score = _proba_to_score(proba)
-        penalty = _alcohol_penalty(alcohol_data)
-        score = min(max(10, base_score + penalty), 100)
+        # 패널티는 앱 레이어(_apply_all_penalties)에서 처리 — 여기선 ML 점수만 반환
 
-        improvement_factors = _get_improvement_factors(input_df, base_score, alcohol_data)
+        improvement_factors = _get_improvement_factors(input_df, base_score, penalty_data)
 
         return {
             "stage": stage,
             "stage_label": LABEL_MAP[stage],
-            "score": score,
+            "score": base_score,
             "probability": {LABEL_MAP[i]: round(float(p), 4) for i, p in enumerate(proba)},
             "improvement_factors": improvement_factors,
         }

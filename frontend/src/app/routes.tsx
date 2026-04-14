@@ -1,5 +1,12 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, redirect } from "react-router";
 import { Home } from "./pages/Home";
+
+function requireAuth() {
+  if (!localStorage.getItem("access_token")) {
+    return redirect("/login");
+  }
+  return null;
+}
 import { Challenges } from "./pages/Challenges";
 import { Education } from "./pages/Education";
 import { Progress } from "./pages/Progress";
@@ -23,6 +30,7 @@ export const router = createBrowserRouter([
   {
     path: "/",
     Component: Layout,
+    loader: requireAuth,
     children: [
       { index: true, Component: Home },
       { path: "challenges", Component: Challenges },
