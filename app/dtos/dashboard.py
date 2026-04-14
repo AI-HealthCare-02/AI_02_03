@@ -10,9 +10,11 @@ class ScoreHistoryItem(BaseModel):
 
 class LifestyleSummary(BaseModel):
     bmi: float
+    weight: float
     sleep_hours: float
     drink_amount: float
     exercise: str
+    current_smoking: str
 
 
 class DashboardResponse(BaseModel):

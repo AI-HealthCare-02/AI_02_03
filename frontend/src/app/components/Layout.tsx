@@ -146,7 +146,13 @@ export function Layout() {
                         <span>설정</span>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="flex items-center gap-2" onClick={() => setShowLogoutDialog(true)}>
+                      <DropdownMenuItem
+                        className="flex items-center gap-2"
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          setShowLogoutDialog(true);
+                        }}
+                      >
                         <LogOut className="size-4" />
                         <span>로그아웃</span>
                       </DropdownMenuItem>

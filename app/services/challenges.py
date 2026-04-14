@@ -123,10 +123,12 @@ class ChallengeService:
             result.append(
                 UserChallengeResponse(
                     user_challenge_id=uc.id,
+                    challenge_id=uc.challenge_id,
                     challenge_name=uc.challenge.name,
                     type=uc.challenge.type,
                     description=uc.challenge.description,
                     duration_days=uc.challenge.duration_days,
+                    required_logs=uc.challenge.required_logs,
                     status=uc.status,
                     progress=progress,
                     days_left=days_left,
@@ -353,10 +355,14 @@ class ChallengeService:
             "recovery_points": recovery_points,
         }
 
-    # ─── 기존 금주 전용 체크인 (하위 호환) ───────────────────────────────────
-
-    async def weekly_checkin(self, user: User, still_sober: bool) -> dict:
-        return await self.maintenance_checkin(user, "금주", still_sober)
+    async def quit_challenge(self, user: User, user_challenge_id: int) -> dict:
+        uc = await self.uc_repo.get_by_id_and_user(user_challenge_id, user.id)
+        if not uc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="해당 챌린지를 찾을 수 없습니다.")
+        if uc.status != "진행중":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="진행 중인 챌린지가 아닙니다.")
+        await self.uc_repo.update(uc, {"status": "중단", "is_maintenance": False})
+        return {"detail": "챌린지가 중단되었습니다."}
 
     async def expire_stale_maintenances(self) -> int:
         """2주 미응답 유지 모드 자동 해제"""

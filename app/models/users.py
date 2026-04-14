@@ -19,7 +19,6 @@ class User(Base):
     health_survey = relationship("HealthSurvey", back_populates="user", cascade="all, delete-orphan", uselist=False)
     predictions = relationship("Prediction", back_populates="user", cascade="all, delete-orphan")
     medications = relationship("Medication", back_populates="user", cascade="all, delete-orphan")
-    goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
     appointments = relationship("Appointment", back_populates="user", cascade="all, delete-orphan")
     notification_settings = relationship(
         "NotificationSetting", back_populates="user", cascade="all, delete-orphan", uselist=False

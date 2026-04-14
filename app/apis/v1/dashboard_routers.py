@@ -57,9 +57,11 @@ async def get_dashboard(
         ],
         lifestyle_summary=LifestyleSummary(
             bmi=survey.bmi,
+            weight=survey.weight,
             sleep_hours=survey.sleep_hours,
             drink_amount=survey.drink_amount,
             exercise=survey.exercise,
+            current_smoking=survey.current_smoking,
         ),
         streak_days=streak_days,
         weekly_rate=weekly_rate,

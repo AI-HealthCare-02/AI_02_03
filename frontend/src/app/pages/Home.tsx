@@ -9,6 +9,14 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Calendar } from "../components/ui/calendar";
 import { LiverCharacter } from "../components/LiverCharacter";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import {
   Activity,
   Dumbbell,
   Utensils,
@@ -67,6 +75,7 @@ export function Home() {
   const [streakDays, setStreakDays] = useState(0);
   const [activeChallenges, setActiveChallenges] = useState<UserChallenge[]>([]);
   const [earnedBadgeCount, setEarnedBadgeCount] = useState(0);
+  const [completeTarget, setCompleteTarget] = useState<UserChallenge | null>(null);
 
   useEffect(() => {
     api.get<Appointment[]>("/api/v1/appointments/me").then((r) => {
@@ -93,6 +102,19 @@ export function Home() {
       setEarnedBadgeCount(r.data.earned_count);
     }).catch(() => {});
   }, []);
+
+  const handleCompleteChallenge = async () => {
+    if (!completeTarget) return;
+    try {
+      await api.post(`/api/v1/user-challenges/${completeTarget.user_challenge_id}/logs`, { is_completed: true });
+      const r = await api.get<UserChallenge[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } });
+      setActiveChallenges(r.data);
+    } catch {
+      // 이미 오늘 기록함
+    } finally {
+      setCompleteTarget(null);
+    }
+  };
 
   const handleToggleTaken = async (id: number, current: boolean) => {
     await api.patch(`/api/v1/medications/${id}/taken`, { taken_today: !current });
@@ -168,15 +190,17 @@ export function Home() {
                   {activeChallenges.map((challenge) => {
                     const Icon = TYPE_ICON[challenge.type] ?? Activity;
                     return (
-                      <div
+                      <button
                         key={challenge.user_challenge_id}
-                        className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                        onClick={() => !challenge.today_completed && setCompleteTarget(challenge)}
+                        disabled={challenge.today_completed}
+                        className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
                           challenge.today_completed
-                            ? "bg-white border-emerald-200"
-                            : "bg-gray-50 border-gray-200"
+                            ? "bg-white border-emerald-200 cursor-default"
+                            : "bg-gray-50 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 cursor-pointer"
                         }`}
                       >
-                        <div className={`size-10 rounded-lg flex items-center justify-center ${
+                        <div className={`size-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                           challenge.today_completed ? "bg-emerald-100" : "bg-gray-200"
                         }`}>
                           <Icon className={`size-5 ${
@@ -187,12 +211,10 @@ export function Home() {
                           <p className={challenge.today_completed ? "text-gray-900" : "text-gray-600"}>
                             {challenge.challenge_name}
                           </p>
-                          <p className="text-xs text-gray-500">{challenge.type}</p>
+                          <p className="text-xs text-gray-500">{challenge.today_completed ? "오늘 완료!" : challenge.type}</p>
                         </div>
-                        {challenge.today_completed && (
-                          <CheckCircle2 className="size-5 text-emerald-600" />
-                        )}
-                      </div>
+                        <CheckCircle2 className={`size-5 flex-shrink-0 ${challenge.today_completed ? "text-emerald-600" : "text-gray-300"}`} />
+                      </button>
                     );
                   })}
                 </div>
@@ -361,6 +383,28 @@ export function Home() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 챌린지 완료 확인 다이얼로그 */}
+      <Dialog open={!!completeTarget} onOpenChange={(o) => !o && setCompleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>오늘의 목표를 완료하셨나요?</DialogTitle>
+            <DialogDescription>
+              <span className="font-medium text-gray-900">{completeTarget?.challenge_name}</span> 챌린지의 오늘 목표를 달성했다면 완료로 기록합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCompleteTarget(null)}>아직 아니에요</Button>
+            <Button
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+              onClick={handleCompleteChallenge}
+            >
+              <CheckCircle2 className="size-4 mr-2" />
+              완료했어요!
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Quick Tips */}
       <Card className="bg-gradient-to-br from-blue-50 to-white border-blue-200">

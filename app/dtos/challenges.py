@@ -22,10 +22,12 @@ class ChallengeJoinResponse(BaseModel):
 
 class UserChallengeResponse(BaseModel):
     user_challenge_id: int
+    challenge_id: int
     challenge_name: str
     type: str
     description: str
     duration_days: int
+    required_logs: int
     status: str
     progress: int = 0
     days_left: int = 0
@@ -54,10 +56,6 @@ class ChallengeLogResponse(BaseModel):
     days_remaining: int
     motivation_message: str
     expected_improvement: str
-
-
-class WeeklyCheckinRequest(BaseModel):
-    still_sober: bool
 
 
 class MaintenanceCheckinRequest(BaseModel):

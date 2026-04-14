@@ -1,6 +1,5 @@
 from app.models.appointment import Appointment
 from app.models.challenges import Challenge, ChallengeLog, UserChallenge
-from app.models.goals import Goal
 from app.models.health_surveys import HealthSurvey
 from app.models.medications import Medication
 from app.models.notification_settings import NotificationSetting
@@ -14,7 +13,6 @@ __all__ = [
     "Challenge",
     "UserChallenge",
     "ChallengeLog",
-    "Goal",
     "Appointment",
     "Medication",
     "NotificationSetting",

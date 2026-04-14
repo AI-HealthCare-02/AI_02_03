@@ -14,12 +14,12 @@ import {
   Scale,
   BedDouble,
   Wine,
-  Cigarette,
   TrendingUp,
   CheckCircle2,
   Clock,
   Users,
 } from "lucide-react";
+
 import type React from "react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -56,18 +56,35 @@ export function Progress() {
   const [earnedBadges, setEarnedBadges] = useState(0);
 
   const [healthScore, setHealthScore] = useState(0);
-  const [lifestyleSummary, setLifestyleSummary] = useState<{ bmi: number; sleep_hours: number; drink_amount: number; exercise: string } | null>(null);
+  const [lifestyleSummary, setLifestyleSummary] = useState<{ bmi: number; weight: number; sleep_hours: number; drink_amount: number; exercise: string; current_smoking: string } | null>(null);
   const [activeChallengesCount, setActiveChallengesCount] = useState(0);
   const [healthScoreHistory, setHealthScoreHistory] = useState<{ day: string; score: number }[]>([]);
   const [weightData, setWeightData] = useState<{ day: string; value: number }[]>([]);
   const [alcoholData, setAlcoholData] = useState<{ day: string; amount: number }[]>([]);
   const [smokingData, setSmokingData] = useState<{ day: string; amount: number }[]>([]);
+  const [improvementFactors, setImprovementFactors] = useState<{ category: string; challenge_type: string; score_delta: number }[]>([]);
   const [activeChallengesList, setActiveChallengesList] = useState<Challenge[]>([]);
   const [availableChallengesList, setAvailableChallengesList] = useState<Challenge[]>([]);
   const [joiningChallenge, setJoiningChallenge] = useState<number | null>(null);
 
   const sleepHours = lifestyleSummary?.sleep_hours ?? 0;
   const sleepData = [{ day: "설문 기준", hours: sleepHours }];
+  const surveyWeight = lifestyleSummary?.weight ?? 0;
+  const displayWeightData =
+    weightData.length > 0
+      ? weightData
+      : surveyWeight > 0
+      ? [{ day: "설문 기준", value: surveyWeight }]
+      : [];
+
+  const surveyDrink = lifestyleSummary?.drink_amount ?? 0;
+  const displayAlcoholData =
+    alcoholData.length > 0
+      ? alcoholData
+      : surveyDrink > 0
+      ? [{ day: "설문 기준", amount: surveyDrink }]
+      : [];
+
 
   useEffect(() => {
     // 대시보드 (건강 점수 + 개선 요인 + 생활습관 요약)
@@ -84,6 +101,7 @@ export function Progress() {
         setLifestyleSummary(r.data.lifestyle_summary);
         setStreakDays(r.data.streak_days);
         setWeeklyRate(r.data.weekly_rate);
+        setImprovementFactors(r.data.improvement_factors ?? []);
         setHealthScoreHistory(
           r.data.score_history
             .slice(0, 7)
@@ -387,7 +405,7 @@ export function Progress() {
                   체중(kg)
                 </h4>
                 <ResponsiveContainer width="100%" height={150}>
-                  <LineChart data={weightData}>
+                  <LineChart data={displayWeightData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="day" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 10 }} />
@@ -397,9 +415,15 @@ export function Progress() {
                 </ResponsiveContainer>
                 <div className="mt-2 text-center">
                   <p className="text-xl font-bold text-gray-900">
-                    {weightData.length > 0 ? `${weightData[weightData.length - 1].value}kg` : "-"}
+                    {weightData.length > 0
+                      ? `${weightData[weightData.length - 1].value}kg`
+                      : lifestyleSummary?.weight
+                      ? `${lifestyleSummary.weight}kg`
+                      : "-"}
                   </p>
-                  <p className="text-xs text-gray-600">최근 기록</p>
+                  <p className="text-xs text-gray-600">
+                    {weightData.length > 0 ? "최근 기록" : "설문 기준"}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -435,7 +459,7 @@ export function Progress() {
                   음주
                 </h4>
                 <ResponsiveContainer width="100%" height={150}>
-                  <BarChart data={alcoholData}>
+                  <BarChart data={displayAlcoholData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="day" tick={{ fontSize: 10 }} />
                     <YAxis domain={[0, 5]} tick={{ fontSize: 10 }} />
@@ -445,35 +469,40 @@ export function Progress() {
                 </ResponsiveContainer>
                 <div className="mt-2 text-center">
                   <p className="text-xl font-bold text-gray-900">
-                    {alcoholData.reduce((s, d) => s + d.amount, 0)}잔
+                    {alcoholData.length > 0
+                      ? `${alcoholData.reduce((s, d) => s + d.amount, 0)}잔`
+                      : surveyDrink > 0
+                      ? `${surveyDrink}잔`
+                      : "-"}
                   </p>
-                  <p className="text-xs text-gray-600">이번 주 총량</p>
+                  <p className="text-xs text-gray-600">{alcoholData.length > 0 ? "이번 주 총량" : "설문 기준 1회량"}</p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Smoking */}
+            {/* 개선 요인 */}
             <Card className="border-2 border-orange-100">
               <CardContent className="pt-6">
                 <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Cigarette className="size-4 text-orange-600" />
-                  흡연
+                  <TrendingUp className="size-4 text-orange-600" />
+                  점수 개선 요인
                 </h4>
-                <ResponsiveContainer width="100%" height={150}>
-                  <BarChart data={smokingData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="day" tick={{ fontSize: 10 }} />
-                    <YAxis domain={[0, 10]} tick={{ fontSize: 10 }} />
-                    <Tooltip />
-                    <Bar dataKey="amount" fill="#F97316" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-                <div className="mt-2 text-center">
-                  <p className="text-xl font-bold text-gray-900">
-                    {smokingData.reduce((s, d) => s + d.amount, 0)}개
-                  </p>
-                  <p className="text-xs text-gray-600">이번 주 총량</p>
-                </div>
+                {improvementFactors.length > 0 ? (
+                  <div className="space-y-3">
+                    {improvementFactors.map((f, i) => (
+                      <div key={f.category} className="flex items-center justify-between p-2 rounded-lg bg-orange-50">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-orange-400">#{i + 1}</span>
+                          <span className="text-sm font-medium text-gray-800">{f.category}</span>
+                        </div>
+                        <span className="text-sm font-bold text-emerald-600">+{f.score_delta}점</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 text-center mt-8">데이터를 불러오는 중...</p>
+                )}
+                <p className="text-xs text-gray-400 mt-4 text-center">개선 시 예상 점수 상승폭</p>
               </CardContent>
             </Card>
           </div>
