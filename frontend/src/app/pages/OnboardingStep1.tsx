@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -25,6 +25,16 @@ export function OnboardingStep1() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem("onboarding_step1_raw");
+    if (saved) {
+      const raw = JSON.parse(saved);
+      if (raw.birthDate) setBirthDate(new Date(raw.birthDate));
+      if (raw.waistUnknown !== undefined) setWaistUnknown(raw.waistUnknown);
+      if (raw.formData) setFormData(raw.formData);
+    }
+  }, []);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -84,9 +94,14 @@ export function OnboardingStep1() {
         gender: formData.gender === "male" ? "남성" : "여성",
         height: parseFloat(formData.height),
         weight: parseFloat(formData.weight),
-        waist: waistUnknown ? parseFloat(formData.height) * 0.5 : parseFloat(formData.waist),
+        waist: waistUnknown ? 0 : parseFloat(formData.waist),
       };
       sessionStorage.setItem("onboarding_step1", JSON.stringify(step1Data));
+      sessionStorage.setItem("onboarding_step1_raw", JSON.stringify({
+        birthDate: birthDate!.toISOString(),
+        waistUnknown,
+        formData,
+      }));
       navigate("/onboarding/step2");
     }
   };

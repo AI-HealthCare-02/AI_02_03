@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -43,6 +43,13 @@ export function OnboardingStep2() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem("onboarding_step2_raw");
+    if (saved) {
+      setFormData(JSON.parse(saved));
+    }
+  }, []);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -129,6 +136,7 @@ export function OnboardingStep2() {
         ),
       };
       sessionStorage.setItem("onboarding_step2", JSON.stringify(step2Data));
+      sessionStorage.setItem("onboarding_step2_raw", JSON.stringify(formData));
       navigate("/onboarding/step3");
     }
   };

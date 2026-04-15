@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../../lib/api";
 import { useNavigate } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -21,6 +21,13 @@ export function OnboardingStep3() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    const saved = sessionStorage.getItem("onboarding_step3_raw");
+    if (saved) {
+      setFormData(JSON.parse(saved));
+    }
+  }, []);
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -42,6 +49,7 @@ export function OnboardingStep3() {
     e.preventDefault();
 
     if (validateForm()) {
+      sessionStorage.setItem("onboarding_step3_raw", JSON.stringify(formData));
       setIsAnalyzing(true);
       try {
         const step1 = JSON.parse(sessionStorage.getItem("onboarding_step1") || "{}");
@@ -56,7 +64,10 @@ export function OnboardingStep3() {
         await api.post("/api/v1/surveys", payload);
         await api.post("/api/v1/predictions", {});
         sessionStorage.removeItem("onboarding_step1");
+        sessionStorage.removeItem("onboarding_step1_raw");
         sessionStorage.removeItem("onboarding_step2");
+        sessionStorage.removeItem("onboarding_step2_raw");
+        sessionStorage.removeItem("onboarding_step3_raw");
         navigate("/");
       } catch {
         setIsAnalyzing(false);

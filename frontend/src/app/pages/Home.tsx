@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import api from "../../lib/api";
+import { useAuthStore } from "../../store/authStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
 import { Badge } from "../components/ui/badge";
@@ -68,6 +69,7 @@ const TYPE_ICON: Record<string, React.ElementType> = {
 };
 
 export function Home() {
+  const { user } = useAuthStore();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
@@ -129,7 +131,9 @@ export function Home() {
     <div className="space-y-8 pb-8">
       {/* Welcome Section */}
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold text-gray-900">안녕하세요! 👋</h2>
+        <h2 className="text-3xl font-bold text-gray-900">
+          안녕하세요, {user?.nickname ?? ""}님! 👋
+        </h2>
         <p className="text-gray-600">오늘도 건강한 하루를 만들어가요</p>
       </div>
 
