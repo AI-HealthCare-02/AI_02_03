@@ -12,6 +12,15 @@ class ChallengeRepository:
     def __init__(self, session: AsyncSession):
         self._session = session
 
+    async def get_all_visible(self, user_id: int) -> list[Challenge]:
+        """표준 챌린지 + 해당 유저가 만든 커스텀 챌린지"""
+        result = await self._session.execute(
+            select(Challenge).where(
+                (Challenge.is_custom == False) | (Challenge.created_by == user_id)  # noqa: E712
+            )
+        )
+        return list(result.scalars().all())
+
     async def get_all(self) -> list[Challenge]:
         result = await self._session.execute(select(Challenge))
         return list(result.scalars().all())
@@ -19,6 +28,52 @@ class ChallengeRepository:
     async def get_by_id(self, challenge_id: int) -> Challenge | None:
         result = await self._session.execute(select(Challenge).where(Challenge.id == challenge_id))
         return result.scalar_one_or_none()
+
+    async def get_participant_counts(self, challenge_ids: list[int]) -> dict[int, int]:
+        """챌린지별 진행중 참여자 수 일괄 조회"""
+        if not challenge_ids:
+            return {}
+        result = await self._session.execute(
+            select(UserChallenge.challenge_id, func.count(UserChallenge.id))
+            .where(
+                UserChallenge.challenge_id.in_(challenge_ids),
+                UserChallenge.status == "진행중",
+            )
+            .group_by(UserChallenge.challenge_id)
+        )
+        return {row[0]: row[1] for row in result.all()}
+
+    async def delete_custom(self, challenge_id: int, user_id: int) -> bool:
+        """본인이 만든 커스텀 챌린지 삭제"""
+        from sqlalchemy import delete as sql_delete
+        # FK 제약 때문에 user_challenges 먼저 삭제
+        await self._session.execute(
+            sql_delete(UserChallenge).where(UserChallenge.challenge_id == challenge_id)
+        )
+        result = await self._session.execute(
+            sql_delete(Challenge).where(
+                Challenge.id == challenge_id,
+                Challenge.is_custom == True,
+                Challenge.created_by == user_id,
+            )
+        )
+        await self._session.commit()
+        return result.rowcount > 0
+
+    async def create_custom(self, user_id: int, title: str, description: str, category: str, duration_days: int) -> "Challenge":
+        challenge = Challenge(
+            type=category,
+            name=title,
+            description=description,
+            duration_days=duration_days,
+            required_logs=duration_days,
+            is_custom=True,
+            created_by=user_id,
+        )
+        self._session.add(challenge)
+        await self._session.flush()
+        await self._session.refresh(challenge)
+        return challenge
 
 
 class UserChallengeRepository:
@@ -101,7 +156,7 @@ class ChallengeLogRepository:
                 ChallengeLog.log_date == today,
             )
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def create(self, user_challenge_id: int, is_completed: bool) -> ChallengeLog:
         log = ChallengeLog(

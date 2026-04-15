@@ -83,16 +83,38 @@ class ChallengeService:
         self.survey_repo = HealthSurveyRepository(session)
 
     async def get_challenges(self, user: User) -> list[ChallengeResponse]:
-        challenges = await self.repo.get_all()
+        challenges = await self.repo.get_all_visible(user.id)
         latest = await self.prediction_repo.get_latest_by_user_id(user.id)
-        recommended_types = _get_recommended_challenge_types(latest.shap_factors if latest else [])
+        recommended_types = _get_recommended_challenge_types(latest.improvement_factors if latest else [])
+
+        challenge_ids = [c.id for c in challenges]
+        counts = await self.repo.get_participant_counts(challenge_ids)
 
         result = []
         for c in challenges:
             resp = ChallengeResponse.model_validate(c)
             resp.is_recommended = c.type in recommended_types
+            resp.participant_count = counts.get(c.id, 0)
+            resp.is_custom = c.is_custom
             result.append(resp)
         return result
+
+    async def delete_custom_challenge(self, user: User, challenge_id: int) -> dict:
+        deleted = await self.repo.delete_custom(challenge_id, user.id)
+        if not deleted:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="챌린지를 찾을 수 없거나 삭제 권한이 없습니다.")
+        return {"detail": "챌린지가 삭제되었습니다."}
+
+    async def create_custom_challenge(self, user: User, data) -> ChallengeJoinResponse:
+        challenge = await self.repo.create_custom(
+            user_id=user.id,
+            title=data.title,
+            description=data.description,
+            category=data.category,
+            duration_days=data.duration_days,
+        )
+        uc = await self.uc_repo.create(user.id, challenge.id)
+        return ChallengeJoinResponse(detail="나만의 챌린지가 시작되었습니다.", user_challenge_id=uc.id)
 
     async def join_challenge(self, user: User, challenge_id: int) -> ChallengeJoinResponse:
         challenge = await self.repo.get_by_id(challenge_id)
@@ -166,10 +188,10 @@ class ChallengeService:
 
         await self.uc_repo.update(uc, update_data)
 
-        # 설문 업데이트 방식 챌린지 (식습관/식단/체중감량)
+        # 설문 업데이트 (모든 챌린지 타입)
         survey_changes = None
         survey = await self.survey_repo.get_by_user_id(user.id)
-        if survey and uc.challenge.type not in _MAINTENANCE_TYPES:
+        if survey:
             survey_changes = await self._apply_survey_update(uc, survey)
 
         # 새 점수 계산
@@ -177,10 +199,11 @@ class ChallengeService:
         from app.services.health_surveys import _calc_score_from_survey
 
         updated_survey = await self.survey_repo.get_by_user_id(user.id)
-        new_score = float(_calc_score_from_survey(updated_survey)) if updated_survey else score_before
-
-        # 전체 패널티 + 회복 반영
-        new_score = await self._apply_all_penalties(user.id, updated_survey, new_score)
+        try:
+            new_score = await _calc_score_from_survey(updated_survey) if updated_survey else score_before
+            new_score = await self._apply_all_penalties(user.id, updated_survey, new_score)
+        except Exception:
+            new_score = float(score_before)
         new_grade = _grade(int(new_score))
 
         from app.services.badges import BadgeService
@@ -205,6 +228,17 @@ class ChallengeService:
         "야식": ("diet_q7", -1),
     }
 
+    @staticmethod
+    def _diet_delta(direction: int, duration_days: int) -> int:
+        """기간에 따라 식습관 점수 변화량 결정: 7일→±1, 14일→±2, 21일+→±3"""
+        if duration_days >= 21:
+            magnitude = 3
+        elif duration_days >= 14:
+            magnitude = 2
+        else:
+            magnitude = 1
+        return direction * magnitude
+
     async def _apply_survey_update(self, uc, survey) -> dict | None:
         ctype = uc.challenge.type
         cname = uc.challenge.name
@@ -220,8 +254,9 @@ class ChallengeService:
                 return None
 
             field, direction = matched
+            delta = self._diet_delta(direction, uc.challenge.duration_days)
             before_val = getattr(survey, field)
-            new_val = max(1, min(5, before_val + direction))
+            new_val = max(1, min(5, before_val + delta))
             if new_val == before_val:
                 return None
 
@@ -256,6 +291,52 @@ class ChallengeService:
                 },
             )
             return {"field": "weight", "before": before_weight, "after": new_weight}
+
+        elif ctype == "운동":
+            # 챌린지 기간에 따라 목표 운동 횟수 결정
+            target = 5 if uc.challenge.duration_days >= 14 else 3
+            before = survey.weekly_exercise_count
+            new_count = max(before, target)
+            if new_count == before and survey.exercise == "운동함":
+                return None
+            await self.survey_repo.update(
+                survey,
+                {"exercise": "운동함", "weekly_exercise_count": new_count},
+            )
+            return {"field": "weekly_exercise_count", "before": before, "after": new_count}
+
+        elif ctype == "금주":
+            if survey.drinking == "음주안함":
+                return None
+            before = survey.drinking
+            await self.survey_repo.update(
+                survey,
+                {
+                    "drinking": "음주안함",
+                    "drink_amount": 0.0,
+                    "weekly_drink_freq": 0.0,
+                    "monthly_binge_freq": 0.0,
+                },
+            )
+            return {"field": "drinking", "before": before, "after": "음주안함"}
+
+        elif ctype == "금연":
+            if survey.current_smoking == "안함":
+                return None
+            before = survey.smoking
+            await self.survey_repo.update(
+                survey,
+                {"smoking": "비흡연", "current_smoking": "안함"},
+            )
+            return {"field": "smoking", "before": before, "after": "비흡연"}
+
+        elif ctype == "수면":
+            before = survey.sleep_hours
+            new_hours = max(before, 7.0)
+            if new_hours == before:
+                return None
+            await self.survey_repo.update(survey, {"sleep_hours": new_hours})
+            return {"field": "sleep_hours", "before": before, "after": new_hours}
 
         return None
 

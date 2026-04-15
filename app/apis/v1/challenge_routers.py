@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.databases import get_db
 from app.dependencies.security import get_request_user
-from app.dtos.challenges import ChallengeLogRequest, MaintenanceCheckinRequest
+from app.dtos.challenges import ChallengeLogRequest, CustomChallengeCreateRequest, MaintenanceCheckinRequest
 from app.models.users import User
 from app.services.challenges import ChallengeService
 
@@ -24,6 +24,26 @@ async def get_challenges(
 ) -> Response:
     result = await service.get_challenges(user)
     return Response([r.model_dump() for r in result], status_code=status.HTTP_200_OK)
+
+
+@challenge_router.delete("/challenges/{challenge_id}/custom", status_code=status.HTTP_200_OK)
+async def delete_custom_challenge(
+    challenge_id: int,
+    user: Annotated[User, Depends(get_request_user)],
+    service: Annotated[ChallengeService, Depends(get_challenge_service)],
+) -> Response:
+    result = await service.delete_custom_challenge(user, challenge_id)
+    return Response(result, status_code=status.HTTP_200_OK)
+
+
+@challenge_router.post("/challenges/custom", status_code=status.HTTP_201_CREATED)
+async def create_custom_challenge(
+    body: CustomChallengeCreateRequest,
+    user: Annotated[User, Depends(get_request_user)],
+    service: Annotated[ChallengeService, Depends(get_challenge_service)],
+) -> Response:
+    result = await service.create_custom_challenge(user, body)
+    return Response(result.model_dump(), status_code=status.HTTP_201_CREATED)
 
 
 @challenge_router.post("/challenges/{challenge_id}/join", status_code=status.HTTP_201_CREATED)
