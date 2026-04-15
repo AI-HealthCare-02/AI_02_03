@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -22,67 +23,14 @@ import {
 } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import api from "../../lib/api";
-
-type PeriodFilter = "week" | "month";
-type InfoFilter = "all" | "weight" | "exercise" | "alcohol" | "smoking";
-type ViewMode = "list" | "calendar";
-
-interface DailyHealthLog {
-  id: number;
-  log_date: string;
-  weight: number | null;
-  exercise_done: boolean;
-  exercise_duration: number | null;
-  alcohol_consumed: boolean;
-  alcohol_amount: number | null;
-  smoking_done: boolean;
-  smoking_amount: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
-interface DisplayRecord {
-  id: number;
-  date: string;       // "2026.04.07"
-  dayOfWeek: string;
-  weight: number | null;
-  weightChange?: number;
-  exercise: { done: boolean; duration?: number };
-  alcohol: { consumed: boolean; amount?: number };
-  smoking: { smoked: boolean; amount?: number };
-}
-
-const DAY_OF_WEEK = ["일", "월", "화", "수", "목", "금", "토"];
-
-function toDisplayDate(dateStr: string) {
-  const [y, m, d] = dateStr.split("-");
-  return `${y}.${m}.${d}`;
-}
-
-function toDayOfWeek(dateStr: string) {
-  return DAY_OF_WEEK[new Date(dateStr).getDay()];
-}
-
-function logsToRecords(logs: DailyHealthLog[]): DisplayRecord[] {
-  return logs.map((log, i) => {
-    const prevLog = logs[i + 1];
-    const weightChange =
-      log.weight !== null && prevLog?.weight !== null && prevLog?.weight !== undefined
-        ? Math.round((log.weight - prevLog.weight) * 10) / 10
-        : undefined;
-
-    return {
-      id: log.id,
-      date: toDisplayDate(log.log_date),
-      dayOfWeek: toDayOfWeek(log.log_date),
-      weight: log.weight,
-      weightChange,
-      exercise: { done: log.exercise_done, duration: log.exercise_duration ?? undefined },
-      alcohol: { consumed: log.alcohol_consumed, amount: log.alcohol_amount ?? undefined },
-      smoking: { smoked: log.smoking_done, amount: log.smoking_amount ?? undefined },
-    };
-  });
-}
+import {
+  type PeriodFilter,
+  type InfoFilter,
+  type ViewMode,
+  type DailyHealthLog,
+  type DisplayRecord,
+  logsToRecords,
+} from "../types/activityHistory";
 
 export function ActivityHistory() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -114,12 +62,9 @@ export function ActivityHistory() {
   const weightData = chartBase.map((r) => ({ date: r.date.slice(5), weight: r.weight ?? 0 }));
   const exerciseData = chartBase.map((r) => ({ date: r.date.slice(5), duration: r.exercise.duration ?? 0 }));
   const alcoholData = chartBase.map((r) => ({ date: r.date.slice(5), amount: r.alcohol.amount ?? 0 }));
-  const smokingData = chartBase.map((r) => ({ date: r.date.slice(5), amount: r.smoking.amount ?? 0 }));
-
   const currentWeight = filteredByPeriod[0]?.weight;
   const totalExercise = filteredByPeriod.reduce((s, r) => s + (r.exercise.duration ?? 0), 0);
   const totalAlcohol = filteredByPeriod.reduce((s, r) => s + (r.alcohol.amount ?? 0), 0);
-  const totalSmoking = filteredByPeriod.reduce((s, r) => s + (r.smoking.amount ?? 0), 0);
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -161,7 +106,6 @@ export function ActivityHistory() {
   const filteredRecords = filteredByPeriod.filter((record) => {
     if (infoFilter === "exercise" && !record.exercise.done) return false;
     if (infoFilter === "alcohol" && !record.alcohol.consumed) return false;
-    if (infoFilter === "smoking" && !record.smoking.smoked) return false;
     if (searchQuery && !record.date.includes(searchQuery)) return false;
     return true;
   });
@@ -234,7 +178,7 @@ export function ActivityHistory() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-4 gap-4">
+        <div className="grid md:grid-cols-3 gap-4">
           {/* Weight Chart */}
           <Card className="border-2 border-emerald-100">
             <CardHeader>
@@ -322,34 +266,6 @@ export function ActivityHistory() {
             </CardContent>
           </Card>
 
-          {/* Smoking Chart */}
-          <Card className="border-2 border-orange-100">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Cigarette className="size-4 text-orange-600" />
-                흡연량
-              </CardTitle>
-              <CardDescription>흡연량</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={smokingData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${v}개`} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "white", border: "1px solid #e5e7eb", borderRadius: "8px" }}
-                    formatter={(v) => [`${v}개`, "흡연"]}
-                  />
-                  <Bar dataKey="amount" fill="#f97316" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="mt-3 text-center">
-                <p className="text-2xl font-bold text-gray-900">{totalSmoking}개</p>
-                <p className="text-xs text-gray-600">총 흡연량</p>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
 
@@ -387,14 +303,13 @@ export function ActivityHistory() {
             <div className="space-y-2">
               <p className="text-sm font-medium text-gray-700">필터</p>
               <div className="flex flex-wrap gap-2">
-                {(["all", "weight", "exercise", "alcohol", "smoking"] as InfoFilter[]).map((f) => {
-                  const labels: Record<InfoFilter, string> = { all: "전체", weight: "체중", exercise: "운동", alcohol: "음주", smoking: "흡연" };
+                {(["all", "weight", "exercise", "alcohol"] as InfoFilter[]).map((f) => {
+                  const labels: Record<InfoFilter, string> = { all: "전체", weight: "체중", exercise: "운동", alcohol: "음주" };
                   const icons: Record<InfoFilter, React.ReactNode> = {
                     all: null,
                     weight: <Scale className="size-4 mr-1" />,
                     exercise: <Dumbbell className="size-4 mr-1" />,
                     alcohol: <Wine className="size-4 mr-1" />,
-                    smoking: <Cigarette className="size-4 mr-1" />,
                   };
                   return (
                     <Button
