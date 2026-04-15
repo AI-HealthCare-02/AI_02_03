@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -15,6 +15,8 @@ export function Login() {
   const navigate = useNavigate();
   const fetchMe = useAuthStore((s) => s.fetchMe);
 
+  const SAVED_EMAIL_KEY = "saved_email";
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -24,12 +26,31 @@ export function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // 저장된 이메일 복원
+  useEffect(() => {
+    const savedEmail = localStorage.getItem(SAVED_EMAIL_KEY);
+    if (savedEmail) {
+      setFormData((prev) => ({ ...prev, email: savedEmail, rememberMe: true }));
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await authService.login({ email: formData.email, password: formData.password });
+      await authService.login(
+        { email: formData.email, password: formData.password },
+        formData.autoLogin,
+      );
+
+      // 아이디 저장 처리
+      if (formData.rememberMe) {
+        localStorage.setItem(SAVED_EMAIL_KEY, formData.email);
+      } else {
+        localStorage.removeItem(SAVED_EMAIL_KEY);
+      }
+
       await fetchMe();
       navigate("/");
     } catch (err: unknown) {

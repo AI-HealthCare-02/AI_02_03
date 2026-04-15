@@ -10,7 +10,7 @@ export default function App() {
 
   useEffect(() => {
     const isPublic = PUBLIC_PATHS.some((p) => window.location.pathname.startsWith(p));
-    if (!isPublic && localStorage.getItem("access_token")) {
+    if (!isPublic && (localStorage.getItem("access_token") ?? sessionStorage.getItem("access_token"))) {
       fetchMe().catch(() => {
         // 401 → api.ts 인터셉터가 토큰 삭제 + /login 리다이렉트 처리
       });

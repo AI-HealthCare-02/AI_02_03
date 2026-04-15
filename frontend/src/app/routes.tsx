@@ -2,7 +2,8 @@ import { createBrowserRouter, redirect } from "react-router";
 import { Home } from "./pages/Home";
 
 function requireAuth() {
-  if (!localStorage.getItem("access_token")) {
+  const token = localStorage.getItem("access_token") ?? sessionStorage.getItem("access_token");
+  if (!token) {
     return redirect("/login");
   }
   return null;

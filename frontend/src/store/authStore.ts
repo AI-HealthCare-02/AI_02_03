@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { authService } from '../services/auth'
+import { authService, getStoredToken } from '../services/auth'
 
 interface User {
   id: number
@@ -17,7 +17,7 @@ interface AuthStore {
 
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
-  isLoggedIn: !!localStorage.getItem('access_token'),
+  isLoggedIn: !!getStoredToken(),
 
   fetchMe: async () => {
     const user = await authService.me()

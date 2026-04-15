@@ -29,6 +29,7 @@ export function AccountManagement() {
   const handleLogout = async () => {
     await api.post("/api/v1/auth/logout");
     localStorage.removeItem("access_token");
+    sessionStorage.removeItem("access_token");
     navigate("/login");
   };
 
