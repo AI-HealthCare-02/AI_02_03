@@ -15,7 +15,9 @@ class Challenge(Base):
     description: Mapped[str] = mapped_column(String(500), nullable=False)
     duration_days: Mapped[int] = mapped_column(Integer, nullable=False)
     required_logs: Mapped[int] = mapped_column(Integer, nullable=False)
-    shap_feature: Mapped[str] = mapped_column(String(50), nullable=True)
+
+    is_custom: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
 
     user_challenges: Mapped[list["UserChallenge"]] = relationship(back_populates="challenge")
 

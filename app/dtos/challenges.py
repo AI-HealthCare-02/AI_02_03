@@ -11,8 +11,17 @@ class ChallengeResponse(BaseModel):
     duration_days: int
     required_logs: int
     is_recommended: bool = False
+    participant_count: int = 0
+    is_custom: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class CustomChallengeCreateRequest(BaseModel):
+    title: str
+    description: str
+    category: str
+    duration_days: int
 
 
 class ChallengeJoinResponse(BaseModel):

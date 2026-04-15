@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class RecommendedChallenge(BaseModel):
@@ -20,7 +20,7 @@ class PredictionResponse(BaseModel):
     score: float
     grade: str
     character_state: str
-    improvement_factors: list[ImprovementFactor] = Field(default=[], validation_alias="shap_factors")
+    improvement_factors: list[ImprovementFactor] = []
     recommended_challenges: list[RecommendedChallenge] = []
     created_at: datetime
 

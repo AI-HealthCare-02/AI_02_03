@@ -50,7 +50,7 @@ async def get_dashboard(
         latest_score=round(latest.score, 1),
         latest_grade=latest.grade,
         character_state=latest.character_state,
-        improvement_factors=latest.shap_factors or [],
+        improvement_factors=latest.improvement_factors or [],
         score_history=[ScoreHistoryItem(score=round(p.score, 1), created_at=p.created_at) for p in predictions[:10]],
         lifestyle_summary=LifestyleSummary(
             bmi=survey.bmi,

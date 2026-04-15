@@ -95,7 +95,7 @@ class PredictionService:
                 "score": score,
                 "grade": grade,
                 "character_state": result["stage_label"],
-                "shap_factors": improvement_factors,
+                "improvement_factors": improvement_factors,
             }
         )
 
