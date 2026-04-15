@@ -145,14 +145,14 @@ CHALLENGES = [
 
 async def seed():
     async with async_session_maker() as session:
-        for t, n, d, dur, req, shap in CHALLENGES:
+        for t, n, d, dur, req, _ in CHALLENGES:
             exists = await session.execute(select(Challenge).where(Challenge.name == n))
             if exists.scalar_one_or_none():
                 print(f"[SKIP] {n}")
                 continue
 
             session.add(
-                Challenge(type=t, name=n, description=d, duration_days=dur, required_logs=req, shap_feature=shap)
+                Challenge(type=t, name=n, description=d, duration_days=dur, required_logs=req)
             )
             print(f"[INSERT] {n}")
 

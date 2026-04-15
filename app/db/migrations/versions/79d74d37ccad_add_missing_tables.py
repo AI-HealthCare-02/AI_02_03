@@ -39,15 +39,14 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("user_id", "log_date", name="uq_user_log_date"),
     )
-    op.create_table(
-        "user_badges",
-        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
-        sa.Column("user_id", sa.BigInteger(), nullable=False),
-        sa.Column("badge_key", sa.String(length=50), nullable=False),
-        sa.Column("earned_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("id"),
-    )
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS user_badges (
+            id BIGSERIAL PRIMARY KEY,
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            badge_key VARCHAR(50) NOT NULL,
+            earned_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    """)
     # ### end Alembic commands ###
 
 
