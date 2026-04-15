@@ -8,9 +8,9 @@ from app.dtos.base import BaseSerializerModel
 class SurveyCreateRequest(BaseModel):
     age: int = Field(..., ge=13, le=80)
     gender: str
-    height: float
-    weight: float
-    waist: float
+    height: float = Field(..., gt=0)
+    weight: float = Field(..., gt=0)
+    waist: float = Field(default=0.0, ge=0)
 
     drinking: str
     drink_amount: float = 0.0
@@ -52,29 +52,10 @@ class SurveyCreateResponse(BaseModel):
 
 
 class SurveyUpdateRequest(BaseModel):
-    age: int | None = Field(None, ge=13, le=80)
-    height: float | None = None
-    weight: float | None = None
-    waist: float | None = None
-
-    drinking: str | None = None
-    drink_amount: float | None = None
-    drink_type: str | None = None
-    weekly_drink_freq: float | None = None
-
-    exercise: str | None = None
-    weekly_exercise_count: int | None = None
-
-    smoking: str | None = None
-    current_smoking: str | None = None
-
-    sleep_hours: float | None = None
-    sleep_disorder: str | None = None
-
-    diet_questions: list[int] | None = Field(None, min_length=7, max_length=7)
-
-    diabetes: str | None = None
-    hypertension: str | None = None
+    """사용자가 직접 수정 가능한 신체 측정값만 허용"""
+    height: float | None = Field(None, gt=100, lt=250)
+    weight: float | None = Field(None, gt=20, lt=300)
+    waist: float | None = Field(None, gt=40, lt=200)
 
 
 class SurveyUpdateResponse(BaseModel):

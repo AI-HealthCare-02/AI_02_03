@@ -13,8 +13,20 @@ from app.repositories.user_repository import UserRepository
 from app.utils.score import _alcohol_penalty, _exercise_penalty, _sleep_penalty, _smoking_penalty
 
 
+
+def _clip(value: float, lo: float, hi: float) -> float:
+    return round(max(lo, min(hi, value)), 1)
+
+
 def _calc_bmi(weight: float, height: float) -> float:
     return round(weight / (height / 100) ** 2, 1)
+
+
+def _estimate_waist(gender: str, bmi: float) -> float:
+    """허리둘레 미입력 시 성별+BMI 기반 추정값 반환"""
+    if gender == "남성":
+        return round(bmi * 2.8, 1)
+    return round(bmi * 2.6, 1)
 
 
 def _calc_grade(score: int) -> str:
@@ -32,13 +44,15 @@ async def _calc_score_from_survey(survey: HealthSurvey) -> int:
     """ML 모델 점수만 반환 (패널티 미포함) — 패널티는 호출부에서 별도 적용"""
     from celery import current_app as celery_app
 
+    waist = survey.waist if survey.waist > 0 else _estimate_waist(survey.gender, survey.bmi)
+
     input_data = {
         "나이": survey.age,
         "성별": survey.gender,
         "키": survey.height,
         "몸무게": survey.weight,
         "BMI": survey.bmi,
-        "허리둘레": survey.waist,
+        "허리둘레": waist,
         "주당운동횟수": survey.weekly_exercise_count,
         "흡연여부": survey.smoking,
         "당뇨진단여부": survey.diabetes,
@@ -117,7 +131,12 @@ class HealthSurveyService:
                 detail="이미 설문을 완료했습니다.",
             )
 
-        bmi = _calc_bmi(data.weight, data.height)
+        height = _clip(data.height, 100, 250)
+        weight = _clip(data.weight, 20, 300)
+        bmi    = _calc_bmi(weight, height)
+        waist  = data.waist if data.waist > 0 else _estimate_waist(data.gender, bmi)
+        waist  = _clip(waist, 40, 200)
+
         diet_score, diet_eval = _calc_diet(data.diet_questions)
         drink_amount_std = _to_standard_drinks(data.drink_amount, data.drink_type)
         monthly_binge_freq = _calc_monthly_binge(drink_amount_std, data.weekly_drink_freq)
@@ -126,10 +145,10 @@ class HealthSurveyService:
             "user_id": user.id,
             "age": data.age,
             "gender": data.gender,
-            "height": data.height,
-            "weight": data.weight,
+            "height": height,
+            "weight": weight,
             "bmi": bmi,
-            "waist": data.waist,
+            "waist": waist,
             "drinking": data.drinking,
             "drink_amount": drink_amount_std,
             "weekly_drink_freq": data.weekly_drink_freq,
@@ -204,64 +223,36 @@ class HealthSurveyService:
     async def update_survey(self, user: User, data: SurveyUpdateRequest) -> SurveyUpdateResponse:
         survey = await self.get_survey(user)
 
-        # 이전 점수: DB에 저장된 최근 예측 결과 사용
         latest = await PredictionRepository(self._session).get_latest_by_user_id(user.id)
         score_before = int(latest.score) if latest else 0
 
         update_data: dict = {}
+        if data.height is not None:
+            update_data["height"] = _clip(data.height, 100, 250)
+        if data.weight is not None:
+            update_data["weight"] = _clip(data.weight, 20, 300)
 
-        if data.weight or data.height:
-            new_weight = data.weight or survey.weight
-            new_height = data.height or survey.height
-            update_data["bmi"] = _calc_bmi(new_weight, new_height)
+        new_height = update_data.get("height") or survey.height
+        new_weight = update_data.get("weight") or survey.weight
+        new_bmi = _calc_bmi(new_weight, new_height)
+        update_data["bmi"] = new_bmi
 
-        if data.diet_questions:
-            diet_score, diet_eval = _calc_diet(data.diet_questions)
-            update_data["diet_q1"] = data.diet_questions[0]
-            update_data["diet_q2"] = data.diet_questions[1]
-            update_data["diet_q3"] = data.diet_questions[2]
-            update_data["diet_q4"] = data.diet_questions[3]
-            update_data["diet_q5"] = data.diet_questions[4]
-            update_data["diet_q6"] = data.diet_questions[5]
-            update_data["diet_q7"] = data.diet_questions[6]
-            update_data["diet_score"] = diet_score
-            update_data["diet_eval"] = diet_eval
-
-        if data.drinking == "음주안함":
-            update_data["drink_amount"] = 0.0
-            update_data["weekly_drink_freq"] = 0.0
-            update_data["monthly_binge_freq"] = 0.0
-        elif data.drink_amount is not None or data.weekly_drink_freq is not None:
-            if data.drink_amount is not None:
-                update_data["drink_amount"] = _to_standard_drinks(data.drink_amount, data.drink_type)
-            new_drink_amount_std = update_data.get("drink_amount", survey.drink_amount)
-            new_weekly_freq = data.weekly_drink_freq if data.weekly_drink_freq is not None else survey.weekly_drink_freq
-            update_data["monthly_binge_freq"] = _calc_monthly_binge(new_drink_amount_std, new_weekly_freq)
-
-        if data.exercise == "운동안함":
-            update_data["weekly_exercise_count"] = 0
-
-        raw = data.model_dump(
-            exclude_none=True,
-            exclude={"diet_questions", "drink_amount", "drink_type", "weekly_drink_freq", "weight", "height"},
-        )
-        update_data.update(raw)
-
-        # 음주 재개 시 금주 유지 모드 해제
-        if data.drinking and data.drinking != "음주안함":
-            maintenance_uc = await self.uc_repo.get_maintenance_by_user(user.id, "금주")
-            if maintenance_uc:
-                await self.uc_repo.update(maintenance_uc, {"is_maintenance": False})
+        if data.waist is not None:
+            update_data["waist"] = data.waist if data.waist > 0 else _estimate_waist(survey.gender, new_bmi)
+        elif survey.waist == 0:
+            update_data["waist"] = _estimate_waist(survey.gender, new_bmi)
 
         updated = await self.repo.update(survey, update_data)
 
-        # 업데이트된 설문으로 새 점수 계산 (전체 패널티 + 회복 포함)
-        new_score = await _calc_score_from_survey(updated)
-        new_score = await self._apply_all_penalties(user.id, updated, new_score)
+        try:
+            new_score = await _calc_score_from_survey(updated)
+            new_score = await self._apply_all_penalties(user.id, updated, new_score)
+        except Exception:
+            new_score = float(score_before)
         new_grade = _calc_grade(int(new_score))
 
         return SurveyUpdateResponse(
-            detail="설문이 수정됐습니다.",
+            detail="신체 정보가 수정됐습니다.",
             bmi=updated.bmi,
             score_before=score_before,
             new_score=new_score,
