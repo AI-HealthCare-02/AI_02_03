@@ -106,6 +106,7 @@ class ChallengeService:
         uc = await self.uc_repo.create(user.id, challenge_id)
 
         from app.services.badges import BadgeService
+
         await BadgeService(self._session).evaluate_and_grant(user.id)
 
         return ChallengeJoinResponse(detail="챌린지에 참여하였습니다.", user_challenge_id=uc.id)
@@ -183,6 +184,7 @@ class ChallengeService:
         new_grade = _grade(int(new_score))
 
         from app.services.badges import BadgeService
+
         await BadgeService(self._session).evaluate_and_grant(user.id)
 
         detail = "챌린지를 완료하였습니다." + _MAINTENANCE_MESSAGES.get(uc.challenge.type, "")
@@ -228,11 +230,14 @@ class ChallengeService:
             qs[q_idx] = new_val
             new_score, new_eval = _calc_diet(qs)
 
-            await self.survey_repo.update(survey, {
-                field: new_val,
-                "diet_score": new_score,
-                "diet_eval": new_eval,
-            })
+            await self.survey_repo.update(
+                survey,
+                {
+                    field: new_val,
+                    "diet_score": new_score,
+                    "diet_eval": new_eval,
+                },
+            )
             return {"field": field, "before": before_val, "after": new_val}
 
         elif ctype == "체중감량":
@@ -240,13 +245,16 @@ class ChallengeService:
             before_weight = survey.weight
             new_weight = round(max(before_weight - target_kg, 30.0), 1)
             h = survey.height / 100
-            new_bmi = round(new_weight / (h ** 2), 1)
+            new_bmi = round(new_weight / (h**2), 1)
             new_waist = round(survey.waist * (new_bmi / survey.bmi), 1) if survey.bmi > 0 else survey.waist
-            await self.survey_repo.update(survey, {
-                "weight": new_weight,
-                "bmi": new_bmi,
-                "waist": new_waist,
-            })
+            await self.survey_repo.update(
+                survey,
+                {
+                    "weight": new_weight,
+                    "bmi": new_bmi,
+                    "waist": new_waist,
+                },
+            )
             return {"field": "weight", "before": before_weight, "after": new_weight}
 
         return None
@@ -280,8 +288,7 @@ class ChallengeService:
 
         total_penalty = sum(penalties.values())
         total_recovery = sum(
-            await self._calc_penalty_recovery(user_id, ctype, penalty)
-            for ctype, penalty in penalties.items()
+            await self._calc_penalty_recovery(user_id, ctype, penalty) for ctype, penalty in penalties.items()
         )
 
         return min(100.0, max(10.0, base_score + total_penalty + total_recovery))
@@ -333,12 +340,14 @@ class ChallengeService:
         )
 
         penalty_fn_map = {
-            "금주": lambda: _alcohol_penalty({
-                "음주여부": survey.drinking,
-                "1회음주량": survey.drink_amount,
-                "주당음주빈도": survey.weekly_drink_freq,
-                "월폭음빈도": survey.monthly_binge_freq,
-            }),
+            "금주": lambda: _alcohol_penalty(
+                {
+                    "음주여부": survey.drinking,
+                    "1회음주량": survey.drink_amount,
+                    "주당음주빈도": survey.weekly_drink_freq,
+                    "월폭음빈도": survey.monthly_binge_freq,
+                }
+            ),
             "운동": lambda: _exercise_penalty(survey.weekly_exercise_count),
             "금연": lambda: _smoking_penalty(survey.current_smoking, survey.smoking),
             "수면": lambda: _sleep_penalty(survey.sleep_hours, survey.sleep_disorder),
@@ -390,6 +399,7 @@ class ChallengeService:
         improvement = _IMPROVEMENT_MESSAGES.get(uc.challenge.type, "꾸준한 실천이 건강을 만들어요.")
 
         from app.services.badges import BadgeService
+
         await BadgeService(self._session).evaluate_and_grant(user.id)
 
         return ChallengeLogResponse(

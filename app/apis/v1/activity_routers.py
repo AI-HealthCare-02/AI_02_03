@@ -52,16 +52,20 @@ async def download_activity_report(
 
         writer.writerow(["구분", "항목", "값", "일시"])
         for p in result.predictions:
-            writer.writerow(["예측", f"점수: {p.score} / 등급: {p.grade}", "", p.created_at.strftime("%Y-%m-%d %H:%M:%S")])
+            writer.writerow(
+                ["예측", f"점수: {p.score} / 등급: {p.grade}", "", p.created_at.strftime("%Y-%m-%d %H:%M:%S")]
+            )
         for c in result.challenges:
             writer.writerow(["챌린지", c.name, c.status, ""])
         for log in health_logs:
-            writer.writerow([
-                "건강로그",
-                log.log_date.strftime("%Y-%m-%d"),
-                f"체중:{log.weight or '-'} 운동:{log.exercise_duration or 0}분 음주:{log.alcohol_amount or 0}잔 흡연:{log.smoking_amount or 0}개",
-                "",
-            ])
+            writer.writerow(
+                [
+                    "건강로그",
+                    log.log_date.strftime("%Y-%m-%d"),
+                    f"체중:{log.weight or '-'} 운동:{log.exercise_duration or 0}분 음주:{log.alcohol_amount or 0}잔 흡연:{log.smoking_amount or 0}개",
+                    "",
+                ]
+            )
 
         output.seek(0)
         return StreamingResponse(
@@ -109,11 +113,15 @@ def _build_pdf(user, result, health_logs) -> FPDF:
         _section_title(pdf, "건강 점수 이력")
         _table_header(pdf, ["날짜", "점수", "등급"], [80, 50, 50])
         for p in result.predictions[:10]:
-            _table_row(pdf, [
-                p.created_at.strftime("%Y-%m-%d"),
-                f"{round(p.score)}점",
-                p.grade,
-            ], [80, 50, 50])
+            _table_row(
+                pdf,
+                [
+                    p.created_at.strftime("%Y-%m-%d"),
+                    f"{round(p.score)}점",
+                    p.grade,
+                ],
+                [80, 50, 50],
+            )
         pdf.ln(6)
 
     # ── 챌린지 섹션 ────────────────────────────────────
@@ -129,13 +137,17 @@ def _build_pdf(user, result, health_logs) -> FPDF:
         _section_title(pdf, "일별 건강 기록")
         _table_header(pdf, ["날짜", "체중(kg)", "운동(분)", "음주(잔)", "흡연(개)"], [42, 38, 38, 38, 34])
         for log in health_logs:
-            _table_row(pdf, [
-                log.log_date.strftime("%Y-%m-%d"),
-                str(log.weight) if log.weight is not None else "-",
-                str(log.exercise_duration) if log.exercise_duration else "-",
-                str(log.alcohol_amount) if log.alcohol_amount else "-",
-                str(log.smoking_amount) if log.smoking_amount else "-",
-            ], [42, 38, 38, 38, 34])
+            _table_row(
+                pdf,
+                [
+                    log.log_date.strftime("%Y-%m-%d"),
+                    str(log.weight) if log.weight is not None else "-",
+                    str(log.exercise_duration) if log.exercise_duration else "-",
+                    str(log.alcohol_amount) if log.alcohol_amount else "-",
+                    str(log.smoking_amount) if log.smoking_amount else "-",
+                ],
+                [42, 38, 38, 38, 34],
+            )
         pdf.ln(6)
 
     # ── 푸터 ──────────────────────────────────────────
@@ -162,7 +174,7 @@ def _table_header(pdf: FPDF, headers: list[str], widths: list[int]) -> None:
     pdf.set_font("Nanum", "B", 9)
     pdf.set_fill_color(236, 253, 245)  # emerald-50
     pdf.set_text_color(6, 95, 70)
-    for h, w in zip(headers, widths):
+    for h, w in zip(headers, widths, strict=False):
         pdf.cell(w, 7, h, border=1, fill=True, align="C")
     pdf.ln()
     pdf.set_text_color(0, 0, 0)
@@ -171,6 +183,6 @@ def _table_header(pdf: FPDF, headers: list[str], widths: list[int]) -> None:
 def _table_row(pdf: FPDF, values: list[str], widths: list[int]) -> None:
     pdf.set_font("Nanum", "", 9)
     pdf.set_fill_color(255, 255, 255)
-    for v, w in zip(values, widths):
+    for v, w in zip(values, widths, strict=False):
         pdf.cell(w, 6, v, border=1, align="C")
     pdf.ln()

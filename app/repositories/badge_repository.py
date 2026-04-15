@@ -28,7 +28,5 @@ class BadgeRepository:
         return badge
 
     async def count_earned(self, user_id: int) -> int:
-        result = await self._session.execute(
-            select(UserBadge).where(UserBadge.user_id == user_id)
-        )
+        result = await self._session.execute(select(UserBadge).where(UserBadge.user_id == user_id))
         return len(result.scalars().all())

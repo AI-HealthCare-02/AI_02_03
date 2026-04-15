@@ -74,6 +74,7 @@ class PredictionService:
             result = task_result.get(timeout=30)
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).error("Celery task failed: %s", repr(e))
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -125,12 +126,14 @@ class PredictionService:
         )
 
         penalties = {
-            "금주": _alcohol_penalty({
-                "음주여부": survey.drinking,
-                "1회음주량": survey.drink_amount,
-                "주당음주빈도": survey.weekly_drink_freq,
-                "월폭음빈도": survey.monthly_binge_freq,
-            }),
+            "금주": _alcohol_penalty(
+                {
+                    "음주여부": survey.drinking,
+                    "1회음주량": survey.drink_amount,
+                    "주당음주빈도": survey.weekly_drink_freq,
+                    "월폭음빈도": survey.monthly_binge_freq,
+                }
+            ),
             "운동": _exercise_penalty(survey.weekly_exercise_count),
             "금연": _smoking_penalty(survey.current_smoking, survey.smoking),
             "수면": _sleep_penalty(survey.sleep_hours, survey.sleep_disorder),

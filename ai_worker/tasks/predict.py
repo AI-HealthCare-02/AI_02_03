@@ -17,12 +17,16 @@ _MIDPOINTS = np.array([12.5, 37.5, 62.5, 87.5])
 
 # 모델에 들어가지 않는 패널티 계산용 피처 (앱 레이어에서 패널티 적용)
 _PENALTY_COLS = [
-    "음주여부", "1회음주량", "주당음주빈도", "월폭음빈도",  # 음주
-    "현재흡연여부",                                          # 흡연 (현재)
-    "평균수면시간",                                          # 수면 시간
+    "음주여부",
+    "1회음주량",
+    "주당음주빈도",
+    "월폭음빈도",  # 음주
+    "현재흡연여부",  # 흡연 (현재)
+    "평균수면시간",  # 수면 시간
 ]
 
 # ── 패널티 함수 (counterfactual 델타 추정용) ──────────────────────────────────
+
 
 def _alcohol_penalty(p: dict) -> int:
     if p.get("음주여부") == "음주안함":
@@ -96,18 +100,14 @@ _IMPROVEMENT_BUNDLES = [
         "challenge_type": "금연",
         "penalty_based": True,
         "condition": lambda row, p: p.get("현재흡연여부") == "흡연",
-        "penalty_fn": lambda row, p: _smoking_penalty(
-            p.get("현재흡연여부", "안함"), row.get("흡연여부", "없음")
-        ),
+        "penalty_fn": lambda row, p: _smoking_penalty(p.get("현재흡연여부", "안함"), row.get("흡연여부", "없음")),
     },
     {
         "category": "수면",
         "challenge_type": "수면",
         "penalty_based": True,
         "condition": lambda row, p: p.get("평균수면시간", 8) < 7 or row.get("수면장애여부") == "있음",
-        "penalty_fn": lambda row, p: _sleep_penalty(
-            p.get("평균수면시간", 8), row.get("수면장애여부", "없음")
-        ),
+        "penalty_fn": lambda row, p: _sleep_penalty(p.get("평균수면시간", 8), row.get("수면장애여부", "없음")),
     },
     {
         "category": "식습관",
@@ -152,9 +152,7 @@ def _proba_to_score(proba: np.ndarray) -> int:
     return min(max(20, round(score)), 100)
 
 
-def _get_improvement_factors(
-    input_df: pd.DataFrame, base_score: int, penalty_data: dict, top_n: int = 3
-) -> list[dict]:
+def _get_improvement_factors(input_df: pd.DataFrame, base_score: int, penalty_data: dict, top_n: int = 3) -> list[dict]:
     """
     Counterfactual 방식으로 개선 효과가 큰 생활습관 요인 반환.
     - 패널티 방식(금주/운동/금연/수면): abs(current penalty) = 회복 가능한 점수
@@ -179,11 +177,13 @@ def _get_improvement_factors(
             delta = new_score - base_score
 
         if delta > 0:
-            results.append({
-                "category": bundle["category"],
-                "challenge_type": bundle["challenge_type"],
-                "score_delta": delta,
-            })
+            results.append(
+                {
+                    "category": bundle["category"],
+                    "challenge_type": bundle["challenge_type"],
+                    "score_delta": delta,
+                }
+            )
 
     results.sort(key=lambda x: x["score_delta"], reverse=True)
     return results[:top_n]

@@ -5,15 +5,15 @@ from app.repositories.challenge_repository import ChallengeLogRepository, UserCh
 
 # 전체 뱃지 정의
 BADGE_DEFINITIONS = [
-    {"key": "first_step",        "name": "첫 걸음",       "description": "첫 챌린지 참여",          "emoji": "🎯"},
-    {"key": "streak_7",          "name": "1주 연속",       "description": "7일 연속 달성",           "emoji": "🔥"},
-    {"key": "streak_14",         "name": "2주 연속",       "description": "14일 연속 달성",          "emoji": "⭐"},
-    {"key": "streak_30",         "name": "1개월 달성",     "description": "30일 연속 달성",          "emoji": "🏆"},
-    {"key": "streak_100",        "name": "레전드",         "description": "100일 연속 달성",         "emoji": "🌟"},
-    {"key": "perfect_week",      "name": "완벽한 주",      "description": "일주일 달성률 100%",      "emoji": "💎"},
-    {"key": "exercise_5",        "name": "운동 마니아",    "description": "운동 챌린지 5개 완료",    "emoji": "💪"},
-    {"key": "diet_complete",     "name": "식습관 마스터",  "description": "식습관 챌린지 완료",      "emoji": "🥗"},
-    {"key": "alcohol_complete",  "name": "금주 챌린지",    "description": "금주 챌린지 완료",        "emoji": "🏅"},
+    {"key": "first_step", "name": "첫 걸음", "description": "첫 챌린지 참여", "emoji": "🎯"},
+    {"key": "streak_7", "name": "1주 연속", "description": "7일 연속 달성", "emoji": "🔥"},
+    {"key": "streak_14", "name": "2주 연속", "description": "14일 연속 달성", "emoji": "⭐"},
+    {"key": "streak_30", "name": "1개월 달성", "description": "30일 연속 달성", "emoji": "🏆"},
+    {"key": "streak_100", "name": "레전드", "description": "100일 연속 달성", "emoji": "🌟"},
+    {"key": "perfect_week", "name": "완벽한 주", "description": "일주일 달성률 100%", "emoji": "💎"},
+    {"key": "exercise_5", "name": "운동 마니아", "description": "운동 챌린지 5개 완료", "emoji": "💪"},
+    {"key": "diet_complete", "name": "식습관 마스터", "description": "식습관 챌린지 완료", "emoji": "🥗"},
+    {"key": "alcohol_complete", "name": "금주 챌린지", "description": "금주 챌린지 완료", "emoji": "🏅"},
 ]
 
 BADGE_MAP = {b["key"]: b for b in BADGE_DEFINITIONS}
@@ -67,23 +67,17 @@ class BadgeService:
             newly_granted += await self._grant_if_new(user_id, "perfect_week")
 
         # 운동 챌린지 5개 완료
-        completed_exercise = sum(
-            1 for uc in all_ucs if uc.status == "완료" and uc.challenge.type == "운동"
-        )
+        completed_exercise = sum(1 for uc in all_ucs if uc.status == "완료" and uc.challenge.type == "운동")
         if completed_exercise >= 5:
             newly_granted += await self._grant_if_new(user_id, "exercise_5")
 
         # 식습관 챌린지 완료
-        completed_diet = any(
-            uc.status == "완료" and uc.challenge.type in ("식단", "식습관") for uc in all_ucs
-        )
+        completed_diet = any(uc.status == "완료" and uc.challenge.type in ("식단", "식습관") for uc in all_ucs)
         if completed_diet:
             newly_granted += await self._grant_if_new(user_id, "diet_complete")
 
         # 금주 챌린지 완료
-        completed_alcohol = any(
-            uc.status == "완료" and uc.challenge.type == "금주" for uc in all_ucs
-        )
+        completed_alcohol = any(uc.status == "완료" and uc.challenge.type == "금주" for uc in all_ucs)
         if completed_alcohol:
             newly_granted += await self._grant_if_new(user_id, "alcohol_complete")
 

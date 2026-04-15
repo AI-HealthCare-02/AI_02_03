@@ -86,8 +86,8 @@ def _calc_monthly_binge(drink_amount_std: float, weekly_drink_freq: float) -> fl
 def _calc_diet(questions: list[int]) -> tuple[int, str]:
     # 긍정 문항: 0(채소), 3(규칙적 식사), 5(단백질) → 그대로
     # 부정 문항: 1(단 음식), 2(튀김/패스트푸드), 4(과식), 6(야식) → 역산 (6 - x)
-    NEGATIVE = {1, 2, 4, 6}
-    score = sum(6 - q if i in NEGATIVE else q for i, q in enumerate(questions))
+    negative = {1, 2, 4, 6}
+    score = sum(6 - q if i in negative else q for i, q in enumerate(questions))
     # 범위: 7~35점, 5단계 균등 분할
     if score >= 31:
         return score, "매우좋음"
@@ -173,12 +173,14 @@ class HealthSurveyService:
         from app.services.challenges import _calc_recovery_rate
 
         penalties = {
-            "금주": _alcohol_penalty({
-                "음주여부": survey.drinking,
-                "1회음주량": survey.drink_amount,
-                "주당음주빈도": survey.weekly_drink_freq,
-                "월폭음빈도": survey.monthly_binge_freq,
-            }),
+            "금주": _alcohol_penalty(
+                {
+                    "음주여부": survey.drinking,
+                    "1회음주량": survey.drink_amount,
+                    "주당음주빈도": survey.weekly_drink_freq,
+                    "월폭음빈도": survey.monthly_binge_freq,
+                }
+            ),
             "운동": _exercise_penalty(survey.weekly_exercise_count),
             "금연": _smoking_penalty(survey.current_smoking, survey.smoking),
             "수면": _sleep_penalty(survey.sleep_hours, survey.sleep_disorder),
