@@ -11,7 +11,6 @@ from app.dtos.health_surveys import (
     SurveyCreateResponse,
     SurveyInfoResponse,
     SurveyUpdateRequest,
-    SurveyUpdateResponse,
 )
 from app.models.users import User
 from app.services.health_surveys import HealthSurveyService
@@ -55,7 +54,14 @@ async def update_my_survey(
     service: Annotated[HealthSurveyService, Depends(get_survey_service)],
 ) -> Response:
     result = await service.update_survey(user, data)
-    return Response(
-        result.model_dump(),
-        status_code=status.HTTP_200_OK,
-    )
+    return Response(result.model_dump(), status_code=status.HTTP_200_OK)
+
+
+@survey_router.patch("/me", status_code=status.HTTP_200_OK)
+async def patch_my_survey(
+    data: SurveyUpdateRequest,
+    user: Annotated[User, Depends(get_request_user)],
+    service: Annotated[HealthSurveyService, Depends(get_survey_service)],
+) -> Response:
+    result = await service.update_survey(user, data)
+    return Response(result.model_dump(), status_code=status.HTTP_200_OK)

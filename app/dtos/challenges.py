@@ -11,8 +11,17 @@ class ChallengeResponse(BaseModel):
     duration_days: int
     required_logs: int
     is_recommended: bool = False
+    participant_count: int = 0
+    is_custom: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class CustomChallengeCreateRequest(BaseModel):
+    title: str
+    description: str
+    category: str
+    duration_days: int
 
 
 class ChallengeJoinResponse(BaseModel):
@@ -22,9 +31,16 @@ class ChallengeJoinResponse(BaseModel):
 
 class UserChallengeResponse(BaseModel):
     user_challenge_id: int
+    challenge_id: int
     challenge_name: str
     type: str
+    description: str
+    duration_days: int
+    required_logs: int
     status: str
+    progress: int = 0
+    days_left: int = 0
+    today_completed: bool = False
     joined_at: datetime
     completed_at: datetime | None = None
 
@@ -49,3 +65,15 @@ class ChallengeLogResponse(BaseModel):
     days_remaining: int
     motivation_message: str
     expected_improvement: str
+
+
+class MaintenanceCheckinRequest(BaseModel):
+    still_maintaining: bool
+
+
+class MaintenanceCheckinResponse(BaseModel):
+    detail: str
+    is_maintenance: bool
+    consecutive_days: int = 0
+    recovery_rate: float = 0.0
+    recovery_points: int = 0

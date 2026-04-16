@@ -48,6 +48,13 @@ async def login(
     return resp
 
 
+@auth_router.post("/logout", status_code=status.HTTP_200_OK)
+async def logout() -> Response:
+    resp = Response(content={"detail": "로그아웃 되었습니다."}, status_code=status.HTTP_200_OK)
+    resp.delete_cookie(key="refresh_token")
+    return resp
+
+
 @auth_router.get("/token/refresh", response_model=TokenRefreshResponse, status_code=status.HTTP_200_OK)
 async def token_refresh(
     jwt_service: Annotated[JwtService, Depends(JwtService)],

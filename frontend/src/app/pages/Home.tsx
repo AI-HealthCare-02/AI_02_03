@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import api from "../../lib/api";
+import { useAuthStore } from "../../store/authStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
 import { Badge } from "../components/ui/badge";
@@ -8,16 +10,25 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Calendar } from "../components/ui/calendar";
 import { LiverCharacter } from "../components/LiverCharacter";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import {
   Activity,
-  Droplet,
+  Dumbbell,
   Utensils,
   Moon,
+  Wine,
+  Cigarette,
   CheckCircle2,
   TrendingUp,
   Target,
   Award,
   ChevronRight,
-  Calendar as CalendarIcon,
   Clock,
   Hospital,
   Pill,
@@ -25,68 +36,104 @@ import {
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 
+interface Appointment {
+  id: number;
+  hospital_name: string;
+  visit_date: string;
+  memo: string | null;
+}
+
+interface Medication {
+  id: number;
+  name: string;
+  dosage: string;
+  schedule: string;
+  taken_today: boolean;
+}
+
+interface UserChallenge {
+  user_challenge_id: number;
+  challenge_name: string;
+  type: string;
+  status: string;
+  today_completed: boolean;
+}
+
+const TYPE_ICON: Record<string, React.ElementType> = {
+  운동: Dumbbell,
+  식단: Utensils,
+  식습관: Utensils,
+  수면: Moon,
+  금주: Wine,
+  금연: Cigarette,
+};
+
 export function Home() {
+  const { user } = useAuthStore();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [todayHabits] = useState([
-    { id: 1, name: "30분 걷기", icon: Activity, completed: true, category: "운동" },
-    { id: 2, name: "물 2L 마시기", icon: Droplet, completed: true, category: "수분" },
-    { id: 3, name: "채소 중심 식사", icon: Utensils, completed: false, category: "식습관" },
-    { id: 4, name: "7시간 이상 수면", icon: Moon, completed: false, category: "수면" },
-  ]);
+  const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [healthScore, setHealthScore] = useState(0);
+  const [streakDays, setStreakDays] = useState(0);
+  const [activeChallenges, setActiveChallenges] = useState<UserChallenge[]>([]);
+  const [earnedBadgeCount, setEarnedBadgeCount] = useState(0);
+  const [completeTarget, setCompleteTarget] = useState<UserChallenge | null>(null);
 
-  // Today's appointments
-  const [todayAppointments] = useState([
-    {
-      id: 1,
-      time: "14:00",
-      hospital: "서울대학교병원",
-      memo: "정기 검진",
-    },
-  ]);
+  useEffect(() => {
+    api.get<Appointment[]>("/api/v1/appointments/me").then((r) => {
+      setAllAppointments(r.data);
+    }).catch(() => {});
 
-  // Today's medications
-  const [medications] = useState([
-    {
-      id: 1,
-      name: "우루사",
-      times: ["08:00", "20:00"],
-      completed: [true, false],
-    },
-    {
-      id: 2,
-      name: "밀크씨슬",
-      times: ["12:00"],
-      completed: [false],
-    },
-  ]);
+    api.get<Medication[]>("/api/v1/medications/me").then((r) => {
+      setMedications(r.data);
+    }).catch(() => {});
 
-  const toggleMedicationComplete = (medId: number, timeIndex: number) => {
-    // Mock function for demo
-    console.log(`Toggle medication ${medId}, time ${timeIndex}`);
+    api.get<{
+      latest_score: number;
+      streak_days: number;
+    }>("/api/v1/dashboard").then((r) => {
+      setHealthScore(Math.round(r.data.latest_score));
+      setStreakDays(r.data.streak_days);
+    }).catch(() => {});
+
+    api.get<UserChallenge[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } }).then((r) => {
+      setActiveChallenges(r.data);
+    }).catch(() => {});
+
+    api.get<{ earned_count: number }>("/api/v1/badges/me/count").then((r) => {
+      setEarnedBadgeCount(r.data.earned_count);
+    }).catch(() => {});
+  }, []);
+
+  const handleCompleteChallenge = async () => {
+    if (!completeTarget) return;
+    try {
+      await api.post(`/api/v1/user-challenges/${completeTarget.user_challenge_id}/logs`, { is_completed: true });
+      const r = await api.get<UserChallenge[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } });
+      setActiveChallenges(r.data);
+    } catch {
+      // 이미 오늘 기록함
+    } finally {
+      setCompleteTarget(null);
+    }
   };
 
-  const completedToday = todayHabits.filter(h => h.completed).length;
-  const totalHabits = todayHabits.length;
-  const progressPercent = (completedToday / totalHabits) * 100;
+  const handleToggleTaken = async (id: number, current: boolean) => {
+    await api.patch(`/api/v1/medications/${id}/taken`, { taken_today: !current });
+    api.get<Medication[]>("/api/v1/medications/me").then((r) => setMedications(r.data)).catch(() => {});
+  };
 
-  // Calculate overall health score based on various factors
-  const streakDays = 14;
-  const activeChallenges = 3;
-  const totalChallenges = 5;
-  const earnedBadges = 8;
-
-  const healthScore = Math.round(
-    (progressPercent * 0.4) + // Today's progress: 40%
-    (Math.min(streakDays / 30, 1) * 100 * 0.3) + // Streak: 30%
-    ((activeChallenges / totalChallenges) * 100 * 0.2) + // Active challenges: 20%
-    (Math.min(earnedBadges / 10, 1) * 100 * 0.1) // Badges: 10%
-  );
+  const completedToday = activeChallenges.filter(c => c.today_completed).length;
+  const totalHabits = activeChallenges.length;
+  const progressPercent = totalHabits > 0 ? (completedToday / totalHabits) * 100 : 0;
 
   return (
     <div className="space-y-8 pb-8">
       {/* Welcome Section */}
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold text-gray-900">안녕하세요! 👋</h2>
+        <h2 className="text-3xl font-bold text-gray-900">
+          안녕하세요, {user?.nickname ?? ""}님! 👋
+        </h2>
         <p className="text-gray-600">오늘도 건강한 하루를 만들어가요</p>
       </div>
 
@@ -106,7 +153,7 @@ export function Home() {
                   <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200 p-3 relative">
                     <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l-2 border-t-2 border-emerald-200 rotate-45"></div>
                     <p className="text-center text-sm font-medium text-gray-800">
-                      오늘은 물 6잔 마시기! 💧
+                      오늘도 챌린지를 완료해보세요! 💪
                     </p>
                     <p className="text-center text-xs text-gray-600 mt-1">
                       건강 습관을 더 신경 써주세요!
@@ -140,35 +187,42 @@ export function Home() {
 
               <Progress value={progressPercent} className="h-3" />
 
-              <div className="grid gap-3">
-                {todayHabits.map((habit) => (
-                  <div
-                    key={habit.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
-                      habit.completed
-                        ? "bg-white border-emerald-200"
-                        : "bg-gray-50 border-gray-200"
-                    }`}
-                  >
-                    <div className={`size-10 rounded-lg flex items-center justify-center ${
-                      habit.completed ? "bg-emerald-100" : "bg-gray-200"
-                    }`}>
-                      <habit.icon className={`size-5 ${
-                        habit.completed ? "text-emerald-600" : "text-gray-500"
-                      }`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className={habit.completed ? "text-gray-900" : "text-gray-600"}>
-                        {habit.name}
-                      </p>
-                      <p className="text-xs text-gray-500">{habit.category}</p>
-                    </div>
-                    {habit.completed && (
-                      <CheckCircle2 className="size-5 text-emerald-600" />
-                    )}
-                  </div>
-                ))}
-              </div>
+              {totalHabits === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">진행중인 챌린지가 없습니다.</p>
+              ) : (
+                <div className="grid gap-3">
+                  {activeChallenges.map((challenge) => {
+                    const Icon = TYPE_ICON[challenge.type] ?? Activity;
+                    return (
+                      <button
+                        key={challenge.user_challenge_id}
+                        onClick={() => !challenge.today_completed && setCompleteTarget(challenge)}
+                        disabled={challenge.today_completed}
+                        className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
+                          challenge.today_completed
+                            ? "bg-white border-emerald-200 cursor-default"
+                            : "bg-gray-50 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 cursor-pointer"
+                        }`}
+                      >
+                        <div className={`size-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          challenge.today_completed ? "bg-emerald-100" : "bg-gray-200"
+                        }`}>
+                          <Icon className={`size-5 ${
+                            challenge.today_completed ? "text-emerald-600" : "text-gray-500"
+                          }`} />
+                        </div>
+                        <div className="flex-1">
+                          <p className={challenge.today_completed ? "text-gray-900" : "text-gray-600"}>
+                            {challenge.challenge_name}
+                          </p>
+                          <p className="text-xs text-gray-500">{challenge.today_completed ? "오늘 완료!" : challenge.type}</p>
+                        </div>
+                        <CheckCircle2 className={`size-5 flex-shrink-0 ${challenge.today_completed ? "text-emerald-600" : "text-gray-300"}`} />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* New Challenge Button - Small Size */}
               <Link to="/challenges">
@@ -208,35 +262,45 @@ export function Home() {
                     onSelect={setSelectedDate}
                     locale={ko}
                     className="rounded-md"
+                    modifiers={{
+                      hasAppointment: allAppointments.map((a) => new Date(a.visit_date)),
+                    }}
+                    modifiersClassNames={{
+                      hasAppointment: "bg-blue-200 text-blue-900 font-bold rounded-full",
+                    }}
                   />
                 </div>
 
                 {/* Appointments - Right Side */}
                 <div className="flex-1 flex flex-col min-w-0">
-                  {/* Title - Always Visible */}
-                  <p className="text-sm font-medium text-gray-700 mb-3">병원 일정</p>
-                  
-                  {/* Appointments List or Empty Message */}
-                  {todayAppointments.length > 0 ? (
-                    <div className="space-y-2">
-                      {todayAppointments.map((apt) => (
-                        <div key={apt.id} className="flex items-start gap-2">
-                          <Hospital className="size-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 text-sm">{apt.hospital}</p>
-                            <p className="text-sm text-gray-600">{apt.time}</p>
-                            {apt.memo && (
-                              <p className="text-xs text-gray-500 mt-1">{apt.memo}</p>
-                            )}
+                  <p className="text-sm font-medium text-gray-700 mb-3">
+                    {selectedDate ? format(selectedDate, "MM월 dd일", { locale: ko }) : "오늘"} 병원 일정
+                  </p>
+                  {(() => {
+                    const filtered = allAppointments.filter(
+                      (a) => new Date(a.visit_date).toDateString() === (selectedDate ?? new Date()).toDateString()
+                    );
+                    return filtered.length > 0 ? (
+                      <div className="space-y-2">
+                        {filtered.map((apt) => (
+                          <div key={apt.id} className="flex items-start gap-2">
+                            <Hospital className="size-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 text-sm">{apt.hospital_name}</p>
+                              <p className="text-sm text-gray-600">{format(new Date(apt.visit_date), "HH:mm")}</p>
+                              {apt.memo && (
+                                <p className="text-xs text-gray-500 mt-1">{apt.memo}</p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center">
-                      <p className="text-sm text-gray-400">오늘 예정된 일정이 없습니다.</p>
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center">
+                        <p className="text-sm text-gray-400">예정된 일정이 없습니다.</p>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -244,22 +308,24 @@ export function Home() {
             {/* Today's Medications */}
             <div className="pt-3 border-t border-blue-100">
               <p className="text-sm font-medium text-gray-700 mb-2">오늘의 복약</p>
-              {medications.map((med) =>
-                med.times.map((time, idx) => (
+              {medications.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-2">복약 정보가 없습니다</p>
+              ) : (
+                medications.map((med) => (
                   <div
-                    key={`${med.id}-${idx}`}
+                    key={med.id}
                     className="flex items-center justify-between p-2 bg-white rounded border border-blue-100 mb-2"
                   >
                     <div className="flex items-center gap-2">
                       <Pill className="size-4 text-purple-600" />
                       <div>
                         <p className="text-sm font-medium">{med.name}</p>
-                        <p className="text-xs text-gray-500">{time}</p>
+                        <p className="text-xs text-gray-500">{med.schedule}</p>
                       </div>
                     </div>
                     <Checkbox
-                      checked={med.completed[idx]}
-                      onCheckedChange={() => toggleMedicationComplete(med.id, idx)}
+                      checked={med.taken_today}
+                      onCheckedChange={() => handleToggleTaken(med.id, med.taken_today)}
                     />
                   </div>
                 ))
@@ -286,7 +352,7 @@ export function Home() {
                 <TrendingUp className="size-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">14일</p>
+                <p className="text-2xl font-bold text-gray-900">{streakDays}일</p>
                 <p className="text-sm text-gray-600">연속 참여</p>
               </div>
             </div>
@@ -300,7 +366,7 @@ export function Home() {
                 <Activity className="size-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">3/5</p>
+                <p className="text-2xl font-bold text-gray-900">{activeChallenges.length}개</p>
                 <p className="text-sm text-gray-600">활성 챌린지</p>
               </div>
             </div>
@@ -314,13 +380,35 @@ export function Home() {
                 <Award className="size-6 text-amber-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">8개</p>
+                <p className="text-2xl font-bold text-gray-900">{earnedBadgeCount}개</p>
                 <p className="text-sm text-gray-600">획득 뱃지</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* 챌린지 완료 확인 다이얼로그 */}
+      <Dialog open={!!completeTarget} onOpenChange={(o) => !o && setCompleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>오늘의 목표를 완료하셨나요?</DialogTitle>
+            <DialogDescription>
+              <span className="font-medium text-gray-900">{completeTarget?.challenge_name}</span> 챌린지의 오늘 목표를 달성했다면 완료로 기록합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCompleteTarget(null)}>아직 아니에요</Button>
+            <Button
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+              onClick={handleCompleteChallenge}
+            >
+              <CheckCircle2 className="size-4 mr-2" />
+              완료했어요!
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Quick Tips */}
       <Card className="bg-gradient-to-br from-blue-50 to-white border-blue-200">
@@ -331,8 +419,8 @@ export function Home() {
         </CardHeader>
         <CardContent>
           <p className="text-gray-700 leading-relaxed">
-            지방간 예방을 위해 하루 30분 이상의 유산소 운동을 권장합니다. 
-            빠르게 걷기, 자전거 타기, 수영 등이 효과적이며, 꾸준한 운동은 
+            지방간 예방을 위해 하루 30분 이상의 유산소 운동을 권장합니다.
+            빠르게 걷기, 자전거 타기, 수영 등이 효과적이며, 꾸준한 운동은
             간 건강 개선에 큰 도움이 됩니다.
           </p>
         </CardContent>

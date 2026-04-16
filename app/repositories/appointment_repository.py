@@ -30,9 +30,7 @@ class AppointmentRepository:
 
     async def get_all_by_user(self, user_id: int) -> list[Appointment]:
         result = await self._session.execute(
-            select(Appointment)
-            .where(Appointment.user_id == user_id)
-            .order_by(Appointment.visit_date.asc())
+            select(Appointment).where(Appointment.user_id == user_id).order_by(Appointment.visit_date.asc())
         )
         return list(result.scalars().all())
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -9,7 +9,7 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Progress } from "../components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import { Calendar } from "../components/ui/calendar";
-import { Activity, ArrowRight, ArrowLeft, Info, CalendarIcon } from "lucide-react";
+import { Activity, ArrowRight, Info, CalendarIcon } from "lucide-react";
 import { format, differenceInYears } from "date-fns";
 import { ko } from "date-fns/locale";
 
@@ -25,6 +25,16 @@ export function OnboardingStep1() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem("onboarding_step1_raw");
+    if (saved) {
+      const raw = JSON.parse(saved);
+      if (raw.birthDate) setBirthDate(new Date(raw.birthDate));
+      if (raw.waistUnknown !== undefined) setWaistUnknown(raw.waistUnknown);
+      if (raw.formData) setFormData(raw.formData);
+    }
+  }, []);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -78,14 +88,20 @@ export function OnboardingStep1() {
     e.preventDefault();
 
     if (validateForm()) {
-      // Calculate BMI
-      const height = parseFloat(formData.height) / 100; // convert to meters
-      const weight = parseFloat(formData.weight);
-      const bmi = (weight / (height * height)).toFixed(1);
-
-      console.log("Step 1 Data:", { ...formData, bmi });
-      
-      // Navigate to step 2
+      const age = differenceInYears(new Date(), birthDate!);
+      const step1Data = {
+        age,
+        gender: formData.gender === "male" ? "남성" : "여성",
+        height: parseFloat(formData.height),
+        weight: parseFloat(formData.weight),
+        waist: waistUnknown ? 0 : parseFloat(formData.waist),
+      };
+      sessionStorage.setItem("onboarding_step1", JSON.stringify(step1Data));
+      sessionStorage.setItem("onboarding_step1_raw", JSON.stringify({
+        birthDate: birthDate!.toISOString(),
+        waistUnknown,
+        formData,
+      }));
       navigate("/onboarding/step2");
     }
   };

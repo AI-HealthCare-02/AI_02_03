@@ -7,6 +7,7 @@ wheels/
 .venv
 .*.env
 .env
+.env.production
 .idea/
 .vscode
 .coverage
@@ -19,3 +20,10 @@ scripts/
 *.pkl
 *.bin
 .ipynb_checkpoints/
+*.json
+
+# 임시 테스트 파일
+predict_test.py
+
+*.pem
+ubuntu@*

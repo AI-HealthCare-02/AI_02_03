@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Float, Integer, String, ForeignKey
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.databases import Base
@@ -33,6 +33,13 @@ class HealthSurvey(Base):
     sleep_hours: Mapped[float] = mapped_column(Float, nullable=False)
     sleep_disorder: Mapped[str] = mapped_column(String(10), nullable=False)
 
+    diet_q1: Mapped[int] = mapped_column(Integer, default=3, nullable=False)  # 채소
+    diet_q2: Mapped[int] = mapped_column(Integer, default=3, nullable=False)  # 단 음식
+    diet_q3: Mapped[int] = mapped_column(Integer, default=3, nullable=False)  # 튀김/패스트푸드
+    diet_q4: Mapped[int] = mapped_column(Integer, default=3, nullable=False)  # 규칙적 식사
+    diet_q5: Mapped[int] = mapped_column(Integer, default=3, nullable=False)  # 과식
+    diet_q6: Mapped[int] = mapped_column(Integer, default=3, nullable=False)  # 단백질
+    diet_q7: Mapped[int] = mapped_column(Integer, default=3, nullable=False)  # 야식
     diet_score: Mapped[int] = mapped_column(Integer, nullable=False)
     diet_eval: Mapped[str] = mapped_column(String(20), nullable=False)
 
@@ -40,4 +47,8 @@ class HealthSurvey(Base):
     hypertension: Mapped[str] = mapped_column(String(10), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now, onupdate=datetime.now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.now, onupdate=datetime.now, nullable=False
+    )
+
+    user = relationship("User", back_populates="health_survey")

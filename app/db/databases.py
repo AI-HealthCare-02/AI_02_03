@@ -1,3 +1,4 @@
+import json
 from collections.abc import AsyncGenerator
 from urllib.parse import quote_plus
 
@@ -20,6 +21,7 @@ engine = create_async_engine(
     get_database_url(),
     pool_size=config.DB_CONNECTION_POOL_MAXSIZE,
     echo=False,
+    json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
 )
 
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)

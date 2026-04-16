@@ -1,22 +1,22 @@
 from contextlib import asynccontextmanager
 
+from celery import Celery
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
-import app.models  # noqa: F401
 from app.apis.v1 import v1_routers
-from app.db.databases import Base, engine
+from app.core import config
+from app.db.databases import engine
+
+celery_app = Celery(
+    broker=f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/0",
+    backend=f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/0",
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    try:
-        from ai_worker.tasks.predict import _load_model
-        _load_model()
-    except Exception as e:
-        print(f"Warning: 모델 로딩 실패 - {e}")
     yield
     await engine.dispose()
 
@@ -27,6 +27,14 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(v1_routers)

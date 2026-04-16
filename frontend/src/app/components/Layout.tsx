@@ -1,5 +1,5 @@
-import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { Activity, TrendingUp, Home, LogIn, UserPlus, Calendar, User, LogOut, Settings } from "lucide-react";
+import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router";
+import { Activity, TrendingUp, Home, LogIn, UserPlus, User, LogOut, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -18,18 +18,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Avatar, AvatarFallback } from "./ui/avatar";
 import { useState } from "react";
+import { useAuthStore } from "../../store/authStore";
 
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  
-  // Mock login state - Replace with actual auth logic
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [userName] = useState("홍길동");
-  
+
+  const { isLoggedIn, user, logout } = useAuthStore();
+
+  if (!isLoggedIn) return <Navigate to="/login" replace />;
+
+  const userName = user?.nickname ?? "";
+
   const isActive = (path: string) => {
     if (path === "/") {
       return location.pathname === "/";
@@ -37,8 +40,8 @@ export function Layout() {
     return location.pathname.startsWith(path);
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
+  const handleLogout = async () => {
+    await logout();
     setShowLogoutDialog(false);
     navigate("/login");
   };
@@ -143,7 +146,13 @@ export function Layout() {
                         <span>설정</span>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="flex items-center gap-2" onClick={() => setShowLogoutDialog(true)}>
+                      <DropdownMenuItem
+                        className="flex items-center gap-2"
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          setShowLogoutDialog(true);
+                        }}
+                      >
                         <LogOut className="size-4" />
                         <span>로그아웃</span>
                       </DropdownMenuItem>

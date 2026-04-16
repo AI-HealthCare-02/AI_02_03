@@ -1,129 +1,152 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type React from "react";
 import { Link } from "react-router";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
+import api from "../../lib/api";
+import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Progress } from "../components/ui/progress";
-import { 
-  Activity, 
-  Utensils, 
-  Droplet, 
-  Moon, 
-  Weight,
-  Heart,
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import { Badge } from "../components/ui/badge";
+import {
+  Activity,
+  Utensils,
+  BookOpen,
   Trophy,
   CheckCircle2,
-  Clock,
-  Users,
-  BookOpen
+  Loader2,
+  Upload,
+  Sparkles,
+  PartyPopper,
 } from "lucide-react";
+import { ActiveChallengeCard } from "../components/challenges/ActiveChallengeCard";
+import { AvailableChallengeCard } from "../components/challenges/AvailableChallengeCard";
+import { CompletedChallengeCard } from "../components/challenges/CompletedChallengeCard";
+import { AddCustomChallengeButton } from "../components/challenges/AddCustomChallengeButton";
+import {
+  type Challenge,
+  type ChallengeAPI,
+  type UserChallengeAPI,
+  toChallenge,
+  ucToChallenge,
+} from "../types/challenges";
 
-type Challenge = {
-  id: number;
-  title: string;
-  description: string;
-  icon: any;
-  duration: string;
-  participants: number;
-  difficulty: "초급" | "중급" | "고급";
-  category: string;
-  progress?: number;
-  daysLeft?: number;
-};
+type DietAnalysisState = "idle" | "loading" | "result";
+type CompleteState = "idle" | "loading" | "done";
+
+interface CompleteResult {
+  score_before: number;
+  new_score: number;
+  new_grade: string;
+}
 
 export function Challenges() {
-  const [activeChallenges] = useState<Challenge[]>([
-    {
-      id: 1,
-      title: "30일 걷기 챌린지",
-      description: "매일 30분 이상 걷기를 실천하세요",
-      icon: Activity,
-      duration: "30일",
-      participants: 1250,
-      difficulty: "초급",
-      category: "운동",
-      progress: 75,
-      daysLeft: 7,
-    },
-    {
-      id: 2,
-      title: "설탕 줄이기 챌린지",
-      description: "첨가당 섭취를 하루 25g 이하로 제한하기",
-      icon: Utensils,
-      duration: "30일",
-      participants: 890,
-      difficulty: "중급",
-      category: "식습관",
-      progress: 60,
-      daysLeft: 12,
-    },
-    {
-      id: 3,
-      title: "규칙적인 수면 챌린지",
-      description: "매일 같은 시간에 잠들고 7시간 이상 수면",
-      icon: Moon,
-      duration: "21일",
-      participants: 645,
-      difficulty: "중급",
-      category: "수면",
-      progress: 45,
-      daysLeft: 16,
-    },
-  ]);
+  const [dietState, setDietState] = useState<DietAnalysisState>("idle");
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([]);
+  const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
+  const [completedChallenges, setCompletedChallenges] = useState<(Challenge & { completedAt?: string })[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string>("전체");
+  const [joining, setJoining] = useState<number | null>(null);
 
-  const [availableChallenges] = useState<Challenge[]>([
-    {
-      id: 4,
-      title: "물 마시기 챌린지",
-      description: "하루 2L 이상의 물 마시기",
-      icon: Droplet,
-      duration: "14일",
-      participants: 2100,
-      difficulty: "초급",
-      category: "수분",
-    },
-    {
-      id: 5,
-      title: "체중 관리 챌린지",
-      description: "건강한 방법으로 체중 5% 감량하기",
-      icon: Weight,
-      duration: "90일",
-      participants: 567,
-      difficulty: "고급",
-      category: "체중관리",
-    },
-    {
-      id: 6,
-      title: "근력 운동 챌린지",
-      description: "주 3회 이상 근력 운동 실천하기",
-      icon: Heart,
-      duration: "30일",
-      participants: 823,
-      difficulty: "중급",
-      category: "운동",
-    },
-    {
-      id: 7,
-      title: "채소 먹기 챌린지",
-      description: "매 끼니마다 채소 반 접시 이상 섭취",
-      icon: Utensils,
-      duration: "21일",
-      participants: 1456,
-      difficulty: "초급",
-      category: "식습관",
-    },
-    {
-      id: 8,
-      title: "금주 챌린지",
-      description: "30일간 음주하지 않기",
-      icon: Trophy,
-      duration: "30일",
-      participants: 432,
-      difficulty: "고급",
-      category: "생활습관",
-    },
-  ]);
+  // 참여 확인 다이얼로그
+  const [joinTarget, setJoinTarget] = useState<Challenge | null>(null);
+  // 중단 확인 다이얼로그
+  const [quitTarget, setQuitTarget] = useState<Challenge | null>(null);
+  // 완료 축하 다이얼로그
+  const [completeState, setCompleteState] = useState<CompleteState>("idle");
+  const [completeResult, setCompleteResult] = useState<CompleteResult | null>(null);
+  const [completeTarget, setCompleteTarget] = useState<Challenge | null>(null);
+
+  const activeJoinedIds = new Set(activeChallenges.map((c) => c.challengeId));
+  const completedChallengeIds = new Set(completedChallenges.map((c) => c.challengeId));
+
+  const CATEGORIES = ["전체", "운동", "식단", "식습관", "수면", "체중감량", "금주", "금연"];
+
+  const sortedAvailable = [...availableChallenges]
+    .filter((c) => !completedChallengeIds.has(c.id))
+    .filter((c) => categoryFilter === "전체" || c.category === categoryFilter)
+    .sort((a, b) => {
+      const aJoined = activeJoinedIds.has(a.id) ? 1 : 0;
+      const bJoined = activeJoinedIds.has(b.id) ? 1 : 0;
+      return aJoined - bJoined;
+    });
+
+  const fetchActiveChallenges = async () => {
+    const r = await api.get<UserChallengeAPI[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } });
+    setActiveChallenges(r.data.map(ucToChallenge));
+  };
+
+  const fetchCompletedChallenges = async () => {
+    const r = await api.get<UserChallengeAPI[]>("/api/v1/user-challenges/me", { params: { status: "완료" } });
+    setCompletedChallenges(r.data.map(ucToChallenge));
+  };
+
+  useEffect(() => {
+    fetchActiveChallenges();
+    fetchCompletedChallenges();
+    api.get<ChallengeAPI[]>("/api/v1/challenges").then((r) => setAvailableChallenges(r.data.map(toChallenge)));
+  }, []);
+
+  const handleJoinConfirm = async () => {
+    if (!joinTarget) return;
+    setJoining(joinTarget.id);
+    try {
+      await api.post(`/api/v1/challenges/${joinTarget.id}/join`);
+      await fetchActiveChallenges();
+    } catch {
+      // 이미 참여 중이거나 오류
+    } finally {
+      setJoining(null);
+      setJoinTarget(null);
+    }
+  };
+
+  const handleQuitConfirm = async () => {
+    if (!quitTarget) return;
+    try {
+      await api.patch(`/api/v1/user-challenges/${quitTarget.id}/quit`);
+      await fetchActiveChallenges();
+    } catch {
+      // 오류
+    } finally {
+      setQuitTarget(null);
+    }
+  };
+
+  const handleCompleteChallenge = async (challenge: Challenge) => {
+    setCompleteTarget(challenge);
+    setCompleteState("loading");
+    try {
+      const r = await api.patch<CompleteResult>(`/api/v1/user-challenges/${challenge.id}/complete`);
+      setCompleteResult(r.data);
+      setCompleteState("done");
+      await fetchActiveChallenges();
+    } catch {
+      setCompleteState("idle");
+      setCompleteTarget(null);
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setUploadedImage(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAnalyze = () => {
+    setDietState("loading");
+    setTimeout(() => setDietState("result"), 2000);
+  };
 
   return (
     <div className="space-y-6 pb-8">
@@ -141,138 +164,296 @@ export function Challenges() {
       </div>
 
       <Tabs defaultValue="active" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="active" className="gap-2">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="active" className="gap-1 text-xs sm:text-sm">
             <Activity className="size-4" />
-            진행 중 ({activeChallenges.length})
+            진행 중
           </TabsTrigger>
-          <TabsTrigger value="available" className="gap-2">
+          <TabsTrigger value="available" className="gap-1 text-xs sm:text-sm">
             <Trophy className="size-4" />
-            참여 가능 ({availableChallenges.length})
+            참여 가능
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="gap-1 text-xs sm:text-sm">
+            <CheckCircle2 className="size-4" />
+            완료
+          </TabsTrigger>
+          <TabsTrigger value="diet" className="gap-1 text-xs sm:text-sm">
+            <Utensils className="size-4" />
+            식단
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="space-y-4">
-          {activeChallenges.length === 0 ? (
+          <div className="flex justify-end">
+            <AddCustomChallengeButton onCreated={fetchActiveChallenges} />
+          </div>
+          {activeChallenges.length === 0 && (
             <Card>
               <CardContent className="p-12 text-center">
                 <p className="text-gray-500">진행 중인 챌린지가 없습니다</p>
               </CardContent>
             </Card>
-          ) : (
-            activeChallenges.map((challenge) => (
-              <ActiveChallengeCard key={challenge.id} challenge={challenge} />
-            ))
           )}
+          {activeChallenges.map((challenge) => (
+            <ActiveChallengeCard
+              key={challenge.id}
+              challenge={challenge}
+              onQuit={() => setQuitTarget(challenge)}
+              onDelete={async () => {
+                await api.delete(`/api/v1/challenges/${challenge.challengeId}/custom`);
+                await fetchActiveChallenges();
+              }}
+              onComplete={() => handleCompleteChallenge(challenge)}
+              onDailyLog={async () => {
+                try {
+                  await api.post(`/api/v1/user-challenges/${challenge.id}/logs`, { is_completed: true });
+                  await fetchActiveChallenges();
+                } catch {
+                  // 오늘 이미 기록됨
+                }
+              }}
+            />
+          ))}
         </TabsContent>
 
         <TabsContent value="available" className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            {availableChallenges.map((challenge) => (
-              <AvailableChallengeCard key={challenge.id} challenge={challenge} />
+          {/* 카테고리 필터 */}
+          <div className="flex gap-2 flex-wrap">
+            {CATEGORIES.map((cat) => (
+              <Button
+                key={cat}
+                size="sm"
+                variant={categoryFilter === cat ? "default" : "outline"}
+                onClick={() => setCategoryFilter(cat)}
+                className={categoryFilter === cat ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+              >
+                {cat}
+              </Button>
             ))}
           </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            {sortedAvailable.length === 0 ? (
+              <div className="col-span-2">
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <p className="text-gray-500">해당 카테고리의 챌린지가 없습니다</p>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              sortedAvailable.map((challenge) => (
+                <AvailableChallengeCard
+                  key={challenge.id}
+                  challenge={challenge}
+                  alreadyJoined={activeJoinedIds.has(challenge.id)}
+                  onJoin={() => setJoinTarget(challenge)}
+                  joining={joining}
+                />
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="completed" className="space-y-4">
+          {completedChallenges.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <p className="text-gray-500">완료한 챌린지가 없습니다</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {completedChallenges.map((challenge) => (
+                <CompletedChallengeCard key={challenge.id} challenge={challenge} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="diet" className="space-y-4">
+          {dietState === "idle" && (
+            <Card className="border-2 border-dashed border-gray-300">
+              <CardContent className="p-8">
+                <div className="text-center space-y-4">
+                  <div className="size-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+                    <Upload className="size-10 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">식단 사진을 업로드하세요</h3>
+                    <p className="text-sm text-gray-600">사진 첨부 또는 드래그</p>
+                  </div>
+                  <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" id="diet-upload" />
+                  <label htmlFor="diet-upload">
+                    <Button asChild className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700">
+                      <span>사진 선택</span>
+                    </Button>
+                  </label>
+                  {uploadedImage && (
+                    <div className="mt-4">
+                      <img src={uploadedImage} alt="Uploaded" className="w-full max-w-sm mx-auto rounded-lg" />
+                      <Button onClick={handleAnalyze} className="mt-4 w-full max-w-sm bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700">
+                        분석하기
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {dietState === "loading" && (
+            <Card className="border-2 border-emerald-200">
+              <CardContent className="p-8 text-center space-y-4">
+                <Loader2 className="size-16 text-emerald-600 animate-spin mx-auto" />
+                <h3 className="text-lg font-bold text-gray-900">식단을 분석중입니다...</h3>
+                <p className="text-sm text-gray-600">잠시만 기다려주세요</p>
+              </CardContent>
+            </Card>
+          )}
+          {dietState === "result" && (
+            <Card className="border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white">
+              <CardContent className="p-6 space-y-4">
+                {uploadedImage && <img src={uploadedImage} alt="Analyzed" className="w-full rounded-lg" />}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <Sparkles className="size-5 text-emerald-600" />
+                    분석 결과
+                  </h3>
+                  <div className="p-4 bg-white rounded-lg border border-emerald-200">
+                    <p className="text-sm text-gray-600 mb-1">음식</p>
+                    <p className="font-bold text-gray-900">닭가슴살 샐러드, 현미밥</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3 bg-white rounded-lg border border-gray-200 text-center">
+                      <p className="text-xs text-gray-600 mb-1">칼로리</p>
+                      <p className="font-bold text-gray-900">420 kcal</p>
+                    </div>
+                    <div className="p-3 bg-white rounded-lg border border-gray-200 text-center">
+                      <p className="text-xs text-gray-600 mb-1">지방</p>
+                      <p className="font-bold text-gray-900">12g</p>
+                    </div>
+                    <div className="p-3 bg-white rounded-lg border border-gray-200 text-center">
+                      <p className="text-xs text-gray-600 mb-1">당</p>
+                      <p className="font-bold text-gray-900">8g</p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <p className="text-sm font-bold text-emerald-900 mb-1">✨ 한줄 평가</p>
+                    <p className="text-sm text-gray-700">훌륭한 선택입니다! 단백질과 식이섬유가 풍부한 건강한 식단이에요.</p>
+                  </div>
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm font-bold text-blue-900 mb-2">💡 행동 추천</p>
+                    <ul className="text-sm text-gray-700 space-y-1">
+                      <li>• 식후 20분 가벼운 산책을 추천해요</li>
+                      <li>• 물을 충분히 마셔주세요 (2컵 이상)</li>
+                    </ul>
+                  </div>
+                </div>
+                <Button onClick={() => { setDietState("idle"); setUploadedImage(null); }} variant="outline" className="w-full">
+                  다시 분석하기
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
+
+      {/* 참여 확인 다이얼로그 */}
+      <Dialog open={!!joinTarget} onOpenChange={(o) => !o && setJoinTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>챌린지를 시작하시겠습니까?</DialogTitle>
+            <DialogDescription>
+              <span className="font-medium text-gray-900">{joinTarget?.title}</span> 챌린지에 참여합니다.
+              {joinTarget && ` (${joinTarget.duration} / ${joinTarget.difficulty})`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setJoinTarget(null)}>취소</Button>
+            <Button
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+              onClick={handleJoinConfirm}
+              disabled={joining !== null}
+            >
+              {joining !== null ? "참여 중..." : "시작하기"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 중단 확인 다이얼로그 */}
+      <Dialog open={!!quitTarget} onOpenChange={(o) => !o && setQuitTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>챌린지를 중단하시겠습니까?</DialogTitle>
+            <DialogDescription>
+              <span className="font-medium text-gray-900">{quitTarget?.title}</span> 챌린지를 중단합니다.
+              지금까지 진행한 모든 기록이 삭제되며, 처음부터 다시 시작해야 합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuitTarget(null)}>계속 진행하기</Button>
+            <Button variant="destructive" onClick={handleQuitConfirm}>중단하기</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 챌린지 완료 축하 다이얼로그 */}
+      <Dialog
+        open={completeState !== "idle"}
+        onOpenChange={(o) => {
+          if (!o) {
+            setCompleteState("idle");
+            setCompleteResult(null);
+            setCompleteTarget(null);
+          }
+        }}
+      >
+        <DialogContent className="text-center">
+          {completeState === "loading" && (
+            <div className="py-8 space-y-4">
+              <Loader2 className="size-16 text-emerald-600 animate-spin mx-auto" />
+              <h3 className="text-xl font-bold text-gray-900">점수 측정 중...</h3>
+              <p className="text-sm text-gray-600">챌린지 완료를 처리하고 있습니다</p>
+            </div>
+          )}
+          {completeState === "done" && completeResult && (
+            <div className="py-4 space-y-6">
+              <div className="flex flex-col items-center gap-3">
+                <div className="size-20 bg-gradient-to-br from-amber-100 to-yellow-200 rounded-full flex items-center justify-center">
+                  <PartyPopper className="size-10 text-amber-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900">챌린지 완료!</h3>
+                <p className="text-gray-600">
+                  <span className="font-medium">{completeTarget?.title}</span> 챌린지를 완료했습니다.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-gray-50 rounded-xl">
+                  <p className="text-sm text-gray-500 mb-1">이전 점수</p>
+                  <p className="text-2xl font-bold text-gray-700">{Math.round(completeResult.score_before)}점</p>
+                </div>
+                <div className="p-4 bg-emerald-50 rounded-xl border-2 border-emerald-200">
+                  <p className="text-sm text-emerald-600 mb-1">새 점수</p>
+                  <p className="text-2xl font-bold text-emerald-700">{Math.round(completeResult.new_score)}점</p>
+                </div>
+              </div>
+              <Badge className="bg-emerald-100 text-emerald-900 text-sm px-4 py-1">
+                등급: {completeResult.new_grade}
+              </Badge>
+              <Button
+                className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+                onClick={() => {
+                  setCompleteState("idle");
+                  setCompleteResult(null);
+                  setCompleteTarget(null);
+                }}
+              >
+                확인
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
-  );
-}
-
-function ActiveChallengeCard({ challenge }: { challenge: Challenge }) {
-  const Icon = challenge.icon;
-  
-  return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-3">
-            <div className="size-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-              <Icon className="size-6 text-emerald-600" />
-            </div>
-            <div>
-              <CardTitle className="mb-1">{challenge.title}</CardTitle>
-              <CardDescription>{challenge.description}</CardDescription>
-            </div>
-          </div>
-          <Badge variant="secondary" className="bg-emerald-100 text-emerald-900">
-            D-{challenge.daysLeft}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">진행률</span>
-            <span className="font-medium text-gray-900">{challenge.progress}%</span>
-          </div>
-          <Progress value={challenge.progress} className="h-2" />
-        </div>
-
-        <div className="flex items-center gap-4 text-sm text-gray-600">
-          <div className="flex items-center gap-1">
-            <Clock className="size-4" />
-            <span>{challenge.duration}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Users className="size-4" />
-            <span>{challenge.participants.toLocaleString()}명 참여</span>
-          </div>
-          <Badge variant="outline">{challenge.difficulty}</Badge>
-        </div>
-
-        <Button className="w-full" variant="outline">
-          <CheckCircle2 className="size-4 mr-2" />
-          오늘의 목표 달성하기
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-function AvailableChallengeCard({ challenge }: { challenge: Challenge }) {
-  const Icon = challenge.icon;
-  const difficultyColors = {
-    "초급": "bg-green-100 text-green-900 border-green-200",
-    "중급": "bg-yellow-100 text-yellow-900 border-yellow-200",
-    "고급": "bg-red-100 text-red-900 border-red-200",
-  };
-
-  return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <div className="flex items-start gap-3 mb-3">
-          <div className="size-12 bg-blue-100 rounded-lg flex items-center justify-center">
-            <Icon className="size-6 text-blue-600" />
-          </div>
-          <div className="flex-1">
-            <CardTitle className="mb-1">{challenge.title}</CardTitle>
-            <CardDescription>{challenge.description}</CardDescription>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className={difficultyColors[challenge.difficulty]}>
-            {challenge.difficulty}
-          </Badge>
-          <Badge variant="outline">{challenge.category}</Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-4 text-sm text-gray-600">
-          <div className="flex items-center gap-1">
-            <Clock className="size-4" />
-            <span>{challenge.duration}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Users className="size-4" />
-            <span>{challenge.participants.toLocaleString()}명</span>
-          </div>
-        </div>
-
-        <Button className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700">
-          챌린지 시작하기
-        </Button>
-      </CardContent>
-    </Card>
   );
 }

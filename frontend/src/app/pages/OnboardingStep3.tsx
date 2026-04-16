@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import api from "../../lib/api";
 import { useNavigate } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -6,6 +7,7 @@ import { Label } from "../components/ui/label";
 import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
 import { Progress } from "../components/ui/progress";
 import { Activity, ArrowLeft, Info, Shield, Heart, Moon as MoonIcon, CheckCircle2 } from "lucide-react";
+import liverExcellent from "../../assets/characters/liver_excellent.png";
 
 export function OnboardingStep3() {
   const navigate = useNavigate();
@@ -18,6 +20,13 @@ export function OnboardingStep3() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem("onboarding_step3_raw");
+    if (saved) {
+      setFormData(JSON.parse(saved));
+    }
+  }, []);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -40,16 +49,29 @@ export function OnboardingStep3() {
     e.preventDefault();
 
     if (validateForm()) {
-      console.log("Step 3 Data:", formData);
-      
-      // Show loading screen
+      sessionStorage.setItem("onboarding_step3_raw", JSON.stringify(formData));
       setIsAnalyzing(true);
-
-      // Simulate analysis (3 seconds)
-      setTimeout(() => {
-        // Navigate to home page after analysis
+      try {
+        const step1 = JSON.parse(sessionStorage.getItem("onboarding_step1") || "{}");
+        const step2 = JSON.parse(sessionStorage.getItem("onboarding_step2") || "{}");
+        const payload = {
+          ...step1,
+          ...step2,
+          diabetes: formData.diabetes === "yes" ? "있음" : "없음",
+          hypertension: formData.hypertension === "yes" ? "있음" : "없음",
+          sleep_disorder: formData.sleepDisorder === "yes" ? "있음" : "없음",
+        };
+        await api.post("/api/v1/surveys", payload);
+        await api.post("/api/v1/predictions", {});
+        sessionStorage.removeItem("onboarding_step1");
+        sessionStorage.removeItem("onboarding_step1_raw");
+        sessionStorage.removeItem("onboarding_step2");
+        sessionStorage.removeItem("onboarding_step2_raw");
+        sessionStorage.removeItem("onboarding_step3_raw");
         navigate("/");
-      }, 3000);
+      } catch {
+        setIsAnalyzing(false);
+      }
     }
   };
 
@@ -67,11 +89,12 @@ export function OnboardingStep3() {
           {/* Animated Liver Character */}
           <div className="relative flex items-center justify-center">
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-300 to-teal-300 rounded-full blur-3xl opacity-40 animate-pulse" />
-            <div className="relative w-40 h-40 mx-auto flex items-center justify-center animate-bounce" style={{ animationDuration: "2s" }}>
-              <div className="w-28 h-28 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-6xl shadow-xl">
-                🔍
-              </div>
-            </div>
+            <img
+              src={liverExcellent}
+              alt="간 캐릭터"
+              className="relative w-40 h-40 mx-auto object-contain animate-bounce"
+              style={{ animationDuration: "2s" }}
+            />
           </div>
 
           {/* Loading Text */}

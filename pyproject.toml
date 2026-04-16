@@ -21,6 +21,8 @@ dependencies = [
     "python-multipart>=0.0.22",
     "passlib>=1.7.4",
     "bcrypt>=4.0.1",
+    "orjson>=3.11.5",
+    "fpdf2>=2.8.7",
 ]
 
 [dependency-groups]
@@ -47,14 +49,17 @@ app = [
     "alembic>=1.16.0",
     "asyncpg>=0.30.0",
     "bcrypt<=4.0.1",
+    "celery>=5.5.0",
     "fastapi[standard]>=0.128.0",
     "httpx>=0.28.1",
     "orjson>=3.11.5",
     "passlib[bcrypt]>=1.7.4",
+    "python-dateutil>=2.9.0",
     "pyjwt>=2.10.1",
     "sqlalchemy[asyncio]>=2.0.0",
     "tzdata>=2025.3",
     "uvicorn>=0.40.0",
+    "fpdf2>=2.8.7",
 ]
 dev = [
     "coverage>=7.13.2",
@@ -78,6 +83,7 @@ asyncio_mode = "auto"
 # 기본 라인 길이 설정
 line-length = 120
 target-version = "py312"
+exclude = ["notebooks", ".venv"]
 
 [tool.ruff.lint]
 # 사용할 린트 규칙들 선택
@@ -96,7 +102,7 @@ ignore = ["UP046", "E501"]
 # 특정 파일에서 무시할 규칙들
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-"db/migrations/*" = ["ALL"]
+"app/db/migrations/*" = ["ALL"]
 
 [tool.ruff.format]
 # 포매터 설정

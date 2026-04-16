@@ -17,17 +17,12 @@ class PredictionRepository:
 
     async def get_by_user_id(self, user_id: int) -> list[Prediction]:
         result = await self._session.execute(
-            select(Prediction)
-            .where(Prediction.user_id == user_id)
-            .order_by(Prediction.created_at.desc())
+            select(Prediction).where(Prediction.user_id == user_id).order_by(Prediction.created_at.desc())
         )
         return list(result.scalars().all())
 
     async def get_latest_by_user_id(self, user_id: int) -> Prediction | None:
         result = await self._session.execute(
-            select(Prediction)
-            .where(Prediction.user_id == user_id)
-            .order_by(Prediction.created_at.desc())
-            .limit(1)
+            select(Prediction).where(Prediction.user_id == user_id).order_by(Prediction.created_at.desc()).limit(1)
         )
         return result.scalar_one_or_none()

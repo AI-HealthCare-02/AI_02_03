@@ -1,10 +1,24 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, redirect } from "react-router";
 import { Home } from "./pages/Home";
+
+function requireAuth() {
+  const token = localStorage.getItem("access_token") ?? sessionStorage.getItem("access_token");
+  if (!token) {
+    return redirect("/login");
+  }
+  return null;
+}
 import { Challenges } from "./pages/Challenges";
 import { Education } from "./pages/Education";
 import { Progress } from "./pages/Progress";
 import { Schedule } from "./pages/Schedule";
 import { MyPage } from "./pages/MyPage";
+import { AccountManagement } from "./pages/AccountManagement";
+import { MyInfo } from "./pages/MyInfo";
+import { ActivityHistory } from "./pages/ActivityHistory";
+import { NotificationSettings } from "./pages/NotificationSettings";
+import { HealthDataManagement } from "./pages/HealthDataManagement";
+import { Profile } from "./pages/Profile";
 import { Signup } from "./pages/Signup";
 import { Login } from "./pages/Login";
 import { OnboardingStep0 } from "./pages/OnboardingStep0";
@@ -18,6 +32,7 @@ export const router = createBrowserRouter([
   {
     path: "/",
     Component: Layout,
+    loader: requireAuth,
     children: [
       { index: true, Component: Home },
       { path: "challenges", Component: Challenges },
@@ -25,6 +40,12 @@ export const router = createBrowserRouter([
       { path: "progress", Component: Progress },
       { path: "schedule", Component: Schedule },
       { path: "mypage", Component: MyPage },
+      { path: "mypage/account", Component: AccountManagement },
+      { path: "mypage/account/info", Component: MyInfo },
+      { path: "mypage/history", Component: ActivityHistory },
+      { path: "mypage/notifications", Component: NotificationSettings },
+      { path: "mypage/survey", Component: HealthDataManagement },
+      { path: "mypage/profile", Component: Profile },
     ],
   },
   {

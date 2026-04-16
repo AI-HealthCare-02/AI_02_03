@@ -1,37 +1,15 @@
 import { useEffect, useState } from "react";
 
-// TODO: 실제 간 캐릭터 이미지로 교체하세요
-// src/assets/liver/ 폴더에 아래 파일명으로 이미지를 넣으면 자동 적용됩니다:
-// liver-excellent.png, liver-good.png, liver-warning.png, liver-danger.png
+import liverExcellent from "../../assets/characters/liver_excellent.png";
+import liverGood from "../../assets/characters/liver_good.png";
+import liverWarning from "../../assets/characters/liver_warning.png";
+import liverDanger from "../../assets/characters/liver_danger.png";
 
 type HealthStatus = "excellent" | "good" | "warning" | "danger";
 
 interface LiverCharacterProps {
   healthScore: number; // 0-100
   className?: string;
-}
-
-// 이미지가 없을 때 보여줄 SVG 플레이스홀더
-function LiverPlaceholder({ status }: { status: HealthStatus }) {
-  const configs = {
-    excellent: { emoji: "🟢", color: "#10b981", face: "😊", label: "최상" },
-    good:      { emoji: "🟡", color: "#f59e0b", face: "🙂", label: "양호" },
-    warning:   { emoji: "🟠", color: "#f97316", face: "😥", label: "주의" },
-    danger:    { emoji: "🔴", color: "#ef4444", face: "😢", label: "위험" },
-  };
-  const cfg = configs[status];
-
-  return (
-    <div className="flex flex-col items-center justify-center w-48 h-48 mx-auto">
-      <div
-        className="w-36 h-36 rounded-full flex items-center justify-center text-6xl shadow-lg"
-        style={{ backgroundColor: cfg.color + "22", border: `3px solid ${cfg.color}` }}
-      >
-        {cfg.face}
-      </div>
-      <span className="mt-2 text-sm font-medium" style={{ color: cfg.color }}>간 상태: {cfg.label}</span>
-    </div>
-  );
 }
 
 export function LiverCharacter({ healthScore, className = "" }: LiverCharacterProps) {
@@ -86,6 +64,15 @@ export function LiverCharacter({ healthScore, className = "" }: LiverCharacterPr
 
   const statusInfo = getStatusInfo();
 
+const liverImage =
+  status === "excellent"
+    ? liverExcellent
+    : status === "good"
+    ? liverGood
+    : status === "warning"
+    ? liverWarning
+    : liverDanger;
+
   return (
     <div className={`text-center space-y-6 ${className}`}>
       <div
@@ -103,7 +90,11 @@ export function LiverCharacter({ healthScore, className = "" }: LiverCharacterPr
           />
 
           {/* Character: 실제 이미지 or 플레이스홀더 */}
-          <LiverPlaceholder status={status} />
+          <img
+  src={liverImage}
+  alt="간 캐릭터"
+  className="w-48 h-48 object-contain mx-auto relative z-10"
+/>
 
           {/* Floating animation shadow */}
           <div

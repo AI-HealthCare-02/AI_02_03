@@ -1,18 +1,32 @@
-import pandas as pd
+import asyncio
+
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_worker.tasks.predict import _load_model, _proba_to_score
 from app.dtos.health_surveys import SurveyCreateRequest, SurveyUpdateRequest, SurveyUpdateResponse
 from app.models.health_surveys import HealthSurvey
 from app.models.users import User
+from app.repositories.challenge_repository import ChallengeLogRepository, UserChallengeRepository
 from app.repositories.health_survey_repository import HealthSurveyRepository
 from app.repositories.prediction_repository import PredictionRepository
 from app.repositories.user_repository import UserRepository
+from app.utils.score import _alcohol_penalty, _exercise_penalty, _sleep_penalty, _smoking_penalty
+
+
+
+def _clip(value: float, lo: float, hi: float) -> float:
+    return round(max(lo, min(hi, value)), 1)
 
 
 def _calc_bmi(weight: float, height: float) -> float:
     return round(weight / (height / 100) ** 2, 1)
+
+
+def _estimate_waist(gender: str, bmi: float) -> float:
+    """허리둘레 미입력 시 성별+BMI 기반 추정값 반환"""
+    if gender == "남성":
+        return round(bmi * 2.8, 1)
+    return round(bmi * 2.6, 1)
 
 
 def _calc_grade(score: int) -> str:
@@ -20,37 +34,37 @@ def _calc_grade(score: int) -> str:
         return "정상"
     elif score >= 55:
         return "경미"
-    elif score >= 30:
+    elif score >= 35:
         return "중등도"
     else:
         return "중증"
 
 
-def _calc_score_from_survey(survey: HealthSurvey) -> int:
-    features = {
+async def _calc_score_from_survey(survey: HealthSurvey) -> int:
+    """ML 모델 점수만 반환 (패널티 미포함) — 패널티는 호출부에서 별도 적용"""
+    from celery import current_app as celery_app
+
+    waist = survey.waist if survey.waist > 0 else _estimate_waist(survey.gender, survey.bmi)
+
+    input_data = {
         "나이": survey.age,
         "성별": survey.gender,
         "키": survey.height,
         "몸무게": survey.weight,
         "BMI": survey.bmi,
-        "허리둘레": survey.waist,
-        "음주여부": survey.drinking,
-        "1회음주량": survey.drink_amount,
-        "주당음주빈도": survey.weekly_drink_freq,
-        "월폭음빈도": survey.monthly_binge_freq,
-        "운동여부": survey.exercise,
+        "허리둘레": waist,
         "주당운동횟수": survey.weekly_exercise_count,
         "흡연여부": survey.smoking,
-        "현재흡연여부": survey.current_smoking,
         "당뇨진단여부": survey.diabetes,
         "고혈압진단여부": survey.hypertension,
         "수면장애여부": survey.sleep_disorder,
-        "평균수면시간": survey.sleep_hours,
         "식습관자가평가": survey.diet_eval,
+        "간질환진단여부": "없음",
     }
-    model = _load_model()
-    proba = model.predict_proba(pd.DataFrame([features]))[0]
-    return _proba_to_score(proba)
+    result = await asyncio.to_thread(
+        lambda: celery_app.send_task("predict_fatty_liver", args=[input_data]).get(timeout=30)
+    )
+    return result["score"]
 
 
 # 주류별 1잔 기준 순수 알코올(g) / 14g(NHANES standard drink)
@@ -84,13 +98,21 @@ def _calc_monthly_binge(drink_amount_std: float, weekly_drink_freq: float) -> fl
 
 
 def _calc_diet(questions: list[int]) -> tuple[int, str]:
-    score = sum(questions)
-    if score >= 28:
+    # 긍정 문항: 0(채소), 3(규칙적 식사), 5(단백질) → 그대로
+    # 부정 문항: 1(단 음식), 2(튀김/패스트푸드), 4(과식), 6(야식) → 역산 (6 - x)
+    negative = {1, 2, 4, 6}
+    score = sum(6 - q if i in negative else q for i, q in enumerate(questions))
+    # 범위: 7~35점, 5단계 균등 분할
+    if score >= 31:
+        return score, "매우좋음"
+    elif score >= 25:
         return score, "좋음"
-    elif score >= 21:
+    elif score >= 19:
         return score, "보통"
-    else:
+    elif score >= 13:
         return score, "나쁨"
+    else:
+        return score, "매우나쁨"
 
 
 class HealthSurveyService:
@@ -98,6 +120,8 @@ class HealthSurveyService:
         self._session = session
         self.repo = HealthSurveyRepository(session)
         self.user_repo = UserRepository(session)
+        self.uc_repo = UserChallengeRepository(session)
+        self.log_repo = ChallengeLogRepository(session)
 
     async def create_survey(self, user: User, data: SurveyCreateRequest) -> HealthSurvey:
         existing = await self.repo.get_by_user_id(user.id)
@@ -107,7 +131,12 @@ class HealthSurveyService:
                 detail="이미 설문을 완료했습니다.",
             )
 
-        bmi = _calc_bmi(data.weight, data.height)
+        height = _clip(data.height, 100, 250)
+        weight = _clip(data.weight, 20, 300)
+        bmi    = _calc_bmi(weight, height)
+        waist  = data.waist if data.waist > 0 else _estimate_waist(data.gender, bmi)
+        waist  = _clip(waist, 40, 200)
+
         diet_score, diet_eval = _calc_diet(data.diet_questions)
         drink_amount_std = _to_standard_drinks(data.drink_amount, data.drink_type)
         monthly_binge_freq = _calc_monthly_binge(drink_amount_std, data.weekly_drink_freq)
@@ -116,10 +145,10 @@ class HealthSurveyService:
             "user_id": user.id,
             "age": data.age,
             "gender": data.gender,
-            "height": data.height,
-            "weight": data.weight,
+            "height": height,
+            "weight": weight,
             "bmi": bmi,
-            "waist": data.waist,
+            "waist": waist,
             "drinking": data.drinking,
             "drink_amount": drink_amount_std,
             "weekly_drink_freq": data.weekly_drink_freq,
@@ -130,6 +159,13 @@ class HealthSurveyService:
             "current_smoking": data.current_smoking,
             "sleep_hours": data.sleep_hours,
             "sleep_disorder": data.sleep_disorder,
+            "diet_q1": data.diet_questions[0],
+            "diet_q2": data.diet_questions[1],
+            "diet_q3": data.diet_questions[2],
+            "diet_q4": data.diet_questions[3],
+            "diet_q5": data.diet_questions[4],
+            "diet_q6": data.diet_questions[5],
+            "diet_q7": data.diet_questions[6],
             "diet_score": diet_score,
             "diet_eval": diet_eval,
             "diabetes": data.diabetes,
@@ -151,50 +187,72 @@ class HealthSurveyService:
             )
         return survey
 
+    async def _apply_all_penalties(self, user_id: int, survey, base_score: float) -> float:
+        """4개 패널티 적용 + 유지 모드 회복 반영"""
+        from app.services.challenges import _calc_recovery_rate
+
+        penalties = {
+            "금주": _alcohol_penalty(
+                {
+                    "음주여부": survey.drinking,
+                    "1회음주량": survey.drink_amount,
+                    "주당음주빈도": survey.weekly_drink_freq,
+                    "월폭음빈도": survey.monthly_binge_freq,
+                }
+            ),
+            "운동": _exercise_penalty(survey.weekly_exercise_count),
+            "금연": _smoking_penalty(survey.current_smoking, survey.smoking),
+            "수면": _sleep_penalty(survey.sleep_hours, survey.sleep_disorder),
+        }
+
+        total_penalty = sum(penalties.values())
+
+        total_recovery = 0
+        for ctype, penalty in penalties.items():
+            if penalty >= 0:
+                continue
+            uc = await self.uc_repo.get_maintenance_by_user(user_id, ctype)
+            if not uc:
+                continue
+            consecutive = await self.log_repo.get_consecutive_days(uc.id)
+            rate = _calc_recovery_rate(consecutive)
+            total_recovery += round(abs(penalty) * rate)
+
+        return min(100.0, max(10.0, base_score + total_penalty + total_recovery))
+
     async def update_survey(self, user: User, data: SurveyUpdateRequest) -> SurveyUpdateResponse:
         survey = await self.get_survey(user)
 
-        # 이전 점수: DB에 저장된 최근 예측 결과 사용
         latest = await PredictionRepository(self._session).get_latest_by_user_id(user.id)
         score_before = int(latest.score) if latest else 0
 
         update_data: dict = {}
+        if data.height is not None:
+            update_data["height"] = _clip(data.height, 100, 250)
+        if data.weight is not None:
+            update_data["weight"] = _clip(data.weight, 20, 300)
 
-        if data.weight or data.height:
-            new_weight = data.weight or survey.weight
-            new_height = data.height or survey.height
-            update_data["bmi"] = _calc_bmi(new_weight, new_height)
+        new_height = update_data.get("height") or survey.height
+        new_weight = update_data.get("weight") or survey.weight
+        new_bmi = _calc_bmi(new_weight, new_height)
+        update_data["bmi"] = new_bmi
 
-        if data.diet_questions:
-            diet_score, diet_eval = _calc_diet(data.diet_questions)
-            update_data["diet_score"] = diet_score
-            update_data["diet_eval"] = diet_eval
-
-        if data.drinking == "음주안함":
-            update_data["drink_amount"] = 0.0
-            update_data["weekly_drink_freq"] = 0.0
-            update_data["monthly_binge_freq"] = 0.0
-        elif data.drink_amount is not None or data.weekly_drink_freq is not None:
-            if data.drink_amount is not None:
-                update_data["drink_amount"] = _to_standard_drinks(data.drink_amount, data.drink_type)
-            new_drink_amount_std = update_data.get("drink_amount", survey.drink_amount)
-            new_weekly_freq = data.weekly_drink_freq if data.weekly_drink_freq is not None else survey.weekly_drink_freq
-            update_data["monthly_binge_freq"] = _calc_monthly_binge(new_drink_amount_std, new_weekly_freq)
-
-        if data.exercise == "운동안함":
-            update_data["weekly_exercise_count"] = 0
-
-        raw = data.model_dump(exclude_none=True, exclude={"diet_questions"})
-        update_data.update(raw)
+        if data.waist is not None:
+            update_data["waist"] = data.waist if data.waist > 0 else _estimate_waist(survey.gender, new_bmi)
+        elif survey.waist == 0:
+            update_data["waist"] = _estimate_waist(survey.gender, new_bmi)
 
         updated = await self.repo.update(survey, update_data)
 
-        # 업데이트된 설문으로 새 점수 계산
-        new_score = _calc_score_from_survey(updated)
-        new_grade = _calc_grade(new_score)
+        try:
+            new_score = await _calc_score_from_survey(updated)
+            new_score = await self._apply_all_penalties(user.id, updated, new_score)
+        except Exception:
+            new_score = float(score_before)
+        new_grade = _calc_grade(int(new_score))
 
         return SurveyUpdateResponse(
-            detail="설문이 수정됐습니다.",
+            detail="신체 정보가 수정됐습니다.",
             bmi=updated.bmi,
             score_before=score_before,
             new_score=new_score,

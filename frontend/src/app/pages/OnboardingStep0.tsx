@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Activity, Shield, Sparkles } from "lucide-react";
+import liverExcellent from "../../assets/characters/liver_excellent.png";
 
 export function OnboardingStep0() {
   const navigate = useNavigate();
@@ -32,14 +33,12 @@ export function OnboardingStep0() {
             {/* Animated Liver Character */}
             <div className="relative inline-block">
               <div className="absolute inset-0 bg-gradient-to-br from-pink-200 to-rose-200 rounded-full blur-2xl opacity-50 animate-pulse" />
-              <div
-                className="relative w-48 h-48 mx-auto flex items-center justify-center animate-bounce"
+              <img
+                src={liverExcellent}
+                alt="간편이"
+                className="relative w-48 h-48 mx-auto object-contain animate-bounce"
                 style={{ animationDuration: "3s", animationIterationCount: "infinite" }}
-              >
-                <div className="w-36 h-36 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-7xl shadow-xl">
-                  😊
-                </div>
-              </div>
+              />
             </div>
 
             {/* Welcome Message */}
