@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from urllib.parse import quote_plus
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -11,7 +12,9 @@ from app.db.databases import Base, get_db
 from app.main import app
 
 TEST_BASE_URL = "http://test"
-TEST_DATABASE_URL = f"postgresql+asyncpg://{config.DB_USER}:{config.DB_PASSWORD}@{config.DB_HOST}:{config.DB_PORT}/test"
+TEST_DATABASE_URL = (
+    f"postgresql+asyncpg://{config.DB_USER}:{quote_plus(config.DB_PASSWORD)}@{config.DB_HOST}:{config.DB_PORT}/test"
+)
 
 
 @pytest_asyncio.fixture
