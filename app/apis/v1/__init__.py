@@ -7,7 +7,6 @@ from app.apis.v1.badge_routers import badge_router
 from app.apis.v1.challenge_routers import challenge_router
 from app.apis.v1.daily_health_log_routers import daily_health_log_router
 from app.apis.v1.dashboard_routers import dashboard_router
-from app.apis.v1.goal_routers import goal_router
 from app.apis.v1.medication_routers import medication_router
 from app.apis.v1.notification_routers import notification_router
 from app.apis.v1.prediction_routers import prediction_router

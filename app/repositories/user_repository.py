@@ -79,8 +79,3 @@ class UserRepository:
     async def delete_user(self, user: User) -> None:
         await self._session.delete(user)
         await self._session.flush()
-    async def exists_by_nickname(self, nickname: str) -> bool:
-        result = await self._session.execute(
-            select(exists().where(User.nickname == nickname))
-        )
-        return bool(result.scalar())

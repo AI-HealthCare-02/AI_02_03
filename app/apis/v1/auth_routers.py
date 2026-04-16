@@ -149,6 +149,8 @@ async def naver_callback(
         return resp
     except Exception:
         return RedirectResponse(url=f"{frontend_url}/login?error=naver_failed")
+
+
 @auth_router.get("/check-email", status_code=status.HTTP_200_OK)
 async def check_email(
     email: str,
@@ -164,6 +166,7 @@ async def check_nickname(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
     from app.repositories.user_repository import UserRepository
+
     repo = UserRepository(db)
     exists = await repo.exists_by_nickname(nickname)
     if exists:

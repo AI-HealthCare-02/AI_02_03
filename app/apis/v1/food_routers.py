@@ -1,8 +1,9 @@
+import base64
 from typing import Annotated
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import ORJSONResponse as Response
 from openai import AsyncOpenAI
-import base64
 
 from app.core import config
 from app.dependencies.security import get_request_user
@@ -10,10 +11,11 @@ from app.models.users import User
 
 food_router = APIRouter(prefix="/food", tags=["food"])
 
+
 @food_router.post("/analyze", status_code=status.HTTP_200_OK)
 async def analyze_food(
     user: Annotated[User, Depends(get_request_user)],
-    image: UploadFile = File(...),
+    image: Annotated[UploadFile, File(...)],
 ) -> Response:
     # 파일 형식 확인
     if image.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
@@ -49,19 +51,17 @@ async def analyze_food(
     "liver_impact": "지방간에 미치는 영향 한 문장",
     "recommendation": "건강 관련 한 줄 조언"
 }
-음식을 인식할 수 없으면 food_name을 "인식 불가"로 응답해주세요."""
+음식을 인식할 수 없으면 food_name을 "인식 불가"로 응답해주세요.""",
                         },
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": image_url}
-                        }
-                    ]
+                        {"type": "image_url", "image_url": {"url": image_url}},
+                    ],
                 }
             ],
-            max_tokens=500
+            max_tokens=500,
         )
 
         import json
+
         result_text = response.choices[0].message.content
         result_text = result_text.strip().replace("```json", "").replace("```", "").strip()
         result = json.loads(result_text)
@@ -69,4 +69,7 @@ async def analyze_food(
         return Response(result, status_code=status.HTTP_200_OK)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"음식 분석 중 오류가 발생했습니다: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"음식 분석 중 오류가 발생했습니다: {str(e)}",
+        ) from e

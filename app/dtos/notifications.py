@@ -1,5 +1,7 @@
 from datetime import datetime, time
+
 from pydantic import BaseModel
+
 from app.dtos.base import BaseSerializerModel
 
 
