@@ -53,7 +53,7 @@ class ChallengeRepository:
         result = await self._session.execute(
             sql_delete(Challenge).where(
                 Challenge.id == challenge_id,
-                Challenge.is_custom == True,
+                Challenge.is_custom,
                 Challenge.created_by == user_id,
             )
         )
