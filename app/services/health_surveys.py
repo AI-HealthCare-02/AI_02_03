@@ -13,7 +13,6 @@ from app.repositories.user_repository import UserRepository
 from app.utils.score import _alcohol_penalty, _exercise_penalty, _sleep_penalty, _smoking_penalty
 
 
-
 def _clip(value: float, lo: float, hi: float) -> float:
     return round(max(lo, min(hi, value)), 1)
 

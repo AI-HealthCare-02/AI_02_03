@@ -241,104 +241,85 @@ class ChallengeService:
 
     async def _apply_survey_update(self, uc, survey) -> dict | None:
         ctype = uc.challenge.type
-        cname = uc.challenge.name
-
-        if ctype in ("식단", "식습관"):
-            from app.services.health_surveys import _calc_diet
-
-            matched = next(
-                ((field, direction) for kw, (field, direction) in self._DIET_CHALLENGE_MAP.items() if kw in cname),
-                None,
-            )
-            if not matched:
-                return None
-
-            field, direction = matched
-            delta = self._diet_delta(direction, uc.challenge.duration_days)
-            before_val = getattr(survey, field)
-            new_val = max(1, min(5, before_val + delta))
-            if new_val == before_val:
-                return None
-
-            qs = [getattr(survey, f"diet_q{i}") for i in range(1, 8)]
-            q_idx = int(field[-1]) - 1
-            qs[q_idx] = new_val
-            new_score, new_eval = _calc_diet(qs)
-
-            await self.survey_repo.update(
-                survey,
-                {
-                    field: new_val,
-                    "diet_score": new_score,
-                    "diet_eval": new_eval,
-                },
-            )
-            return {"field": field, "before": before_val, "after": new_val}
-
-        elif ctype == "체중감량":
-            target_kg = 5.0 if "5kg" in cname else 2.0
-            before_weight = survey.weight
-            new_weight = round(max(before_weight - target_kg, 30.0), 1)
-            h = survey.height / 100
-            new_bmi = round(new_weight / (h**2), 1)
-            new_waist = round(survey.waist * (new_bmi / survey.bmi), 1) if survey.bmi > 0 else survey.waist
-            await self.survey_repo.update(
-                survey,
-                {
-                    "weight": new_weight,
-                    "bmi": new_bmi,
-                    "waist": new_waist,
-                },
-            )
-            return {"field": "weight", "before": before_weight, "after": new_weight}
-
-        elif ctype == "운동":
-            # 챌린지 기간에 따라 목표 운동 횟수 결정
-            target = 5 if uc.challenge.duration_days >= 14 else 3
-            before = survey.weekly_exercise_count
-            new_count = max(before, target)
-            if new_count == before and survey.exercise == "운동함":
-                return None
-            await self.survey_repo.update(
-                survey,
-                {"exercise": "운동함", "weekly_exercise_count": new_count},
-            )
-            return {"field": "weekly_exercise_count", "before": before, "after": new_count}
-
-        elif ctype == "금주":
-            if survey.drinking == "음주안함":
-                return None
-            before = survey.drinking
-            await self.survey_repo.update(
-                survey,
-                {
-                    "drinking": "음주안함",
-                    "drink_amount": 0.0,
-                    "weekly_drink_freq": 0.0,
-                    "monthly_binge_freq": 0.0,
-                },
-            )
-            return {"field": "drinking", "before": before, "after": "음주안함"}
-
-        elif ctype == "금연":
-            if survey.current_smoking == "안함":
-                return None
-            before = survey.smoking
-            await self.survey_repo.update(
-                survey,
-                {"smoking": "비흡연", "current_smoking": "안함"},
-            )
-            return {"field": "smoking", "before": before, "after": "비흡연"}
-
-        elif ctype == "수면":
-            before = survey.sleep_hours
-            new_hours = max(before, 7.0)
-            if new_hours == before:
-                return None
-            await self.survey_repo.update(survey, {"sleep_hours": new_hours})
-            return {"field": "sleep_hours", "before": before, "after": new_hours}
-
+        handlers = {
+            "식단": self._update_diet,
+            "식습관": self._update_diet,
+            "체중감량": self._update_weight,
+            "운동": self._update_exercise,
+            "금주": self._update_drinking,
+            "금연": self._update_smoking,
+            "수면": self._update_sleep,
+        }
+        handler = handlers.get(ctype)
+        if handler:
+            return await handler(uc, survey)
         return None
+
+    async def _update_diet(self, uc, survey) -> dict | None:
+        from app.services.health_surveys import _calc_diet
+
+        cname = uc.challenge.name
+        matched = next(
+            ((field, direction) for kw, (field, direction) in self._DIET_CHALLENGE_MAP.items() if kw in cname),
+            None,
+        )
+        if not matched:
+            return None
+        field, direction = matched
+        delta = self._diet_delta(direction, uc.challenge.duration_days)
+        before_val = getattr(survey, field)
+        new_val = max(1, min(5, before_val + delta))
+        if new_val == before_val:
+            return None
+        qs = [getattr(survey, f"diet_q{i}") for i in range(1, 8)]
+        qs[int(field[-1]) - 1] = new_val
+        new_score, new_eval = _calc_diet(qs)
+        await self.survey_repo.update(survey, {field: new_val, "diet_score": new_score, "diet_eval": new_eval})
+        return {"field": field, "before": before_val, "after": new_val}
+
+    async def _update_weight(self, uc, survey) -> dict | None:
+        cname = uc.challenge.name
+        target_kg = 5.0 if "5kg" in cname else 2.0
+        before_weight = survey.weight
+        new_weight = round(max(before_weight - target_kg, 30.0), 1)
+        h = survey.height / 100
+        new_bmi = round(new_weight / (h**2), 1)
+        new_waist = round(survey.waist * (new_bmi / survey.bmi), 1) if survey.bmi > 0 else survey.waist
+        await self.survey_repo.update(survey, {"weight": new_weight, "bmi": new_bmi, "waist": new_waist})
+        return {"field": "weight", "before": before_weight, "after": new_weight}
+
+    async def _update_exercise(self, uc, survey) -> dict | None:
+        target = 5 if uc.challenge.duration_days >= 14 else 3
+        before = survey.weekly_exercise_count
+        new_count = max(before, target)
+        if new_count == before and survey.exercise == "운동함":
+            return None
+        await self.survey_repo.update(survey, {"exercise": "운동함", "weekly_exercise_count": new_count})
+        return {"field": "weekly_exercise_count", "before": before, "after": new_count}
+
+    async def _update_drinking(self, uc, survey) -> dict | None:  # noqa: ARG002
+        if survey.drinking == "음주안함":
+            return None
+        before = survey.drinking
+        await self.survey_repo.update(
+            survey, {"drinking": "음주안함", "drink_amount": 0.0, "weekly_drink_freq": 0.0, "monthly_binge_freq": 0.0}
+        )
+        return {"field": "drinking", "before": before, "after": "음주안함"}
+
+    async def _update_smoking(self, uc, survey) -> dict | None:  # noqa: ARG002
+        if survey.current_smoking == "안함":
+            return None
+        before = survey.smoking
+        await self.survey_repo.update(survey, {"smoking": "비흡연", "current_smoking": "안함"})
+        return {"field": "smoking", "before": before, "after": "비흡연"}
+
+    async def _update_sleep(self, uc, survey) -> dict | None:  # noqa: ARG002
+        before = survey.sleep_hours
+        new_hours = max(before, 7.0)
+        if new_hours == before:
+            return None
+        await self.survey_repo.update(survey, {"sleep_hours": new_hours})
+        return {"field": "sleep_hours", "before": before, "after": new_hours}
 
     # ─── 패널티 + 회복 통합 계산 ─────────────────────────────────────────────
 
