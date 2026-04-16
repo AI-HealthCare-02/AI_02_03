@@ -4,26 +4,27 @@ import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Activity, ArrowRight, Sparkles } from "lucide-react";
 
+type FattyLiverDiagnosis = "있음" | "없음" | null;
+
 export function OnboardingStep05() {
   const navigate = useNavigate();
-  const [selected, setSelected] = useState<"yes" | "no" | null>(null);
+  const [selected, setSelected] = useState<FattyLiverDiagnosis>(null);
   const [showMessage, setShowMessage] = useState(false);
 
-  const handleSelect = (choice: "yes" | "no") => {
+  const handleSelect = (choice: "있음" | "없음") => {
     setSelected(choice);
     setShowMessage(true);
   };
 
   const handleNext = () => {
-    if (selected) {
-      // Store the diagnosis status if needed
-      console.log("Fatty liver diagnosis:", selected);
-      navigate("/onboarding/step1");
-    }
+    if (!selected) return;
+
+    sessionStorage.setItem("fatty_liver_diagnosis", selected);
+    navigate("/onboarding/step1");
   };
 
   const getMessage = () => {
-    if (selected === "yes") {
+    if (selected === "있음") {
       return {
         title: "괜찮아요!!",
         description: (
@@ -33,17 +34,17 @@ export function OnboardingStep05() {
           </>
         ),
       };
-    } else {
-      return {
-        title: "좋아요!",
-        description: (
-          <>
-            생활습관을 바탕으로<br />
-            간 건강상태를 확인해볼게요
-          </>
-        ),
-      };
     }
+
+    return {
+      title: "좋아요!",
+      description: (
+        <>
+          생활습관을 바탕으로<br />
+          간 건강상태를 확인해볼게요
+        </>
+      ),
+    };
   };
 
   return (
@@ -63,16 +64,16 @@ export function OnboardingStep05() {
         <Card className="border-2 border-pink-200 bg-gradient-to-br from-white via-pink-50/30 to-white overflow-hidden relative shadow-xl">
           <div className="absolute top-0 right-0 w-48 h-48 bg-pink-200/30 rounded-full blur-3xl" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-rose-200/30 rounded-full blur-3xl" />
-          
+
           <CardContent className="pt-8 pb-8 text-center space-y-6 relative">
-            {/* Liver Character - Reacts to selection */}
+            {/* Liver Character */}
             <div className="relative inline-block">
-              <div 
+              <div
                 className={`absolute inset-0 bg-gradient-to-br rounded-full blur-2xl transition-all duration-500 ${
-                  showMessage 
-                    ? "from-emerald-200 to-teal-200 opacity-60 scale-110" 
+                  showMessage
+                    ? "from-emerald-200 to-teal-200 opacity-60 scale-110"
                     : "from-pink-200 to-rose-200 opacity-50"
-                } ${!showMessage && "animate-pulse"}`}
+                } ${!showMessage ? "animate-pulse" : ""}`}
               />
               <div
                 className={`relative w-40 h-40 mx-auto flex items-center justify-center transition-all duration-500 ${
@@ -85,7 +86,7 @@ export function OnboardingStep05() {
               </div>
             </div>
 
-            {/* Question or Response Message */}
+            {/* Question / Answer */}
             {!showMessage ? (
               <div className="space-y-4">
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-pink-100 rounded-full">
@@ -98,9 +99,7 @@ export function OnboardingStep05() {
                     혹시 병원에서 지방간 진단을<br />
                     받은 적 있으신가요?
                   </h2>
-                  <p className="text-sm text-gray-600">
-                    정확하지 않아도 괜찮아요 🙂
-                  </p>
+                  <p className="text-sm text-gray-600">정확하지 않아도 괜찮아요 🙂</p>
                 </div>
               </div>
             ) : (
@@ -111,12 +110,8 @@ export function OnboardingStep05() {
                 </div>
 
                 <div className="space-y-3">
-                  <h2 className="text-2xl font-bold text-emerald-600">
-                    {getMessage().title}
-                  </h2>
-                  <p className="text-lg text-gray-700 leading-relaxed">
-                    {getMessage().description}
-                  </p>
+                  <h2 className="text-2xl font-bold text-emerald-600">{getMessage().title}</h2>
+                  <p className="text-lg text-gray-700 leading-relaxed">{getMessage().description}</p>
                 </div>
 
                 <div className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 mt-4">
@@ -134,17 +129,16 @@ export function OnboardingStep05() {
         {!showMessage && (
           <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <button
-              onClick={() => handleSelect("yes")}
-              className={`p-6 rounded-2xl border-3 transition-all duration-300 ${
-                selected === "yes"
+              type="button"
+              onClick={() => handleSelect("있음")}
+              className={`p-6 rounded-2xl border-2 transition-all duration-300 ${
+                selected === "있음"
                   ? "border-emerald-500 bg-emerald-50 shadow-lg scale-105"
                   : "border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/50"
               }`}
             >
               <div className="text-center space-y-2">
-                <div className={`text-4xl transition-transform ${
-                  selected === "yes" ? "scale-110" : ""
-                }`}>
+                <div className={`text-4xl transition-transform ${selected === "있음" ? "scale-110" : ""}`}>
                   😊
                 </div>
                 <p className="text-xl font-bold text-gray-900">예</p>
@@ -152,17 +146,16 @@ export function OnboardingStep05() {
             </button>
 
             <button
-              onClick={() => handleSelect("no")}
-              className={`p-6 rounded-2xl border-3 transition-all duration-300 ${
-                selected === "no"
+              type="button"
+              onClick={() => handleSelect("없음")}
+              className={`p-6 rounded-2xl border-2 transition-all duration-300 ${
+                selected === "없음"
                   ? "border-emerald-500 bg-emerald-50 shadow-lg scale-105"
                   : "border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/50"
               }`}
             >
               <div className="text-center space-y-2">
-                <div className={`text-4xl transition-transform ${
-                  selected === "no" ? "scale-110" : ""
-                }`}>
+                <div className={`text-4xl transition-transform ${selected === "없음" ? "scale-110" : ""}`}>
                   😌
                 </div>
                 <p className="text-xl font-bold text-gray-900">아니오</p>
@@ -171,7 +164,7 @@ export function OnboardingStep05() {
           </div>
         )}
 
-        {/* Next Button - Shows after selection */}
+        {/* Next Button */}
         {showMessage && (
           <Button
             onClick={handleNext}
@@ -187,9 +180,11 @@ export function OnboardingStep05() {
         {/* Progress Indicator */}
         <div className="flex items-center justify-center gap-2">
           <div className="size-2 bg-emerald-500 rounded-full" />
-          <div className={`size-2 rounded-full transition-colors ${
-            showMessage ? "bg-emerald-500" : "bg-gray-300"
-          }`} />
+          <div
+            className={`size-2 rounded-full transition-colors ${
+              showMessage ? "bg-emerald-500" : "bg-gray-300"
+            }`}
+          />
           <div className="size-2 bg-gray-300 rounded-full" />
           <div className="size-2 bg-gray-300 rounded-full" />
         </div>

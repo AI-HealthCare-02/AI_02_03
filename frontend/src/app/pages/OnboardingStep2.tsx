@@ -8,96 +8,166 @@ import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
 import { Progress } from "../components/ui/progress";
 import { Activity, ArrowRight, ArrowLeft, Info, Wine, Dumbbell, Cigarette, Moon, Utensils } from "lucide-react";
 
+type DrinkType = "소주" | "맥주" | "와인" | "막걸리" | "칵테일" | "기타" | "";
+type SmokingChoice = "yes" | "past" | "no" | "";
+
+interface Step2Payload {
+  drinking: "음주함" | "음주안함";
+  drink_amount: number | null;
+  drink_type: "맥주" | "소주" | "와인" | "막걸리" | "칵테일" | "기타" | null;
+  drink_type_details: string[];
+  weekly_drink_freq: number | null;
+  exercise: "운동함" | "운동안함";
+  weekly_exercise_count: number | null;
+  exercise_duration: number | null;
+  smoking: "흡연경험있음" | "흡연경험없음";
+  current_smoking: "매일" | "가끔" | "안함";
+  cigarettes_per_day: number | null;
+  sleep_hours: number;
+  diet_questions: number[];
+}
+
 export function OnboardingStep2() {
   const navigate = useNavigate();
-  
+
   const [formData, setFormData] = useState({
     // Alcohol
-    drinksAlcohol: "",
-    alcoholType: "",
-    alcoholTypeOther: "",
-    alcoholTypeOtherMultiple: [] as string[], // For multiple selections when "기타" is chosen
+    drinksAlcohol: "" as "" | "yes" | "no",
+    alcoholType: "" as DrinkType,
+    alcoholTypeOtherMultiple: [] as string[],
     drinkingFrequency: "",
     drinksPerSession: "",
-    
+
     // Exercise
-    exercises: "",
+    exercises: "" as "" | "yes" | "no",
     exerciseFrequency: "",
     exerciseDuration: "",
-    
+
     // Smoking
-    smokes: "",
+    smokes: "" as SmokingChoice,
     cigarettesPerDay: "",
-    
+
     // Sleep
     sleepHours: "",
-    
-    // Diet - 7 questions with 5-point scale
-    dietQ1: "", // 하루에 채소를 충분히 먹는다
-    dietQ2: "", // 단 음식이나 음료를 자주 먹는다
-    dietQ3: "", // 튀김, 배달 음식, 패스트푸드를 자주 먹는다
-    dietQ4: "", // 식사를 규칙적인 시간에 한다
-    dietQ5: "", // 식사 시 과식하는 경우가 많다
-    dietQ6: "", // 단백질을 충분히 먹는다
-    dietQ7: "", // 야식을 자주 먹는다
+
+    // Diet
+    dietQ1: "",
+    dietQ2: "",
+    dietQ3: "",
+    dietQ4: "",
+    dietQ5: "",
+    dietQ6: "",
+    dietQ7: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const handleNumberInput = (
+    field:
+      | "drinkingFrequency"
+      | "drinksPerSession"
+      | "exerciseFrequency"
+      | "exerciseDuration"
+      | "cigarettesPerDay"
+      | "sleepHours",
+    value: string
+  ) => {
+    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+
+      if (errors[field]) {
+        setErrors((prev) => ({
+          ...prev,
+          [field]: "",
+        }));
+      }
+    }
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    // Alcohol validation
+    // Alcohol
     if (!formData.drinksAlcohol) {
       newErrors.drinksAlcohol = "음주 여부를 선택해주세요";
     } else if (formData.drinksAlcohol === "yes") {
       if (!formData.alcoholType) {
         newErrors.alcoholType = "주종을 선택해주세요";
       }
-      if (formData.alcoholType === "other" && !formData.alcoholTypeOther) {
-        newErrors.alcoholTypeOther = "기타 주종을 입력해주세요";
+
+      if (formData.alcoholType === "기타" && formData.alcoholTypeOtherMultiple.length === 0) {
+        newErrors.alcoholTypeOther = "기타 주종을 1개 이상 선택해주세요";
       }
+
+      const drinkingFrequency = parseFloat(formData.drinkingFrequency);
       if (!formData.drinkingFrequency) {
-        newErrors.drinkingFrequency = "음주 횟수를 입력해주세요";
+        newErrors.drinkingFrequency = "주당 음주 횟수를 입력해주세요";
+      } else if (Number.isNaN(drinkingFrequency) || drinkingFrequency < 0 || drinkingFrequency > 14) {
+        newErrors.drinkingFrequency = "주당 음주 횟수를 올바르게 입력해주세요";
       }
+
+      const drinksPerSession = parseFloat(formData.drinksPerSession);
       if (!formData.drinksPerSession) {
-        newErrors.drinksPerSession = "잔 수를 입력해주세요";
+        newErrors.drinksPerSession = "1회 평균 음주량을 입력해주세요";
+      } else if (Number.isNaN(drinksPerSession) || drinksPerSession < 0 || drinksPerSession > 50) {
+        newErrors.drinksPerSession = "1회 평균 음주량을 올바르게 입력해주세요";
       }
     }
 
-    // Exercise validation
+    // Exercise
     if (!formData.exercises) {
       newErrors.exercises = "운동 여부를 선택해주세요";
     } else if (formData.exercises === "yes") {
+      const exerciseFrequency = parseInt(formData.exerciseFrequency, 10);
       if (!formData.exerciseFrequency) {
-        newErrors.exerciseFrequency = "운동 횟수를 입력해주세요";
+        newErrors.exerciseFrequency = "주당 운동 횟수를 입력해주세요";
+      } else if (Number.isNaN(exerciseFrequency) || exerciseFrequency < 0 || exerciseFrequency > 14) {
+        newErrors.exerciseFrequency = "주당 운동 횟수를 올바르게 입력해주세요";
       }
+
+      const exerciseDuration = parseInt(formData.exerciseDuration, 10);
       if (!formData.exerciseDuration) {
-        newErrors.exerciseDuration = "운동 시간을 입력해주세요";
+        newErrors.exerciseDuration = "1회 평균 운동 시간을 입력해주세요";
+      } else if (Number.isNaN(exerciseDuration) || exerciseDuration < 0 || exerciseDuration > 600) {
+        newErrors.exerciseDuration = "운동 시간을 올바르게 입력해주세요";
       }
     }
 
-    // Smoking validation
+    // Smoking
     if (!formData.smokes) {
       newErrors.smokes = "흡연 여부를 선택해주세요";
     } else if (formData.smokes === "yes") {
+      const cigarettesPerDay = parseInt(formData.cigarettesPerDay, 10);
       if (!formData.cigarettesPerDay) {
-        newErrors.cigarettesPerDay = "하루 흡연량을 입력해주세요";
+        newErrors.cigarettesPerDay = "하루 평균 흡연량을 입력해주세요";
+      } else if (Number.isNaN(cigarettesPerDay) || cigarettesPerDay < 0 || cigarettesPerDay > 100) {
+        newErrors.cigarettesPerDay = "하루 평균 흡연량을 올바르게 입력해주세요";
       }
     }
 
-    // Sleep validation
+    // Sleep
     const sleepHours = parseFloat(formData.sleepHours);
     if (!formData.sleepHours) {
       newErrors.sleepHours = "수면 시간을 입력해주세요";
-    } else if (sleepHours < 0 || sleepHours > 24) {
-      newErrors.sleepHours = "올바른 수면 시간을 입력해주세요 (0-24시간)";
+    } else if (Number.isNaN(sleepHours) || sleepHours < 0 || sleepHours > 24) {
+      newErrors.sleepHours = "올바른 수면 시간을 입력해주세요 (0~24시간)";
     }
 
-    // Diet validation - all 7 questions
-    const dietQuestions = ["dietQ1", "dietQ2", "dietQ3", "dietQ4", "dietQ5", "dietQ6", "dietQ7"];
-    const unanswered = dietQuestions.filter((q) => !formData[q as keyof typeof formData]);
-    if (unanswered.length > 0) {
+    // Diet
+    const dietAnswers = [
+      formData.dietQ1,
+      formData.dietQ2,
+      formData.dietQ3,
+      formData.dietQ4,
+      formData.dietQ5,
+      formData.dietQ6,
+      formData.dietQ7,
+    ];
+
+    if (dietAnswers.some((answer) => !answer)) {
       newErrors.diet = "모든 식습관 문항에 응답해주세요";
     }
 
@@ -105,27 +175,88 @@ export function OnboardingStep2() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (validateForm()) {
-      console.log("Step 2 Data:", formData);
-      // Navigate to step 3
-      navigate("/onboarding/step3");
-    }
-  };
-
   const handlePrevious = () => {
     navigate("/onboarding/step1");
   };
 
-  const handleNumberInput = (field: string, value: string) => {
-    if (value === "" || /^\d*\.?\d*$/.test(value)) {
-      setFormData({ ...formData, [field]: value });
-      if (errors[field]) {
-        setErrors({ ...errors, [field]: "" });
-      }
+  const getSmokingPayload = (): {
+    smoking: "흡연경험있음" | "흡연경험없음";
+    current_smoking: "매일" | "가끔" | "안함";
+    cigarettes_per_day: number | null;
+  } => {
+    if (formData.smokes === "yes") {
+      return {
+        smoking: "흡연경험있음",
+        current_smoking: "매일",
+        cigarettes_per_day: parseInt(formData.cigarettesPerDay, 10),
+      };
     }
+
+    if (formData.smokes === "past") {
+      return {
+        smoking: "흡연경험있음",
+        current_smoking: "안함",
+        cigarettes_per_day: null,
+      };
+    }
+
+    return {
+      smoking: "흡연경험없음",
+      current_smoking: "안함",
+      cigarettes_per_day: null,
+    };
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    const step1Raw = sessionStorage.getItem("onboarding_step1");
+    if (!step1Raw) {
+      alert("이전 단계 정보가 없습니다. Step 1부터 다시 진행해주세요.");
+      navigate("/onboarding/step1");
+      return;
+    }
+
+    const smokingPayload = getSmokingPayload();
+
+    const step2Data: Step2Payload = {
+      drinking: formData.drinksAlcohol === "yes" ? "음주함" : "음주안함",
+      drink_amount: formData.drinksAlcohol === "yes" ? parseFloat(formData.drinksPerSession) : null,
+      drink_type:
+        formData.drinksAlcohol === "yes"
+          ? (formData.alcoholType as Step2Payload["drink_type"])
+          : null,
+      drink_type_details:
+        formData.drinksAlcohol === "yes" && formData.alcoholType === "기타"
+          ? formData.alcoholTypeOtherMultiple
+          : [],
+      weekly_drink_freq: formData.drinksAlcohol === "yes" ? parseFloat(formData.drinkingFrequency) : null,
+
+      exercise: formData.exercises === "yes" ? "운동함" : "운동안함",
+      weekly_exercise_count: formData.exercises === "yes" ? parseInt(formData.exerciseFrequency, 10) : null,
+      exercise_duration: formData.exercises === "yes" ? parseInt(formData.exerciseDuration, 10) : null,
+
+      smoking: smokingPayload.smoking,
+      current_smoking: smokingPayload.current_smoking,
+      cigarettes_per_day: smokingPayload.cigarettes_per_day,
+
+      sleep_hours: parseFloat(formData.sleepHours),
+
+      diet_questions: [
+        Number(formData.dietQ1),
+        Number(formData.dietQ2),
+        Number(formData.dietQ3),
+        Number(formData.dietQ4),
+        Number(formData.dietQ5),
+        Number(formData.dietQ6),
+        Number(formData.dietQ7),
+      ],
+    };
+
+    sessionStorage.setItem("onboarding_step2", JSON.stringify(step2Data));
+    navigate("/onboarding/step3");
   };
 
   const progressValue = (2 / 3) * 100;
@@ -138,7 +269,7 @@ export function OnboardingStep2() {
     { id: "dietQ5", text: "식사 시 과식하는 경우가 많다" },
     { id: "dietQ6", text: "단백질을 충분히 먹는다" },
     { id: "dietQ7", text: "야식을 자주 먹는다" },
-  ];
+  ] as const;
 
   const scaleOptions = [
     { value: "1", label: "전혀\n아니다" },
@@ -146,6 +277,14 @@ export function OnboardingStep2() {
     { value: "3", label: "보통\n이다" },
     { value: "4", label: "그렇다" },
     { value: "5", label: "매우\n그렇다" },
+  ];
+
+  const otherAlcoholOptions = [
+    { value: "위스키", label: "위스키", emoji: "🥃" },
+    { value: "청주/사케", label: "청주/사케", emoji: "🍶" },
+    { value: "샴페인", label: "샴페인", emoji: "🍾" },
+    { value: "고량주", label: "고량주", emoji: "🥃" },
+    { value: "과일주", label: "과일주", emoji: "🍇" },
   ];
 
   return (
@@ -202,23 +341,23 @@ export function OnboardingStep2() {
                     음주 여부 <span className="text-red-500">*</span>
                   </Label>
                 </div>
-                
+
                 <RadioGroup
                   value={formData.drinksAlcohol}
-                  onValueChange={(value) => {
-                    setFormData({ 
-                      ...formData, 
+                  onValueChange={(value: "yes" | "no") => {
+                    setFormData((prev) => ({
+                      ...prev,
                       drinksAlcohol: value,
-                      // Clear alcohol-related fields if "no" is selected
                       ...(value === "no" && {
                         alcoholType: "",
-                        alcoholTypeOther: "",
+                        alcoholTypeOtherMultiple: [],
                         drinkingFrequency: "",
                         drinksPerSession: "",
-                      })
-                    });
+                      }),
+                    }));
+
                     if (errors.drinksAlcohol) {
-                      setErrors({ ...errors, drinksAlcohol: "" });
+                      setErrors((prev) => ({ ...prev, drinksAlcohol: "" }));
                     }
                   }}
                   className="grid grid-cols-2 gap-3"
@@ -254,93 +393,60 @@ export function OnboardingStep2() {
                   <p className="text-sm text-red-600">{errors.drinksAlcohol}</p>
                 )}
 
-                {/* Conditional Alcohol Details */}
                 {formData.drinksAlcohol === "yes" && (
                   <div className="space-y-4 mt-4 pl-4 border-l-4 border-purple-300">
-                    {/* Alcohol Type */}
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
                         주로 드시는 주종 <span className="text-red-500">*</span>
                       </Label>
                       <RadioGroup
                         value={formData.alcoholType}
-                        onValueChange={(value) => {
-                          setFormData({ 
-                            ...formData, 
+                        onValueChange={(value: DrinkType) => {
+                          setFormData((prev) => ({
+                            ...prev,
                             alcoholType: value,
-                            ...(value !== "other" && { alcoholTypeOther: "" })
-                          });
+                            ...(value !== "기타" && {
+                              alcoholTypeOtherMultiple: [],
+                            }),
+                          }));
+
                           if (errors.alcoholType) {
-                            setErrors({ ...errors, alcoholType: "" });
+                            setErrors((prev) => ({ ...prev, alcoholType: "" }));
                           }
                         }}
                         className="grid grid-cols-3 gap-3"
                       >
-                        <div>
-                          <RadioGroupItem value="soju" id="alcohol-soju" className="peer sr-only" />
-                          <Label
-                            htmlFor="alcohol-soju"
-                            className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                              formData.alcoholType === "soju"
-                                ? "border-purple-500 bg-purple-100"
-                                : "border-gray-200 hover:border-purple-200"
-                            }`}
-                          >
-                            <span className="font-medium">소주</span>
-                          </Label>
-                        </div>
-                        <div>
-                          <RadioGroupItem value="beer" id="alcohol-beer" className="peer sr-only" />
-                          <Label
-                            htmlFor="alcohol-beer"
-                            className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                              formData.alcoholType === "beer"
-                                ? "border-purple-500 bg-purple-100"
-                                : "border-gray-200 hover:border-purple-200"
-                            }`}
-                          >
-                            <span className="font-medium">맥주</span>
-                          </Label>
-                        </div>
-                        <div>
-                          <RadioGroupItem value="other" id="alcohol-other" className="peer sr-only" />
-                          <Label
-                            htmlFor="alcohol-other"
-                            className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                              formData.alcoholType === "other"
-                                ? "border-purple-500 bg-purple-100"
-                                : "border-gray-200 hover:border-purple-200"
-                            }`}
-                          >
-                            <span className="font-medium">기타</span>
-                          </Label>
-                        </div>
+                        {["소주", "맥주", "와인", "막걸리", "칵테일", "기타"].map((type) => (
+                          <div key={type}>
+                            <RadioGroupItem value={type} id={`alcohol-${type}`} className="peer sr-only" />
+                            <Label
+                              htmlFor={`alcohol-${type}`}
+                              className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                                formData.alcoholType === type
+                                  ? "border-purple-500 bg-purple-100"
+                                  : "border-gray-200 hover:border-purple-200"
+                              }`}
+                            >
+                              <span className="font-medium">{type}</span>
+                            </Label>
+                          </div>
+                        ))}
                       </RadioGroup>
                       {errors.alcoholType && (
                         <p className="text-sm text-red-600">{errors.alcoholType}</p>
                       )}
 
-                      {/* Other alcohol type input */}
-                      {formData.alcoholType === "other" && (
+                      {formData.alcoholType === "기타" && (
                         <div className="space-y-3 mt-3 animate-in slide-in-from-top-4 duration-300">
                           <Label className="text-sm font-medium text-purple-700">
-                            주로 드시는 주종을 선택해주세요 (여러 개 선택 가능)
+                            기타 주종을 선택해주세요 (여러 개 선택 가능)
                           </Label>
-                          
-                          {/* Horizontal Scrollable Alcohol Type Selection */}
+
                           <div className="relative">
-                            <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-thin scrollbar-thumb-purple-300 scrollbar-track-purple-50">
-                              {[
-                                { value: "wine", label: "와인", emoji: "🍷" },
-                                { value: "makgeolli", label: "막걸리", emoji: "🍶" },
-                                { value: "whiskey", label: "위스키", emoji: "🥃" },
-                                { value: "sake", label: "청주/사케", emoji: "🍶" },
-                                { value: "cocktail", label: "칵테일", emoji: "🍹" },
-                                { value: "champagne", label: "샴페인", emoji: "🍾" },
-                                { value: "liquor", label: "고량주", emoji: "🥃" },
-                                { value: "fruit", label: "과일주", emoji: "🍇" },
-                              ].map((type) => {
+                            <div className="flex gap-3 overflow-x-auto pb-3">
+                              {otherAlcoholOptions.map((type) => {
                                 const isSelected = formData.alcoholTypeOtherMultiple.includes(type.value);
+
                                 return (
                                   <button
                                     key={type.value}
@@ -350,25 +456,28 @@ export function OnboardingStep2() {
                                       const updated = isSelected
                                         ? current.filter((t) => t !== type.value)
                                         : [...current, type.value];
-                                      setFormData({
-                                        ...formData,
+
+                                      setFormData((prev) => ({
+                                        ...prev,
                                         alcoholTypeOtherMultiple: updated,
-                                        alcoholTypeOther: updated.join(", "),
-                                      });
+                                      }));
+
                                       if (errors.alcoholTypeOther) {
-                                        setErrors({ ...errors, alcoholTypeOther: "" });
+                                        setErrors((prev) => ({ ...prev, alcoholTypeOther: "" }));
                                       }
                                     }}
-                                    className={`flex-shrink-0 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px] ${
+                                    className={`relative flex-shrink-0 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px] ${
                                       isSelected
                                         ? "border-purple-500 bg-purple-100 shadow-md scale-105"
                                         : "border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50"
                                     }`}
                                   >
                                     <span className="text-3xl">{type.emoji}</span>
-                                    <span className={`text-sm font-medium ${
-                                      isSelected ? "text-purple-700" : "text-gray-700"
-                                    }`}>
+                                    <span
+                                      className={`text-sm font-medium ${
+                                        isSelected ? "text-purple-700" : "text-gray-700"
+                                      }`}
+                                    >
                                       {type.label}
                                     </span>
                                     {isSelected && (
@@ -382,7 +491,6 @@ export function OnboardingStep2() {
                             </div>
                           </div>
 
-                          {/* Selected Count */}
                           {formData.alcoholTypeOtherMultiple.length > 0 && (
                             <div className="flex items-center gap-2 p-3 bg-purple-50 rounded-lg border border-purple-200">
                               <Info className="size-4 text-purple-600 flex-shrink-0" />
@@ -399,7 +507,6 @@ export function OnboardingStep2() {
                       )}
                     </div>
 
-                    {/* Drinking Frequency */}
                     <div className="space-y-2">
                       <Label htmlFor="drinking-frequency" className="text-sm font-medium">
                         주당 음주 횟수 <span className="text-red-500">*</span>
@@ -408,11 +515,13 @@ export function OnboardingStep2() {
                         <Input
                           id="drinking-frequency"
                           type="text"
-                          inputMode="numeric"
+                          inputMode="decimal"
                           placeholder="예) 2"
                           value={formData.drinkingFrequency}
                           onChange={(e) => handleNumberInput("drinkingFrequency", e.target.value)}
-                          className={`h-11 border-2 pr-20 ${errors.drinkingFrequency ? "border-red-500" : ""}`}
+                          className={`h-11 border-2 pr-20 ${
+                            errors.drinkingFrequency ? "border-red-500" : ""
+                          }`}
                         />
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
                           회/주
@@ -423,7 +532,6 @@ export function OnboardingStep2() {
                       )}
                     </div>
 
-                    {/* Drinks Per Session */}
                     <div className="space-y-2">
                       <Label htmlFor="drinks-per-session" className="text-sm font-medium">
                         1회 평균 음주량 <span className="text-red-500">*</span>
@@ -432,11 +540,13 @@ export function OnboardingStep2() {
                         <Input
                           id="drinks-per-session"
                           type="text"
-                          inputMode="numeric"
+                          inputMode="decimal"
                           placeholder="예) 3"
                           value={formData.drinksPerSession}
                           onChange={(e) => handleNumberInput("drinksPerSession", e.target.value)}
-                          className={`h-11 border-2 pr-16 ${errors.drinksPerSession ? "border-red-500" : ""}`}
+                          className={`h-11 border-2 pr-16 ${
+                            errors.drinksPerSession ? "border-red-500" : ""
+                          }`}
                         />
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
                           잔
@@ -459,20 +569,20 @@ export function OnboardingStep2() {
                     운동 여부 <span className="text-red-500">*</span>
                   </Label>
                 </div>
-                
+
                 <RadioGroup
                   value={formData.exercises}
-                  onValueChange={(value) => {
-                    setFormData({ 
-                      ...formData, 
+                  onValueChange={(value: "yes" | "no") => {
+                    setFormData((prev) => ({
+                      ...prev,
                       exercises: value,
                       ...(value === "no" && {
                         exerciseFrequency: "",
                         exerciseDuration: "",
-                      })
-                    });
+                      }),
+                    }));
                     if (errors.exercises) {
-                      setErrors({ ...errors, exercises: "" });
+                      setErrors((prev) => ({ ...prev, exercises: "" }));
                     }
                   }}
                   className="grid grid-cols-2 gap-3"
@@ -508,10 +618,8 @@ export function OnboardingStep2() {
                   <p className="text-sm text-red-600">{errors.exercises}</p>
                 )}
 
-                {/* Conditional Exercise Details */}
                 {formData.exercises === "yes" && (
                   <div className="space-y-4 mt-4 pl-4 border-l-4 border-blue-300">
-                    {/* Exercise Frequency */}
                     <div className="space-y-2">
                       <Label htmlFor="exercise-frequency" className="text-sm font-medium">
                         주당 운동 횟수 <span className="text-red-500">*</span>
@@ -524,7 +632,9 @@ export function OnboardingStep2() {
                           placeholder="예) 3"
                           value={formData.exerciseFrequency}
                           onChange={(e) => handleNumberInput("exerciseFrequency", e.target.value)}
-                          className={`h-11 border-2 pr-20 ${errors.exerciseFrequency ? "border-red-500" : ""}`}
+                          className={`h-11 border-2 pr-20 ${
+                            errors.exerciseFrequency ? "border-red-500" : ""
+                          }`}
                         />
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
                           회/주
@@ -535,7 +645,6 @@ export function OnboardingStep2() {
                       )}
                     </div>
 
-                    {/* Exercise Duration */}
                     <div className="space-y-2">
                       <Label htmlFor="exercise-duration" className="text-sm font-medium">
                         1회 평균 운동 시간 <span className="text-red-500">*</span>
@@ -548,7 +657,9 @@ export function OnboardingStep2() {
                           placeholder="예) 30"
                           value={formData.exerciseDuration}
                           onChange={(e) => handleNumberInput("exerciseDuration", e.target.value)}
-                          className={`h-11 border-2 pr-16 ${errors.exerciseDuration ? "border-red-500" : ""}`}
+                          className={`h-11 border-2 pr-16 ${
+                            errors.exerciseDuration ? "border-red-500" : ""
+                          }`}
                         />
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
                           분
@@ -570,17 +681,17 @@ export function OnboardingStep2() {
                     흡연 여부 <span className="text-red-500">*</span>
                   </Label>
                 </div>
-                
+
                 <RadioGroup
                   value={formData.smokes}
-                  onValueChange={(value) => {
-                    setFormData({ 
-                      ...formData, 
+                  onValueChange={(value: SmokingChoice) => {
+                    setFormData((prev) => ({
+                      ...prev,
                       smokes: value,
-                      ...(value !== "yes" && { cigarettesPerDay: "" })
-                    });
+                      ...(value !== "yes" && { cigarettesPerDay: "" }),
+                    }));
                     if (errors.smokes) {
-                      setErrors({ ...errors, smokes: "" });
+                      setErrors((prev) => ({ ...prev, smokes: "" }));
                     }
                   }}
                   className="grid grid-cols-3 gap-3"
@@ -629,7 +740,6 @@ export function OnboardingStep2() {
                   <p className="text-sm text-red-600">{errors.smokes}</p>
                 )}
 
-                {/* Conditional Smoking Details */}
                 {formData.smokes === "yes" && (
                   <div className="space-y-2 mt-4 pl-4 border-l-4 border-gray-300">
                     <Label htmlFor="cigarettes-per-day" className="text-sm font-medium">
@@ -643,7 +753,9 @@ export function OnboardingStep2() {
                         placeholder="예) 10"
                         value={formData.cigarettesPerDay}
                         onChange={(e) => handleNumberInput("cigarettesPerDay", e.target.value)}
-                        className={`h-11 border-2 pr-20 ${errors.cigarettesPerDay ? "border-red-500" : ""}`}
+                        className={`h-11 border-2 pr-20 ${
+                          errors.cigarettesPerDay ? "border-red-500" : ""
+                        }`}
                       />
                       <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
                         개비
@@ -687,7 +799,7 @@ export function OnboardingStep2() {
                 )}
               </div>
 
-              {/* Diet Section - 7 Questions */}
+              {/* Diet Section */}
               <div className="space-y-6 p-5 bg-emerald-50/50 rounded-lg border border-emerald-100">
                 <div className="flex items-center gap-2 mb-2">
                   <Utensils className="size-5 text-emerald-600" />
@@ -705,11 +817,14 @@ export function OnboardingStep2() {
                       {index + 1}. {question.text}
                     </p>
                     <RadioGroup
-                      value={formData[question.id as keyof typeof formData] as string}
+                      value={formData[question.id]}
                       onValueChange={(value) => {
-                        setFormData({ ...formData, [question.id]: value });
+                        setFormData((prev) => ({
+                          ...prev,
+                          [question.id]: value,
+                        }));
                         if (errors.diet) {
-                          setErrors({ ...errors, diet: "" });
+                          setErrors((prev) => ({ ...prev, diet: "" }));
                         }
                       }}
                       className="grid grid-cols-5 gap-2"
@@ -724,7 +839,7 @@ export function OnboardingStep2() {
                           <Label
                             htmlFor={`${question.id}-${option.value}`}
                             className={`flex items-center justify-center p-2 border-2 rounded-lg cursor-pointer transition-all text-center min-h-[60px] ${
-                              formData[question.id as keyof typeof formData] === option.value
+                              formData[question.id] === option.value
                                 ? "border-emerald-500 bg-emerald-100"
                                 : "border-gray-200 hover:border-emerald-200"
                             }`}
