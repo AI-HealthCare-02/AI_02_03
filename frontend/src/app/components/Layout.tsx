@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { Activity, TrendingUp, Home, LogIn, UserPlus, Calendar, User, LogOut, Settings } from "lucide-react";
+import { Activity, TrendingUp, Home, LogIn, UserPlus, User, LogOut, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -18,18 +18,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { useState } from "react";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import { useState, useEffect } from "react";
+import { useAuthStore } from "../../store/authStore";
 
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  
-  // Mock login state - Replace with actual auth logic
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [userName] = useState("홍길동");
-  
+  const { isLoggedIn, user, fetchMe, logout } = useAuthStore();
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (token && !user) {
+      fetchMe().catch(() => {
+        // token expired or invalid — clean up silently
+        localStorage.removeItem("access_token");
+      });
+    }
+  }, []);
+
+  const userName = user?.nickname ?? "사용자";
+
   const isActive = (path: string) => {
     if (path === "/") {
       return location.pathname === "/";
@@ -37,8 +47,8 @@ export function Layout() {
     return location.pathname.startsWith(path);
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
+  const handleLogout = async () => {
+    await logout();
     setShowLogoutDialog(false);
     navigate("/login");
   };

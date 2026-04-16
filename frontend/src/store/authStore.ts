@@ -6,6 +6,7 @@ interface User {
   email: string
   nickname: string
   is_onboarded: boolean
+  created_at: string
 }
 
 interface AuthStore {

@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar";
@@ -12,23 +13,65 @@ import {
   Bell,
   Settings,
   TrendingDown,
+  TrendingUp,
   Sparkles,
   Flame,
+  Loader2,
 } from "lucide-react";
+import { useAuthStore } from "../../store/authStore";
+import { dashboardService } from "../../services/dashboard";
+
+type DashboardData = {
+  latest_score: number;
+  latest_grade: string;
+  character_state: string;
+  shap_factors: string[];
+  score_history: { score: number; created_at: string }[];
+  lifestyle_summary: {
+    bmi: number;
+    sleep_hours: number;
+    drink_amount: number;
+    exercise: string;
+  };
+};
+
+const gradeToLevel = (grade: string): "LOW" | "MID" | "HIGH" => {
+  if (grade === "중증") return "HIGH";
+  if (grade === "중등도") return "MID";
+  return "LOW";
+};
 
 export function MyPage() {
-  // Mock data
-  const user = {
-    name: "김건강",
-    email: "healthy@example.com",
-    avatar: "",
-    joinDate: "2026.01.15",
-  };
+  const { user } = useAuthStore();
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
 
-  const riskLevel = "LOW"; // LOW, MID, HIGH
-  const riskChange = -12; // percentage change
-  const currentStreak = 15; // days
-  const aiRecommendation = "오늘은 술을 피하고 30분 걷기를 추천드려요";
+  useEffect(() => {
+    dashboardService.get()
+      .then((data) => setDashboard(data))
+      .catch((err) => {
+        if (err.response?.status !== 404) {
+          console.error("대시보드 불러오기 실패", err);
+        }
+      })
+      .finally(() => setDashboardLoading(false));
+  }, []);
+
+  const riskLevel = dashboard ? gradeToLevel(dashboard.latest_grade) : null;
+
+  // score_history에서 마지막 두 값으로 점수 변화 계산
+  const scoreChange = (() => {
+    if (!dashboard || dashboard.score_history.length < 2) return null;
+    const history = dashboard.score_history;
+    return history[history.length - 1].score - history[history.length - 2].score;
+  })();
+
+  const currentStreak = 15; // API 미지원 — 추후 연동 필요
+
+  // SHAP 요인 기반 간단 추천 메시지 생성
+  const aiRecommendation = dashboard?.shap_factors?.length
+    ? `${dashboard.shap_factors[0]} 관리에 집중해보세요`
+    : "오늘도 건강한 하루를 보내세요";
 
   const getRiskLevelStyle = (level: string) => {
     switch (level) {
@@ -63,7 +106,7 @@ export function MyPage() {
     }
   };
 
-  const riskStyle = getRiskLevelStyle(riskLevel);
+  const riskStyle = getRiskLevelStyle(riskLevel ?? "");
 
   const menuItems = [
     {
@@ -116,15 +159,14 @@ export function MyPage() {
             <CardContent className="p-6">
               <div className="flex flex-col items-center text-center space-y-4">
                 <Avatar className="size-24 border-4 border-emerald-100">
-                  <AvatarImage src={user.avatar} />
+                  <AvatarImage src="" />
                   <AvatarFallback className="text-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
-                    {user.name.charAt(0)}
+                    {user?.nickname?.charAt(0) ?? "?"}
                   </AvatarFallback>
                 </Avatar>
                 <div className="space-y-1">
-                  <h3 className="text-xl font-bold text-gray-900">{user.name}</h3>
-                  <p className="text-sm text-gray-600">{user.email}</p>
-                  <p className="text-xs text-gray-500">가입일: {user.joinDate}</p>
+                  <h3 className="text-xl font-bold text-gray-900">{user?.nickname ?? "-"}</h3>
+                  <p className="text-sm text-gray-600">{user?.email ?? "-"}</p>
                 </div>
                 <Link to="/mypage/profile" className="w-full">
                   <Button variant="outline" className="w-full border-2">
@@ -144,19 +186,31 @@ export function MyPage() {
               {/* Risk Level */}
               <div className="space-y-2">
                 <p className="text-sm text-gray-600 font-medium">간 건강 위험도</p>
-                <div className="flex items-center justify-between">
-                  <Badge
-                    className={`${riskStyle.bg} ${riskStyle.text} border-2 ${riskStyle.border} text-lg px-4 py-2`}
-                  >
-                    {riskStyle.label}
-                  </Badge>
-                  <div className="flex items-center gap-1 text-emerald-700">
-                    <TrendingDown className="size-4" />
-                    <span className="text-sm font-medium">
-                      지난주 대비 {Math.abs(riskChange)}% 감소
-                    </span>
+                {dashboardLoading ? (
+                  <Loader2 className="size-5 text-emerald-600 animate-spin" />
+                ) : dashboard ? (
+                  <div className="flex items-center justify-between">
+                    <Badge
+                      className={`${riskStyle.bg} ${riskStyle.text} border-2 ${riskStyle.border} text-lg px-4 py-2`}
+                    >
+                      {dashboard.latest_grade}
+                    </Badge>
+                    {scoreChange !== null && (
+                      <div className={`flex items-center gap-1 ${scoreChange >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                        {scoreChange >= 0 ? (
+                          <TrendingUp className="size-4" />
+                        ) : (
+                          <TrendingDown className="size-4" />
+                        )}
+                        <span className="text-sm font-medium">
+                          {scoreChange >= 0 ? "+" : ""}{scoreChange.toFixed(1)}점
+                        </span>
+                      </div>
+                    )}
                   </div>
-                </div>
+                ) : (
+                  <p className="text-sm text-gray-400">예측 데이터 없음</p>
+                )}
               </div>
 
               {/* AI Recommendation */}

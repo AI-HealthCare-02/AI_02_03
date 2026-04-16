@@ -1,15 +1,11 @@
 import { Link, useNavigate } from "react-router";
 import { Card, CardContent } from "../components/ui/card";
 import { ChevronRight, LogOut } from "lucide-react";
+import { useAuthStore } from "../../store/authStore";
 
 export function AccountManagement() {
   const navigate = useNavigate();
-  
-  // Mock user data
-  const user = {
-    name: "김건강",
-    email: "healthy@example.com",
-  };
+  const { user, logout } = useAuthStore();
 
   // Email masking function
   const maskEmail = (email: string) => {
@@ -20,10 +16,14 @@ export function AccountManagement() {
     return `${username.substring(0, 3)}***@${domain}`;
   };
 
-  const handleLogout = () => {
-    // TODO: Implement logout logic
-    alert("로그아웃되었습니다.");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/login");
+    } catch (err) {
+      console.error("로그아웃 실패", err);
+      navigate("/login");
+    }
   };
 
   const menuItems = [
@@ -58,9 +58,9 @@ export function AccountManagement() {
         <CardContent className="p-6">
           <div className="space-y-3">
             <h3 className="text-xl font-bold text-gray-900">
-              안녕하세요, {user.name}님!
+              안녕하세요, {user?.nickname ?? "-"}님!
             </h3>
-            <p className="text-gray-600">{maskEmail(user.email)}</p>
+            <p className="text-gray-600">{user ? maskEmail(user.email) : "-"}</p>
           </div>
         </CardContent>
       </Card>

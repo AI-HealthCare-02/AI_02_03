@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Label } from "../components/ui/label";
 import { Switch } from "../components/ui/switch";
@@ -12,33 +12,55 @@ import {
   AlertTriangle,
   Moon,
 } from "lucide-react";
+import { notificationsService } from "../../services/notifications";
 
 export function NotificationSettings() {
+  // API 연동 필드 (push_enabled, appointment_reminder, challenge_reminder, weekly_report)
   const [allNotifications, setAllNotifications] = useState(true);
+  const [dailyAction, setDailyAction] = useState(true);       // appointment_reminder
+  const [challengeReminder, setChallengeReminder] = useState(true); // challenge_reminder
+  const [weeklyReport, setWeeklyReport] = useState(true);     // weekly_report
+
+  // 미연동 필드 (백엔드 협의 후 추가 예정)
   const [notificationTime, setNotificationTime] = useState("09:00");
   const [nightMode, setNightMode] = useState(false);
-  
-  // 생활습관 알림
-  const [dailyAction, setDailyAction] = useState(true);
-  const [challengeReminder, setChallengeReminder] = useState(true);
   const [streakReminder, setStreakReminder] = useState(true);
-  
-  // 건강 알림
   const [riskChange, setRiskChange] = useState(true);
-  const [weeklyReport, setWeeklyReport] = useState(true);
   const [goalAchievement, setGoalAchievement] = useState(true);
-  
-  // 기록 알림
   const [mealReminder, setMealReminder] = useState(false);
   const [waterReminder, setWaterReminder] = useState(false);
-  
-  // 핵심 알림
   const [alcoholWarning, setAlcoholWarning] = useState(true);
   const [immediateRiskAlert, setImmediateRiskAlert] = useState(true);
   const [challengeFailWarning, setChallengeFailWarning] = useState(true);
 
-  const handleSave = () => {
-    alert("알림 설정이 저장되었습니다.");
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    notificationsService.getSettings().then((data) => {
+      setAllNotifications(data.push_enabled);
+      setDailyAction(data.appointment_reminder);
+      setChallengeReminder(data.challenge_reminder);
+      setWeeklyReport(data.weekly_report);
+    }).catch(() => {
+      // 설정 로드 실패 시 기본값 유지
+    });
+  }, []);
+
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      await notificationsService.updateSettings({
+        push_enabled: allNotifications,
+        appointment_reminder: dailyAction,
+        challenge_reminder: challengeReminder,
+        weekly_report: weeklyReport,
+      });
+      alert("알림 설정이 저장되었습니다.");
+    } catch (err: any) {
+      alert(err?.response?.data?.detail ?? "저장에 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -321,9 +343,10 @@ export function NotificationSettings() {
       <div className="sticky bottom-4 pt-4">
         <Button
           onClick={handleSave}
+          disabled={isLoading}
           className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-base font-bold"
         >
-          설정 저장
+          {isLoading ? "저장 중..." : "설정 저장"}
         </Button>
       </div>
     </div>

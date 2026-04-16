@@ -2,15 +2,18 @@ import { useNavigate } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { useAuthStore } from "../../store/authStore";
 
 export function MyInfo() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
 
-  // Mock user data
-  const user = {
-    name: "김건강",
-    email: "healthy@example.com",
-    joinDate: "2026.01.15",
+  const formatDate = (isoString: string) => {
+    return new Date(isoString).toLocaleDateString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
   };
 
   return (
@@ -39,17 +42,19 @@ export function MyInfo() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <p className="text-sm font-medium text-gray-600">닉네임</p>
-            <p className="text-lg text-gray-900">{user.name}</p>
+            <p className="text-lg text-gray-900">{user?.nickname ?? "-"}</p>
           </div>
 
           <div className="space-y-2 pt-4 border-t">
             <p className="text-sm font-medium text-gray-600">이메일</p>
-            <p className="text-lg text-gray-900">{user.email}</p>
+            <p className="text-lg text-gray-900">{user?.email ?? "-"}</p>
           </div>
 
           <div className="space-y-2 pt-4 border-t">
             <p className="text-sm font-medium text-gray-600">가입일</p>
-            <p className="text-lg text-gray-900">{user.joinDate}</p>
+            <p className="text-lg text-gray-900">
+              {user?.created_at ? formatDate(user.created_at) : "-"}
+            </p>
           </div>
         </CardContent>
       </Card>
