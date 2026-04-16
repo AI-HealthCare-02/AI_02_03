@@ -38,8 +38,9 @@ export function DeleteAccount() {
       await authService.deleteUser();
       await logout();
       navigate("/login");
-    } catch (err: any) {
-      alert(err?.response?.data?.detail ?? "회원 탈퇴에 실패했습니다.");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      alert(msg ?? "회원 탈퇴에 실패했습니다.");
     } finally {
       setIsLoading(false);
     }

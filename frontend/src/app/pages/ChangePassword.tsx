@@ -34,8 +34,9 @@ export function ChangePassword() {
       await authService.updateUser({ password: formData.newPassword });
       alert("비밀번호가 변경되었습니다.");
       navigate("/mypage/account");
-    } catch (err: any) {
-      alert(err?.response?.data?.detail ?? "비밀번호 변경에 실패했습니다.");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      alert(msg ?? "비밀번호 변경에 실패했습니다.");
     } finally {
       setIsLoading(false);
     }

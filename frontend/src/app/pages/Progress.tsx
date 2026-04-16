@@ -61,7 +61,6 @@ export function Progress() {
   const [healthScoreHistory, setHealthScoreHistory] = useState<{ day: string; score: number }[]>([]);
   const [weightData, setWeightData] = useState<{ day: string; value: number }[]>([]);
   const [alcoholData, setAlcoholData] = useState<{ day: string; amount: number }[]>([]);
-  const [smokingData, setSmokingData] = useState<{ day: string; amount: number }[]>([]);
   const [improvementFactors, setImprovementFactors] = useState<{ category: string; challenge_type: string; score_delta: number }[]>([]);
   const [activeChallengesList, setActiveChallengesList] = useState<Challenge[]>([]);
   const [availableChallengesList, setAvailableChallengesList] = useState<Challenge[]>([]);

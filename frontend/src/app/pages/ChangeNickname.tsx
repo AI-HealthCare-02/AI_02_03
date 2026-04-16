@@ -28,8 +28,9 @@ export function ChangeNickname() {
       await fetchMe();
       alert("닉네임이 변경되었습니다.");
       navigate("/mypage/account");
-    } catch (err: any) {
-      alert(err?.response?.data?.detail ?? "닉네임 변경에 실패했습니다.");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      alert(msg ?? "닉네임 변경에 실패했습니다.");
     } finally {
       setIsLoading(false);
     }
