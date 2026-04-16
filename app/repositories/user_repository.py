@@ -1,3 +1,4 @@
+import secrets
 from typing import Any
 
 from pydantic import EmailStr
@@ -23,6 +24,10 @@ class UserRepository:
         result = await self._session.execute(select(exists().where(User.email == email)))
         return bool(result.scalar())
 
+    async def exists_by_nickname(self, nickname: str) -> bool:
+        result = await self._session.execute(select(exists().where(User.nickname == nickname)))
+        return bool(result.scalar())
+
     async def create_user(
         self,
         email: str | EmailStr,
@@ -45,6 +50,31 @@ class UserRepository:
                 setattr(user, key, value)
         await self._session.flush()
         await self._session.refresh(user)
+
+    async def get_by_social(self, provider: str, social_id: str) -> User | None:
+        result = await self._session.execute(
+            select(User).where(User.social_provider == provider, User.social_id == social_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def create_social_user(
+        self,
+        provider: str,
+        social_id: str,
+        nickname: str,
+        email: str | None = None,
+    ) -> User:
+        user = User(
+            email=email,
+            hashed_password=secrets.token_hex(32),  # 소셜 로그인 전용 플레이스홀더
+            nickname=nickname,
+            social_provider=provider,
+            social_id=social_id,
+        )
+        self._session.add(user)
+        await self._session.flush()
+        await self._session.refresh(user)
+        return user
 
     async def delete_user(self, user: User) -> None:
         await self._session.delete(user)

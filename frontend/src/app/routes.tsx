@@ -1,10 +1,19 @@
 import { createBrowserRouter, redirect } from "react-router";
 import { Home } from "./pages/Home";
 
-function requireAuth() {
+async function requireAuth() {
   const token = localStorage.getItem("access_token") ?? sessionStorage.getItem("access_token");
   if (!token) {
     return redirect("/login");
+  }
+  try {
+    const { authService: api } = await import("../services/auth");
+    const user = await api.me();
+    if (!user.is_onboarded) {
+      return redirect("/onboarding/step0");
+    }
+  } catch {
+    // 토큰 만료 등 → api.ts 인터셉터가 처리
   }
   return null;
 }
@@ -15,12 +24,16 @@ import { Schedule } from "./pages/Schedule";
 import { MyPage } from "./pages/MyPage";
 import { AccountManagement } from "./pages/AccountManagement";
 import { MyInfo } from "./pages/MyInfo";
+import { ChangeNickname } from "./pages/ChangeNickname";
+import { ChangePassword } from "./pages/ChangePassword";
+import { DeleteAccount } from "./pages/DeleteAccount";
 import { ActivityHistory } from "./pages/ActivityHistory";
 import { NotificationSettings } from "./pages/NotificationSettings";
 import { HealthDataManagement } from "./pages/HealthDataManagement";
 import { Profile } from "./pages/Profile";
 import { Signup } from "./pages/Signup";
 import { Login } from "./pages/Login";
+import { SocialCallback } from "./pages/SocialCallback";
 import { OnboardingStep0 } from "./pages/OnboardingStep0";
 import { OnboardingStep05 } from "./pages/OnboardingStep05";
 import { OnboardingStep1 } from "./pages/OnboardingStep1";
@@ -42,6 +55,9 @@ export const router = createBrowserRouter([
       { path: "mypage", Component: MyPage },
       { path: "mypage/account", Component: AccountManagement },
       { path: "mypage/account/info", Component: MyInfo },
+      { path: "mypage/account/nickname", Component: ChangeNickname },
+      { path: "mypage/account/password", Component: ChangePassword },
+      { path: "mypage/account/delete", Component: DeleteAccount },
       { path: "mypage/history", Component: ActivityHistory },
       { path: "mypage/notifications", Component: NotificationSettings },
       { path: "mypage/survey", Component: HealthDataManagement },
@@ -55,6 +71,10 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     Component: Login,
+  },
+  {
+    path: "/auth/social/callback",
+    Component: SocialCallback,
   },
   {
     path: "/onboarding/step0",

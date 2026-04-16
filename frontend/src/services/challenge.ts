@@ -7,8 +7,8 @@ export const challengeService = {
   join: (challengeId: number) =>
     api.post(`/api/v1/challenges/${challengeId}/join`).then((res) => res.data),
 
-  getMy: () =>
-    api.get('/api/v1/user-challenges/me').then((res) => res.data),
+  getMy: (status?: '진행중' | '완료' | '포기') =>
+    api.get('/api/v1/user-challenges/me', { params: status ? { status } : {} }).then((res) => res.data),
 
   complete: (userChallengeId: number) =>
     api.patch(`/api/v1/user-challenges/${userChallengeId}/complete`).then((res) => res.data),

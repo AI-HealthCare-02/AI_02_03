@@ -29,4 +29,10 @@ export const authService = {
   },
 
   me: () => api.get('/api/v1/users/me').then((res) => res.data),
+
+  updateUser: (data: { nickname?: string; password?: string }) =>
+    api.patch('/api/v1/users/me', data).then((res) => res.data),
+
+  deleteUser: () =>
+    api.delete('/api/v1/users/me').then((res) => res.data),
 }

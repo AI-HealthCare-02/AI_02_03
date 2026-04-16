@@ -42,6 +42,45 @@ class AuthService:
     async def login(self, user: User) -> dict[str, AccessToken | RefreshToken]:
         return self.jwt_service.issue_jwt_pair(user)
 
+    async def social_login_or_signup(
+        self,
+        provider: str,
+        social_id: str,
+        email: str | None,
+        nickname: str,
+    ) -> dict:
+        """소셜 계정으로 기존 사용자 찾거나 신규 생성 후 JWT 발급"""
+        user = await self.user_repo.get_by_social(provider, social_id)
+        if not user:
+            # 같은 이메일로 가입된 일반 계정이 있으면 소셜 연동
+            if email:
+                user = await self.user_repo.get_user_by_email(email)
+            if user:
+                await self.user_repo.update_instance(user, {"social_provider": provider, "social_id": social_id})
+            else:
+                safe_nickname = await self._make_unique_nickname(nickname)
+                user = await self.user_repo.create_social_user(
+                    provider=provider,
+                    social_id=social_id,
+                    nickname=safe_nickname,
+                    email=email,
+                )
+        tokens = self.jwt_service.issue_jwt_pair(user)
+        return {"tokens": tokens, "is_new": not user.is_onboarded}
+
+    async def _make_unique_nickname(self, base: str) -> str:
+        """닉네임 중복 시 숫자 접미사로 유일화"""
+        import random
+
+        nickname = base[:18]
+        if not await self.user_repo.exists_by_nickname(nickname):
+            return nickname
+        for _ in range(10):
+            candidate = f"{nickname[:16]}{random.randint(10, 99)}"
+            if not await self.user_repo.exists_by_nickname(candidate):
+                return candidate
+        return f"{nickname[:14]}{random.randint(1000, 9999)}"
+
     async def check_email_exists(self, email: str | EmailStr) -> None:
         if await self.user_repo.exists_by_email(str(email)):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="이미 사용중인 이메일입니다.")

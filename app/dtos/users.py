@@ -13,7 +13,7 @@ class UserUpdateRequest(BaseModel):
 
 class UserInfoResponse(BaseSerializerModel):
     id: int
-    email: str
+    email: str | None
     nickname: str
     is_onboarded: bool
     created_at: datetime
