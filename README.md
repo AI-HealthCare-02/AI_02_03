@@ -136,27 +136,38 @@ nginx       Up
 DB와 Redis는 도커로, FastAPI와 프론트엔드는 로컬에서 직접 실행하는 방식입니다.  
 코드 수정 시 즉시 반영되어 개발할 때 편리합니다.
 
-**백엔드 실행:**
+> ⚠️ Node.js가 설치되어 있지 않으면 [nodejs.org](https://nodejs.org/)에서 LTS 버전을 설치하세요.
+
+---
+
+#### 터미널 1 — 백엔드
+
 ```bash
-# 1. .env를 로컬용으로 설정 (아직 안 했다면)
+# 1. 로컬용 환경변수 설정 (처음 한 번만)
 cp envs/example.local.env .env
 
-# 2. 의존성 설치 (처음 한 번만)
+# 2. 백엔드 의존성 설치 (처음 한 번만)
 uv sync --group app --group dev
 
-# 3. DB와 Redis만 도커로 실행
+# 3. DB · Redis만 도커로 실행
 docker compose up -d postgres redis
 
-# 4. FastAPI 로컬 실행
+# 4. DB 마이그레이션 (처음 한 번만 / dev pull 후 재실행)
+uv run alembic upgrade head
+
+# 5. 초기 데이터 삽입 (처음 한 번만)
+uv run python -m app.db.seeds.challenges_seed
+
+# 6. FastAPI 서버 실행
 uv run uvicorn app.main:app --reload
 ```
 
-**접속 확인:**
-- API 문서: http://localhost:8000/api/docs
+접속 확인 → API 문서: http://localhost:8000/api/docs
 
-> ⚠️ 로컬 실행 시에는 Nginx를 거치지 않아서 포트가 8000이에요.
+---
 
-**프론트엔드 실행 (별도 터미널):**
+#### 터미널 2 — 프론트엔드
+
 ```bash
 # 1. 프론트엔드 디렉토리로 이동
 cd frontend
@@ -168,11 +179,12 @@ npm install
 npm run dev
 ```
 
-**접속 확인:**
-- 프론트엔드: http://localhost:5173
+접속 확인 → 프론트엔드: http://localhost:5173
 
-> ⚠️ 백엔드와 프론트엔드는 터미널을 각각 따로 열어서 실행해야 합니다.  
-> Node.js가 설치되어 있지 않으면 [nodejs.org](https://nodejs.org/)에서 설치하세요.
+---
+
+> ⚠️ 백엔드와 프론트엔드는 터미널을 **각각 따로** 열어서 실행해야 합니다.  
+> Step 4 · 5 (마이그레이션 · 시드)는 **처음 세팅할 때, 또는 `dev`를 pull 한 뒤 마이그레이션 파일이 추가됐을 때**만 다시 실행하면 됩니다.
 
 ---
 
