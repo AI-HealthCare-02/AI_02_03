@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -14,35 +14,32 @@ import {
   BedDouble,
   Wine,
   Cigarette,
-  Upload,
   Loader2,
-  Sparkles,
   TrendingUp,
   CheckCircle2,
   Clock,
   Users,
+  Dumbbell,
+  BarChart3,
 } from "lucide-react";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { foodService } from "../../services/food";
 
-type DietAnalysisState = "idle" | "loading" | "result";
-
-interface Challenge {
+type FoodRecord = {
   id: number;
-  title: string;
-  description: string;
-  icon: any;
-  duration: string;
-  participants: number;
-  difficulty: "초급" | "중급" | "고급";
-  category: string;
-  progress?: number;
-  daysLeft?: number;
-}
+  food_name: string;
+  fat: number;
+  sugar: number;
+  calories: number;
+  impact_message: string;
+  created_at: string;
+};
+
 
 export function Progress() {
   const [activeTab, setActiveTab] = useState("health");
-  const [dietState, setDietState] = useState<DietAnalysisState>("idle");
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [mealHistory, setMealHistory] = useState<FoodRecord[]>([]);
+  const [mealsLoading, setMealsLoading] = useState(false);
 
   // Mock data
   const streakDays = 14;
@@ -106,67 +103,52 @@ export function Progress() {
     { day: "일", amount: 0 },
   ]);
 
-  // Challenges data
-  const [activeChallengesList] = useState<Challenge[]>([
+
+  // Completed challenges
+  const [completedChallenges] = useState([
     {
       id: 1,
-      title: "30일 걷기 챌린지",
-      description: "매일 30분 이상 걷기를 실천하세요",
-      icon: Activity,
-      duration: "30일",
-      participants: 1250,
-      difficulty: "초급",
-      category: "운동",
-      progress: 75,
-      daysLeft: 7,
+      title: "물 마시기 챌린지",
+      description: "14일간 하루 2L 이상 물 마시기",
+      completedDate: "2024-03-25",
+      emoji: "💧",
     },
     {
       id: 2,
-      title: "설탕 줄이기 챌린지",
-      description: "첨가당 섭취를 하루 25g 이하로 제한하기",
-      icon: Activity,
-      duration: "30일",
-      participants: 890,
-      difficulty: "중급",
-      category: "식습관",
-      progress: 60,
-      daysLeft: 12,
+      title: "아침 운동 챌린지",
+      description: "7일 연속 아침 운동 완료",
+      completedDate: "2024-03-18",
+      emoji: "🌅",
     },
     {
       id: 3,
-      title: "규칙적인 수면 챌린지",
-      description: "매일 같은 시간에 잠들고 7시간 이상 수면",
-      icon: BedDouble,
-      duration: "21일",
-      participants: 645,
-      difficulty: "중급",
-      category: "수면",
-      progress: 45,
-      daysLeft: 16,
+      title: "채소 먹기 챌린지",
+      description: "21일간 매 끼니 채소 섭취",
+      completedDate: "2024-03-10",
+      emoji: "🥗",
     },
   ]);
 
-  const [availableChallengesList] = useState<Challenge[]>([
-    {
-      id: 4,
-      title: "물 마시기 챌린지",
-      description: "하루 2L 이상의 물 마시기",
-      icon: Activity,
-      duration: "14일",
-      participants: 2100,
-      difficulty: "초급",
-      category: "수분",
-    },
-    {
-      id: 5,
-      title: "체중 관리 챌린지",
-      description: "목표 체중까지 건강하게 감량하기",
-      icon: Scale,
-      duration: "60일",
-      participants: 1580,
-      difficulty: "중급",
-      category: "운동",
-    },
+  // Weekly achievement data
+  const [weeklyData] = useState([
+    { day: "월", completed: 3, total: 4 },
+    { day: "화", completed: 4, total: 4 },
+    { day: "수", completed: 2, total: 4 },
+    { day: "목", completed: 4, total: 4 },
+    { day: "금", completed: 3, total: 4 },
+    { day: "토", completed: 4, total: 4 },
+    { day: "일", completed: 2, total: 4 },
+  ]);
+
+  // Weekly calendar data
+  const [calendarData] = useState([
+    { day: "월", hasBMI: true, hasExercise: true, hasAlcohol: false, hasSmoking: false, id: "mon-cal" },
+    { day: "화", hasBMI: true, hasExercise: false, hasAlcohol: false, hasSmoking: false, id: "tue-cal" },
+    { day: "수", hasBMI: false, hasExercise: true, hasAlcohol: true, hasSmoking: false, id: "wed-cal" },
+    { day: "목", hasBMI: true, hasExercise: true, hasAlcohol: false, hasSmoking: false, id: "thu-cal" },
+    { day: "금", hasBMI: true, hasExercise: false, hasAlcohol: true, hasSmoking: false, id: "fri-cal" },
+    { day: "토", hasBMI: true, hasExercise: true, hasAlcohol: true, hasSmoking: false, id: "sat-cal" },
+    { day: "일", hasBMI: false, hasExercise: false, hasAlcohol: false, hasSmoking: false, id: "sun-cal" },
   ]);
 
   // Badges data
@@ -185,45 +167,23 @@ export function Progress() {
     { id: 12, name: "레전드", description: "100일 연속 달성", emoji: "🌟", earned: false },
   ]);
 
-  // Recent meals
-  const [recentMeals] = useState([
-    { id: 1, date: "2024-04-09 점심", food: "닭가슴살 샐러드", calories: 350, rating: "좋음", image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop" },
-    { id: 2, date: "2024-04-09 아침", food: "그릭 요거트", calories: 180, rating: "훌륭함", image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&h=300&fit=crop" },
-    { id: 3, date: "2024-04-08 저녁", food: "현미밥과 구이", calories: 520, rating: "보통", image: "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=300&fit=crop" },
-    { id: 4, date: "2024-04-08 점심", food: "채소 볶음밥", calories: 420, rating: "좋음", image: "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&h=300&fit=crop" },
-    { id: 5, date: "2024-04-08 아침", food: "오트밀", calories: 250, rating: "훌륭함", image: "https://images.unsplash.com/photo-1517686469429-8bdb88b9f907?w=400&h=300&fit=crop" },
-  ]);
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUploadedImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  const fetchMealHistory = async () => {
+    setMealsLoading(true);
+    try {
+      const data = await foodService.getMy();
+      setMealHistory(data);
+    } catch (err) {
+      console.error("식단 이력 불러오기 실패", err);
+    } finally {
+      setMealsLoading(false);
     }
   };
 
-  const handleAnalyze = () => {
-    setDietState("loading");
-    setTimeout(() => {
-      setDietState("result");
-    }, 2000);
-  };
+  useEffect(() => {
+    fetchMealHistory();
+  }, []);
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case "초급":
-        return "bg-emerald-100 text-emerald-700 border-emerald-200";
-      case "중급":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "고급":
-        return "bg-purple-100 text-purple-700 border-purple-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
+
 
   return (
     <div className="pb-8 space-y-6">
@@ -464,103 +424,150 @@ export function Progress() {
 
         {/* Challenges Tab */}
         <TabsContent value="challenges" className="space-y-6">
-          <Tabs defaultValue="active" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2 bg-gray-100">
-              <TabsTrigger value="active">진행중</TabsTrigger>
-              <TabsTrigger value="available">참여 가능</TabsTrigger>
-            </TabsList>
-
-            {/* Active Challenges */}
-            <TabsContent value="active" className="space-y-3">
-              {activeChallengesList.map((challenge) => (
-                <Card key={challenge.id} className="border-2 border-gray-200">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="size-12 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <challenge.icon className="size-6 text-emerald-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-900 mb-1">{challenge.title}</h3>
-                        <p className="text-sm text-gray-600 mb-2">{challenge.description}</p>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge className={getDifficultyColor(challenge.difficulty)}>{challenge.difficulty}</Badge>
-                          <Badge variant="outline" className="text-xs">
-                            <Clock className="size-3 mr-1" />
-                            {challenge.daysLeft}일 남음
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            <Users className="size-3 mr-1" />
-                            {challenge.participants}명
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">진행도</span>
-                        <span className="font-bold text-emerald-600">{challenge.progress}%</span>
-                      </div>
-                      <ProgressBar value={challenge.progress} className="h-2" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </TabsContent>
-
-            {/* Available Challenges */}
-            <TabsContent value="available" className="space-y-3">
-              {availableChallengesList.map((challenge) => (
-                <Card key={challenge.id} className="border-2 border-gray-200 hover:border-emerald-300 transition-colors">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="size-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <challenge.icon className="size-6 text-gray-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-900 mb-1">{challenge.title}</h3>
-                        <p className="text-sm text-gray-600 mb-2">{challenge.description}</p>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge className={getDifficultyColor(challenge.difficulty)}>{challenge.difficulty}</Badge>
-                          <Badge variant="outline" className="text-xs">
-                            <Clock className="size-3 mr-1" />
-                            {challenge.duration}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            <Users className="size-3 mr-1" />
-                            {challenge.participants}명
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                    <Button className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700">
-                      참여하기
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </TabsContent>
-          </Tabs>
-        </TabsContent>
-
-        {/* Diet Tab */}
-        <TabsContent value="diet" className="space-y-4">
+          {/* Completed Challenges */}
           <div className="space-y-3">
-            <h4 className="font-bold text-gray-900">식단 기록</h4>
-            {recentMeals.map((meal) => (
-              <Card key={meal.id} className="border border-gray-200">
+            <h4 className="font-bold text-gray-900">완료된 챌린지</h4>
+            {completedChallenges.map((challenge) => (
+              <Card key={challenge.id} className="border-2 border-emerald-100 bg-gradient-to-br from-emerald-50/30 to-white">
                 <CardContent className="p-4">
-                  <div className="flex gap-4">
-                    <img src={meal.image} alt={meal.food} className="size-24 rounded-lg object-cover flex-shrink-0" />
+                  <div className="flex items-center gap-3">
+                    <div className="text-4xl">{challenge.emoji}</div>
                     <div className="flex-1">
-                      <p className="text-sm text-gray-600 mb-1">{meal.date}</p>
-                      <p className="font-bold text-gray-900 mb-1">{meal.food}</p>
-                      <p className="text-sm text-gray-600 mb-2">{meal.calories} kcal</p>
-                      <Badge className="bg-emerald-100 text-emerald-700">{meal.rating}</Badge>
+                      <h3 className="font-bold text-gray-900 mb-1">{challenge.title}</h3>
+                      <p className="text-sm text-gray-600 mb-1">{challenge.description}</p>
+                      <p className="text-xs text-gray-500">완료일: {challenge.completedDate}</p>
                     </div>
+                    <CheckCircle2 className="size-6 text-emerald-600 flex-shrink-0" />
                   </div>
                 </CardContent>
               </Card>
             ))}
+          </div>
+
+          {/* Weekly Achievement Graph */}
+          <Card className="border-2 border-emerald-100">
+            <CardContent className="pt-6">
+              <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <BarChart3 className="size-5 text-emerald-600" />
+                주간 목표 달성률
+              </h4>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={weeklyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="completed" fill="#10b981" name="완료한 목표" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="total" fill="#e5e7eb" name="전체 목표" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Weekly Activity Calendar */}
+          <div className="space-y-3">
+            <h4 className="font-bold text-gray-900">주간 활동 캘린더</h4>
+            <div className="grid grid-cols-7 gap-2">
+              {calendarData.map((day) => (
+                <Card key={day.id} className="text-center border-2 border-gray-200">
+                  <CardContent className="p-3">
+                    <p className="text-sm text-gray-600 mb-2 font-medium">{day.day}</p>
+                    <div className="space-y-1.5 min-h-[60px] flex flex-col items-center justify-center">
+                      {day.hasBMI && (
+                        <div className="size-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                          <Scale className="size-3.5 text-emerald-600" />
+                        </div>
+                      )}
+                      {day.hasExercise && (
+                        <div className="size-6 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Dumbbell className="size-3.5 text-blue-600" />
+                        </div>
+                      )}
+                      {day.hasAlcohol && (
+                        <div className="size-6 bg-purple-100 rounded-full flex items-center justify-center">
+                          <Wine className="size-3.5 text-purple-600" />
+                        </div>
+                      )}
+                      {day.hasSmoking && (
+                        <div className="size-6 bg-orange-100 rounded-full flex items-center justify-center">
+                          <Cigarette className="size-3.5 text-orange-600" />
+                        </div>
+                      )}
+                      {!day.hasBMI && !day.hasExercise && !day.hasAlcohol && !day.hasSmoking && (
+                        <div className="text-xs text-gray-400 py-2">-</div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            <div className="flex items-center justify-center gap-6 text-xs text-gray-600 mt-4">
+              <div className="flex items-center gap-2">
+                <div className="size-4 bg-emerald-100 rounded-full flex items-center justify-center">
+                  <Scale className="size-2.5 text-emerald-600" />
+                </div>
+                <span>체중 기록</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="size-4 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Dumbbell className="size-2.5 text-blue-600" />
+                </div>
+                <span>운동</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="size-4 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Wine className="size-2.5 text-purple-600" />
+                </div>
+                <span>음주</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="size-4 bg-orange-100 rounded-full flex items-center justify-center">
+                  <Cigarette className="size-2.5 text-orange-600" />
+                </div>
+                <span>흡연</span>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Diet Tab */}
+        <TabsContent value="diet" className="space-y-4">
+          {/* 식단 이력 */}
+          <div className="space-y-3">
+            <h4 className="font-bold text-gray-900">식단 기록</h4>
+            {mealsLoading ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Loader2 className="size-6 text-emerald-600 animate-spin mx-auto" />
+                </CardContent>
+              </Card>
+            ) : mealHistory.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <p className="text-sm text-gray-500">아직 분석한 식단이 없습니다</p>
+                </CardContent>
+              </Card>
+            ) : (
+              mealHistory.map((meal) => (
+                <Card key={meal.id} className="border border-gray-200">
+                  <CardContent className="p-4">
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500 mb-1">
+                        {new Date(meal.created_at).toLocaleString("ko-KR")}
+                      </p>
+                      <p className="font-bold text-gray-900 mb-1">{meal.food_name}</p>
+                      <div className="flex gap-3 text-sm text-gray-600 mb-2">
+                        <span>{meal.calories} kcal</span>
+                        <span>지방 {meal.fat}g</span>
+                        <span>당 {meal.sugar}g</span>
+                      </div>
+                      <p className="text-xs text-gray-500">{meal.impact_message}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
 
