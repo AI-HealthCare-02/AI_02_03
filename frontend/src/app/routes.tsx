@@ -24,6 +24,9 @@ import { Schedule } from "./pages/Schedule";
 import { MyPage } from "./pages/MyPage";
 import { AccountManagement } from "./pages/AccountManagement";
 import { MyInfo } from "./pages/MyInfo";
+import { ChangeNickname } from "./pages/ChangeNickname";
+import { ChangePassword } from "./pages/ChangePassword";
+import { DeleteAccount } from "./pages/DeleteAccount";
 import { ActivityHistory } from "./pages/ActivityHistory";
 import { NotificationSettings } from "./pages/NotificationSettings";
 import { HealthDataManagement } from "./pages/HealthDataManagement";
@@ -52,6 +55,9 @@ export const router = createBrowserRouter([
       { path: "mypage", Component: MyPage },
       { path: "mypage/account", Component: AccountManagement },
       { path: "mypage/account/info", Component: MyInfo },
+      { path: "mypage/account/nickname", Component: ChangeNickname },
+      { path: "mypage/account/password", Component: ChangePassword },
+      { path: "mypage/account/delete", Component: DeleteAccount },
       { path: "mypage/history", Component: ActivityHistory },
       { path: "mypage/notifications", Component: NotificationSettings },
       { path: "mypage/survey", Component: HealthDataManagement },
