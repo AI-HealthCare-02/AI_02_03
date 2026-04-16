@@ -132,9 +132,9 @@ class HealthSurveyService:
 
         height = _clip(data.height, 100, 250)
         weight = _clip(data.weight, 20, 300)
-        bmi    = _calc_bmi(weight, height)
-        waist  = data.waist if data.waist > 0 else _estimate_waist(data.gender, bmi)
-        waist  = _clip(waist, 40, 200)
+        bmi = _calc_bmi(weight, height)
+        waist = data.waist if data.waist > 0 else _estimate_waist(data.gender, bmi)
+        waist = _clip(waist, 40, 200)
 
         diet_score, diet_eval = _calc_diet(data.diet_questions)
         drink_amount_std = _to_standard_drinks(data.drink_amount, data.drink_type)
