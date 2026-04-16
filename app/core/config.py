@@ -39,3 +39,16 @@ class Config(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 14 * 24 * 60
     JWT_LEEWAY: int = 5
+
+    # Social Login (Kakao)
+    KAKAO_CLIENT_ID: str = ""
+    KAKAO_CLIENT_SECRET: str = ""
+    KAKAO_REDIRECT_URI: str = "http://127.0.0.1:8000/api/v1/auth/kakao/callback"
+
+    # Social Login (Naver)
+    NAVER_CLIENT_ID: str = ""
+    NAVER_CLIENT_SECRET: str = ""
+    NAVER_REDIRECT_URI: str = "http://127.0.0.1:8000/api/v1/auth/naver/callback"
+
+    # Frontend base URL (for OAuth redirect)
+    FRONTEND_BASE_URL: str = "http://localhost:5173"
