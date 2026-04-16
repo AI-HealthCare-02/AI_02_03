@@ -127,9 +127,9 @@ nginx       Up
 ```
 
 **접속 확인:**
-- API 문서: http://localhost/api/docs
+- API 문서: http://127.0.0.1:8000/api/docs
 
-> ⚠️ http://localhost:8000 이 아니라 http://localhost/api/docs 입니다. Nginx를 통해 접속합니다.
+> ⚠️ http://127.0.0.1:8000 이 아니라 http://127.0.0.1:8000/api/docs 입니다. Nginx를 통해 접속합니다.
 
 ### Step 5-2. 로컬에서 직접 실행 (도커 없이 개발할 때)
 
@@ -185,6 +185,45 @@ npm run dev
 
 > ⚠️ 백엔드와 프론트엔드는 터미널을 **각각 따로** 열어서 실행해야 합니다.  
 > Step 4 · 5 (마이그레이션 · 시드)는 **처음 세팅할 때, 또는 `dev`를 pull 한 뒤 마이그레이션 파일이 추가됐을 때**만 다시 실행하면 됩니다.
+
+---
+
+### 프론트엔드 개발자 — 백엔드 빠른 실행
+
+> 프론트엔드 작업 중 API 연동 테스트가 필요할 때, 백엔드를 최소한으로 켜는 방법입니다.  
+> **백엔드 코드를 건드리지 않아도 됩니다.** 그냥 켜두기만 하면 됩니다.
+
+**최초 1회 세팅 (터미널 1):**
+
+```bash
+# 루트 디렉토리에서 실행
+cp envs/example.local.env .env
+uv sync --group app --group dev
+docker compose up -d postgres redis
+uv run alembic upgrade head
+uv run python -m app.db.seeds.challenges_seed
+```
+
+**이후 매번 켤 때 (터미널 1):**
+
+```bash
+docker compose up -d postgres redis
+uv run uvicorn app.main:app --reload
+```
+
+**프론트 실행 (터미널 2):**
+
+```bash
+cd frontend
+npm install  # 처음 한 번만
+npm run dev
+```
+
+- 백엔드 API: http://localhost:8000/api/docs
+- 프론트엔드: http://localhost:5173
+
+> `dev`를 새로 pull 받았다면 마이그레이션이 추가됐을 수 있습니다.  
+> 백엔드 켜기 전에 `uv run alembic upgrade head` 한 번 더 실행해주세요.
 
 ---
 
