@@ -48,7 +48,11 @@ class KakaoOAuthService:
         social_id = str(data["id"])
         kakao_account = data.get("kakao_account", {})
         email = kakao_account.get("email")
-        nickname = kakao_account.get("profile", {}).get("nickname") or data.get("properties", {}).get("nickname") or "카카오유저"
+        nickname = (
+            kakao_account.get("profile", {}).get("nickname")
+            or data.get("properties", {}).get("nickname")
+            or "카카오유저"
+        )
 
         return {"social_id": social_id, "email": email, "nickname": nickname}
 

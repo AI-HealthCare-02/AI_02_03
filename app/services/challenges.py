@@ -102,7 +102,9 @@ class ChallengeService:
     async def delete_custom_challenge(self, user: User, challenge_id: int) -> dict:
         deleted = await self.repo.delete_custom(challenge_id, user.id)
         if not deleted:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="챌린지를 찾을 수 없거나 삭제 권한이 없습니다.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="챌린지를 찾을 수 없거나 삭제 권한이 없습니다."
+            )
         return {"detail": "챌린지가 삭제되었습니다."}
 
     async def create_custom_challenge(self, user: User, data) -> ChallengeJoinResponse:

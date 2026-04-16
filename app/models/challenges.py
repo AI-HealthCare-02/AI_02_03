@@ -17,7 +17,9 @@ class Challenge(Base):
     required_logs: Mapped[int] = mapped_column(Integer, nullable=False)
 
     is_custom: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    created_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    created_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    )
 
     user_challenges: Mapped[list["UserChallenge"]] = relationship(back_populates="challenge")
 

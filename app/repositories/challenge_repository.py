@@ -46,10 +46,9 @@ class ChallengeRepository:
     async def delete_custom(self, challenge_id: int, user_id: int) -> bool:
         """본인이 만든 커스텀 챌린지 삭제"""
         from sqlalchemy import delete as sql_delete
+
         # FK 제약 때문에 user_challenges 먼저 삭제
-        await self._session.execute(
-            sql_delete(UserChallenge).where(UserChallenge.challenge_id == challenge_id)
-        )
+        await self._session.execute(sql_delete(UserChallenge).where(UserChallenge.challenge_id == challenge_id))
         result = await self._session.execute(
             sql_delete(Challenge).where(
                 Challenge.id == challenge_id,
@@ -60,7 +59,9 @@ class ChallengeRepository:
         await self._session.commit()
         return result.rowcount > 0
 
-    async def create_custom(self, user_id: int, title: str, description: str, category: str, duration_days: int) -> "Challenge":
+    async def create_custom(
+        self, user_id: int, title: str, description: str, category: str, duration_days: int
+    ) -> "Challenge":
         challenge = Challenge(
             type=category,
             name=title,

@@ -21,9 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.add_column("challenges", sa.Column("is_custom", sa.Boolean(), nullable=False, server_default="false"))
     op.add_column("challenges", sa.Column("created_by", sa.BigInteger(), nullable=True))
-    op.create_foreign_key(
-        "fk_challenges_created_by", "challenges", "users", ["created_by"], ["id"], ondelete="CASCADE"
-    )
+    op.create_foreign_key("fk_challenges_created_by", "challenges", "users", ["created_by"], ["id"], ondelete="CASCADE")
 
 
 def downgrade() -> None:

@@ -151,9 +151,7 @@ async def seed():
                 print(f"[SKIP] {n}")
                 continue
 
-            session.add(
-                Challenge(type=t, name=n, description=d, duration_days=dur, required_logs=req)
-            )
+            session.add(Challenge(type=t, name=n, description=d, duration_days=dur, required_logs=req))
             print(f"[INSERT] {n}")
 
         await session.commit()

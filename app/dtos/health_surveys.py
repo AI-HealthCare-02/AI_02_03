@@ -53,6 +53,7 @@ class SurveyCreateResponse(BaseModel):
 
 class SurveyUpdateRequest(BaseModel):
     """사용자가 직접 수정 가능한 신체 측정값만 허용"""
+
     height: float | None = Field(None, gt=100, lt=250)
     weight: float | None = Field(None, gt=20, lt=300)
     waist: float | None = Field(None, gt=40, lt=200)
