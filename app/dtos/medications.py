@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -8,7 +8,7 @@ from app.dtos.base import BaseSerializerModel
 class MedicationCreateRequest(BaseModel):
     name: str = Field(max_length=100)
     dosage: str = Field(max_length=50)
-    schedule: str = Field(max_length=50, description="예: 아침/점심/저녁")
+    times: list[str] = Field(description="복용 시간 목록, 예: ['08:00', '18:00']")
 
 
 class MedicationResponse(BaseSerializerModel):
@@ -16,6 +16,16 @@ class MedicationResponse(BaseSerializerModel):
     user_id: int
     name: str
     dosage: str
-    schedule: str
-    taken_today: bool
+    times: list[str]
     created_at: datetime
+
+
+class MedicationCompletionRequest(BaseModel):
+    date: date
+    time_index: int
+    completed: bool
+
+
+class MedicationCompletionsByDate(BaseModel):
+    date: date
+    completions: dict[int, bool]

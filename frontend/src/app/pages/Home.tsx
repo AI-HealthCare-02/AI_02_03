@@ -47,8 +47,8 @@ interface Medication {
   id: number;
   name: string;
   dosage: string;
-  schedule: string;
-  taken_today: boolean;
+  times: string[];
+  completedToday: boolean[];
 }
 
 interface UserChallenge {
@@ -73,6 +73,7 @@ export function Home() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
+  const [checkedAppointments, setCheckedAppointments] = useState<{ [key: number]: boolean }>({});
   const [healthScore, setHealthScore] = useState(0);
   const [streakDays, setStreakDays] = useState(0);
   const [activeChallenges, setActiveChallenges] = useState<UserChallenge[]>([]);
@@ -84,8 +85,19 @@ export function Home() {
       setAllAppointments(r.data);
     }).catch(() => {});
 
-    api.get<Medication[]>("/api/v1/medications/me").then((r) => {
-      setMedications(r.data);
+    const today = format(new Date(), "yyyy-MM-dd");
+    Promise.all([
+      api.get<{ id: number; name: string; dosage: string; times: string[] }[]>("/api/v1/medications/me"),
+      api.get<{ date: string; completions: { [idx: string]: boolean } }>(`/api/v1/medications/me/completions?date=${today}`),
+    ]).then(([medsRes, compRes]) => {
+      const completions = compRes.data.completions;
+      setMedications(medsRes.data.map((m) => ({
+        id: m.id,
+        name: m.name,
+        dosage: m.dosage,
+        times: m.times,
+        completedToday: m.times.map((_, idx) => completions[idx] ?? false),
+      })));
     }).catch(() => {});
 
     api.get<{
@@ -118,10 +130,39 @@ export function Home() {
     }
   };
 
-  const handleToggleTaken = async (id: number, current: boolean) => {
-    await api.patch(`/api/v1/medications/${id}/taken`, { taken_today: !current });
-    api.get<Medication[]>("/api/v1/medications/me").then((r) => setMedications(r.data)).catch(() => {});
+  const handleToggleTaken = async (medId: number, timeIndex: number) => {
+    const med = medications.find((m) => m.id === medId);
+    if (!med) return;
+    const newCompleted = !med.completedToday[timeIndex];
+    setMedications((prev) =>
+      prev.map((m) => {
+        if (m.id !== medId) return m;
+        const updated = m.completedToday.map((c, i) => (i === timeIndex ? newCompleted : c));
+        return { ...m, completedToday: updated };
+      })
+    );
+    await api.patch(`/api/v1/medications/${medId}/completions`, {
+      date: format(new Date(), "yyyy-MM-dd"),
+      time_index: timeIndex,
+      completed: newCompleted,
+    }).catch(() => {});
   };
+
+  const calculateDday = (targetDate: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(targetDate);
+    target.setHours(0, 0, 0, 0);
+    return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const nextAppointment = allAppointments
+    .filter((apt) => {
+      const d = new Date(apt.visit_date);
+      d.setHours(0, 0, 0, 0);
+      return d >= new Date(new Date().setHours(0, 0, 0, 0));
+    })
+    .sort((a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime())[0] ?? null;
 
   const completedToday = activeChallenges.filter(c => c.today_completed).length;
   const totalHabits = activeChallenges.length;
@@ -242,67 +283,106 @@ export function Home() {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="size-5 text-blue-600" />
-                  오늘의 일정
+                  {selectedDate && selectedDate.toDateString() === new Date().toDateString()
+                    ? "오늘의 일정"
+                    : selectedDate
+                      ? `${format(selectedDate, "M월 d일 (E)", { locale: ko })} 일정`
+                      : "오늘의 일정"}
                 </CardTitle>
                 <CardDescription>
                   {format(new Date(), "MM월 dd일 EEEE", { locale: ko })}
                 </CardDescription>
               </div>
+              {nextAppointment && (
+                <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white px-3 py-2 rounded-lg shadow-md text-center">
+                  <p className="text-xs font-medium opacity-90">다가오는 일정</p>
+                  <p className="text-xl font-bold">
+                    {calculateDday(nextAppointment.visit_date) === 0
+                      ? "D-DAY"
+                      : calculateDday(nextAppointment.visit_date) > 0
+                        ? `D-${calculateDday(nextAppointment.visit_date)}`
+                        : `D+${Math.abs(calculateDday(nextAppointment.visit_date))}`}
+                  </p>
+                  <p className="text-xs mt-0.5 truncate max-w-[90px]">{nextAppointment.hospital_name}</p>
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Calendar with Appointments - Inside Same Container */}
-            <div className="bg-white p-4 rounded-lg border border-blue-100">
-              <div className="flex gap-4">
-                {/* Calendar */}
-                <div className="flex-shrink-0">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    locale={ko}
-                    className="rounded-md"
-                    modifiers={{
-                      hasAppointment: allAppointments.map((a) => new Date(a.visit_date)),
-                    }}
-                    modifiersClassNames={{
-                      hasAppointment: "bg-blue-200 text-blue-900 font-bold rounded-full",
-                    }}
-                  />
-                </div>
+            {/* Calendar */}
+            <div className="bg-white p-3 rounded-lg border border-blue-100">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                locale={ko}
+                className="rounded-md w-full"
+                modifiers={{
+                  hasAppointment: allAppointments.map((a) => {
+                    const d = new Date(a.visit_date);
+                    d.setHours(0, 0, 0, 0);
+                    return d;
+                  }),
+                }}
+                modifiersClassNames={{ hasAppointment: "has-appointment-home" }}
+              />
+              <style>{`
+                .has-appointment-home { position: relative; }
+                .has-appointment-home::after {
+                  content: '';
+                  position: absolute;
+                  bottom: 2px;
+                  left: 50%;
+                  transform: translateX(-50%);
+                  width: 4px;
+                  height: 4px;
+                  background-color: #3b82f6;
+                  border-radius: 50%;
+                }
+              `}</style>
+            </div>
 
-                {/* Appointments - Right Side */}
-                <div className="flex-1 flex flex-col min-w-0">
-                  <p className="text-sm font-medium text-gray-700 mb-3">
-                    {selectedDate ? format(selectedDate, "MM월 dd일", { locale: ko }) : "오늘"} 병원 일정
-                  </p>
-                  {(() => {
-                    const filtered = allAppointments.filter(
-                      (a) => new Date(a.visit_date).toDateString() === (selectedDate ?? new Date()).toDateString()
-                    );
-                    return filtered.length > 0 ? (
-                      <div className="space-y-2">
-                        {filtered.map((apt) => (
-                          <div key={apt.id} className="flex items-start gap-2">
-                            <Hospital className="size-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-gray-900 text-sm">{apt.hospital_name}</p>
-                              <p className="text-sm text-gray-600">{format(new Date(apt.visit_date), "HH:mm")}</p>
-                              {apt.memo && (
-                                <p className="text-xs text-gray-500 mt-1">{apt.memo}</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+            {/* Appointments for selected date */}
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">
+                {selectedDate ? format(selectedDate, "MM월 dd일", { locale: ko }) : "오늘"} 병원 일정
+              </p>
+              {(() => {
+                const filtered = allAppointments.filter(
+                  (a) => new Date(a.visit_date).toDateString() === (selectedDate ?? new Date()).toDateString()
+                );
+                const isToday = (selectedDate ?? new Date()).toDateString() === new Date().toDateString();
+                return filtered.length > 0 ? (
+                  <div className="space-y-2">
+                    {filtered.map((apt) => (
+                      <div
+                        key={apt.id}
+                        className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-all ${
+                          checkedAppointments[apt.id]
+                            ? "bg-emerald-50 border-emerald-200"
+                            : "bg-white border-blue-100"
+                        }`}
+                      >
+                        <Hospital className={`size-4 mt-0.5 flex-shrink-0 ${checkedAppointments[apt.id] ? "text-emerald-600" : "text-blue-600"}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 text-sm">{apt.hospital_name}</p>
+                          <p className="text-xs text-gray-600">{format(new Date(apt.visit_date), "HH:mm")}</p>
+                        </div>
+                        {isToday && (
+                          <Checkbox
+                            checked={checkedAppointments[apt.id] || false}
+                            onCheckedChange={() =>
+                              setCheckedAppointments((prev) => ({ ...prev, [apt.id]: !prev[apt.id] }))
+                            }
+                          />
+                        )}
                       </div>
-                    ) : (
-                      <div className="flex-1 flex items-center justify-center">
-                        <p className="text-sm text-gray-400">예정된 일정이 없습니다.</p>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 text-center py-2">예정된 일정이 없습니다.</p>
+                );
+              })()}
             </div>
 
             {/* Today's Medications */}
@@ -311,24 +391,28 @@ export function Home() {
               {medications.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-2">복약 정보가 없습니다</p>
               ) : (
-                medications.map((med) => (
-                  <div
-                    key={med.id}
-                    className="flex items-center justify-between p-2 bg-white rounded border border-blue-100 mb-2"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Pill className="size-4 text-purple-600" />
-                      <div>
-                        <p className="text-sm font-medium">{med.name}</p>
-                        <p className="text-xs text-gray-500">{med.schedule}</p>
+                medications.map((med) =>
+                  med.times.map((time, idx) => (
+                    <div
+                      key={`${med.id}-${idx}`}
+                      className={`flex items-center justify-between p-2 rounded border mb-2 transition-all ${
+                        med.completedToday[idx] ? "bg-emerald-50 border-emerald-200" : "bg-white border-blue-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Pill className={`size-4 ${med.completedToday[idx] ? "text-emerald-600" : "text-purple-600"}`} />
+                        <div>
+                          <p className="text-sm font-medium">{med.name}</p>
+                          <p className="text-xs text-gray-500">{time}</p>
+                        </div>
                       </div>
+                      <Checkbox
+                        checked={med.completedToday[idx]}
+                        onCheckedChange={() => handleToggleTaken(med.id, idx)}
+                      />
                     </div>
-                    <Checkbox
-                      checked={med.taken_today}
-                      onCheckedChange={() => handleToggleTaken(med.id, med.taken_today)}
-                    />
-                  </div>
-                ))
+                  ))
+                )
               )}
             </div>
 

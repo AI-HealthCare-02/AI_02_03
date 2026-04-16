@@ -11,15 +11,15 @@ from alembic import op
 import sqlalchemy as sa
 
 revision: str = "561f979d7636"
-down_revision: Union[str, None] = "698ae63f53f9"
+down_revision: Union[str, None] = "68bc0f975eca"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("users", sa.Column("nickname", sa.String(length=20), nullable=True))
+    op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS nickname VARCHAR(20)")
     op.execute("UPDATE users SET nickname = email WHERE nickname IS NULL")
-    op.alter_column("users", "nickname", nullable=False)
+    op.execute("ALTER TABLE users ALTER COLUMN nickname SET NOT NULL")
 
 
 def downgrade() -> None:
