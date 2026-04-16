@@ -4,13 +4,13 @@ from app.apis.v1.activity_routers import activity_router
 from app.apis.v1.appointment_routers import router as appointment_router
 from app.apis.v1.auth_routers import auth_router
 from app.apis.v1.badge_routers import badge_router
-from app.apis.v1.reminder_routers import reminder_router
 from app.apis.v1.challenge_routers import challenge_router
 from app.apis.v1.daily_health_log_routers import daily_health_log_router
 from app.apis.v1.dashboard_routers import dashboard_router
 from app.apis.v1.medication_routers import medication_router
 from app.apis.v1.notification_routers import notification_router
 from app.apis.v1.prediction_routers import prediction_router
+from app.apis.v1.reminder_routers import reminder_router
 from app.apis.v1.survey_routers import survey_router
 from app.apis.v1.user_routers import user_router
 

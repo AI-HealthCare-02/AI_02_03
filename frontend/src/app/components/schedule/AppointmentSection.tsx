@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Calendar as CalendarIcon, Clock, Hospital, Plus, Check, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, Hospital, Plus, Check, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import type { Appointment } from "./types";

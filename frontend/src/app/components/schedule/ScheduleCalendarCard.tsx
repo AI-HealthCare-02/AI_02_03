@@ -1,7 +1,6 @@
 import { Calendar } from "../ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Checkbox } from "../ui/checkbox";
-import { Badge } from "../ui/badge";
 import { Calendar as CalendarIcon, Clock, Hospital, Pill } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
