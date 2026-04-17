@@ -111,7 +111,7 @@ async def get_suggested_challenges(
     user: Annotated[User, Depends(get_request_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
-    """다음 진료일 D-day 기반 막간 챌린지 추천 + LLM 개인화 이유 + 예상 배지"""
+    """LLM이 D-day·건강상태 기반으로 챌린지 자체를 생성, DB 저장 후 반환"""
     today = date.today().isoformat()
     cache_key = f"suggested:{user.id}:{today}"
     cached = await cache_get(cache_key)
@@ -144,7 +144,7 @@ async def get_suggested_challenges(
         }
         appt_context = f"{next_appt.hospital_name} D-{d_day}"
 
-    # 이미 참여 중인 챌린지 ID 제외
+    # 이미 참여 중인 챌린지 ID
     joined_result = await db.execute(
         select(UserChallenge.challenge_id).where(
             UserChallenge.user_id == user.id,
@@ -153,44 +153,35 @@ async def get_suggested_challenges(
     )
     joined_ids = {row[0] for row in joined_result.all()}
 
-    # D-day 기준 기간 필터 — 예약이 있으면 남은 일수 이하만, 없으면 전체
-    duration_filter = Challenge.duration_days <= d_day if d_day is not None else Challenge.duration_days > 0
-
-    challenges_result = await db.execute(
-        select(Challenge)
-        .where(
-            Challenge.is_custom == False,  # noqa: E712
-            duration_filter,
-            Challenge.id.notin_(joined_ids),
-        )
-        .order_by(Challenge.duration_days.desc())
-        .limit(5)
-    )
-    challenges = challenges_result.scalars().all()
-
     # 건강 점수 조회
     prediction_repo = PredictionRepository(db)
     predictions = await prediction_repo.get_by_user_id(user.id)
     health_context = f"{predictions[0].score:.1f}점 ({predictions[0].grade})" if predictions else "정보 없음"
 
-    # LLM: 각 챌린지별 개인화 이유 + 예상 배지 한 번에 생성
-    challenge_list = "\n".join(f"- id:{c.id} 이름:{c.name} 종류:{c.type} 기간:{c.duration_days}일" for c in challenges)
+    max_days = d_day if d_day is not None else 30
+    duration_hint = f"1~{max_days}일 사이" if max_days <= 7 else f"7~{min(max_days, 30)}일 사이"
+
     prompt = f"""당신은 지방간 환자의 건강 관리를 돕는 AI 코치입니다.
-아래 사용자 상황에 맞게 각 챌린지를 추천하는 이유와, 완료 시 받을 특별 배지를 만들어주세요.
+아래 사용자 상황에 딱 맞는 개인화 챌린지 3개를 직접 만들어주세요.
 
 [사용자 상황]
 - 건강 점수: {health_context}
 - 다음 병원 예약: {appt_context}
-- 현재 참여 챌린지 수: {len(joined_ids)}개
+- 현재 참여 중인 챌린지 수: {len(joined_ids)}개
+- 챌린지 가능 기간: {duration_hint} (진료일 전에 완료 가능한 기간)
 
-[추천 챌린지 목록]
-{challenge_list}
+각 챌린지는 지방간 개선에 도움이 되어야 하며, 가능한 기간 안에 완료할 수 있어야 합니다.
+type은 반드시 운동, 식단, 수면, 금주, 금연, 체중감량 중 하나여야 합니다.
 
-반드시 아래 JSON 배열 형식으로만 응답하세요. 챌린지 순서를 유지하고 다른 텍스트는 절대 포함하지 마세요.
+반드시 아래 JSON 배열 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
 [
   {{
-    "id": 챌린지id(정수),
-    "reason": "이 사용자에게 이 챌린지를 추천하는 구체적 이유 한 문장 (40자 이내)",
+    "name": "챌린지 이름 (20자 이내)",
+    "type": "운동|식단|수면|금주|금연|체중감량 중 하나",
+    "description": "챌린지 설명 (50자 이내)",
+    "duration_days": 숫자({max_days} 이하),
+    "required_logs": 숫자(duration_days 이하),
+    "reason": "이 사용자에게 추천하는 구체적 이유 한 문장 (40자 이내)",
     "preview_badge": {{
       "name": "완료 시 받을 배지 이름 (15자 이내)",
       "description": "배지 설명 (30자 이내)",
@@ -199,42 +190,63 @@ async def get_suggested_challenges(
   }}
 ]"""
 
-    llm_map: dict[int, dict] = {}
+    suggested = []
     try:
         client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
         resp = await client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=600,
+            max_tokens=800,
         )
         text = resp.choices[0].message.content.strip().replace("```json", "").replace("```", "").strip()
         items = json.loads(text)
-        llm_map = {item["id"]: item for item in items if "id" in item}
+
+        for item in items:
+            duration = min(int(item.get("duration_days", 7)), max_days)
+            required = min(int(item.get("required_logs", duration)), duration)
+
+            # 오늘 이미 동일 이름으로 생성된 챌린지가 있으면 재사용
+            existing = await db.execute(
+                select(Challenge).where(
+                    Challenge.name == item["name"],
+                    Challenge.created_by == user.id,
+                    Challenge.is_custom == True,  # noqa: E712
+                )
+            )
+            challenge = existing.scalar_one_or_none()
+            if not challenge:
+                challenge = Challenge(
+                    name=item["name"],
+                    type=item["type"],
+                    description=item.get("description", ""),
+                    duration_days=duration,
+                    required_logs=required,
+                    is_custom=True,
+                    created_by=user.id,
+                )
+                db.add(challenge)
+                await db.flush()
+                await db.refresh(challenge)
+
+            if challenge.id not in joined_ids:
+                suggested.append(
+                    {
+                        "id": challenge.id,
+                        "type": challenge.type,
+                        "name": challenge.name,
+                        "description": challenge.description,
+                        "duration_days": challenge.duration_days,
+                        "reason": item.get("reason", f"{duration}일 챌린지로 진료 전 건강을 챙겨보세요"),
+                        "preview_badge": item.get(
+                            "preview_badge",
+                            {"name": f"{challenge.name} 완료", "description": f"{duration}일 달성", "emoji": "🏆"},
+                        ),
+                    }
+                )
+
+        await db.commit()
     except Exception:
         pass
-
-    suggested = []
-    for c in challenges:
-        llm = llm_map.get(c.id, {})
-        suggested.append(
-            {
-                "id": c.id,
-                "type": c.type,
-                "name": c.name,
-                "description": c.description,
-                "duration_days": c.duration_days,
-                "reason": llm.get(
-                    "reason",
-                    f"진료 {d_day}일 전, {c.duration_days}일 챌린지로 딱 맞아요"
-                    if d_day is not None
-                    else f"{c.duration_days}일 챌린지로 시작해보세요",
-                ),
-                "preview_badge": llm.get(
-                    "preview_badge",
-                    {"name": f"{c.name} 완료", "description": f"{c.duration_days}일 챌린지 달성", "emoji": "🏆"},
-                ),
-            }
-        )
 
     result = {"next_appointment": next_appt_info, "suggested": suggested}
     await cache_set(cache_key, result, seconds_until_midnight())
