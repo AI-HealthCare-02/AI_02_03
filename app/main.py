@@ -11,7 +11,8 @@ from app.apis.v1 import v1_routers
 from app.core import config
 from app.db.databases import engine
 
-UPLOAD_DIR = Path("uploads")
+BASE_DIR = Path(__file__).resolve().parent.parent
+UPLOAD_DIR = BASE_DIR / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 (UPLOAD_DIR / "food").mkdir(exist_ok=True)
 
@@ -44,4 +45,4 @@ app.add_middleware(
 )
 
 app.include_router(v1_routers)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")

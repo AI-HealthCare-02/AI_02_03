@@ -18,7 +18,8 @@ from app.models.users import User
 
 food_router = APIRouter(prefix="/food", tags=["food"])
 
-UPLOAD_DIR = Path("uploads/food")
+UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent.parent / "uploads" / "food"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _calculate_rating(calories: int, fat: int, sugar: int) -> str:
