@@ -2,6 +2,7 @@ from app.models.appointment import Appointment
 from app.models.badges import UserBadge
 from app.models.challenges import Challenge, ChallengeLog, UserChallenge
 from app.models.daily_health_logs import DailyHealthLog
+from app.models.food_logs import FoodLog
 from app.models.health_surveys import HealthSurvey
 from app.models.medications import Medication
 from app.models.notification_settings import NotificationSetting
@@ -22,4 +23,5 @@ __all__ = [
     "DailyHealthLog",
     "UserBadge",
     "Reminder",
+    "FoodLog",
 ]

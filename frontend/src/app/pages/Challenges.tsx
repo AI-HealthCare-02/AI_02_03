@@ -48,6 +48,8 @@ interface DietResult {
   sugar: number;
   liver_impact: string;
   recommendation: string;
+  rating: string;
+  image_url: string;
 }
 
 interface CompleteResult {
@@ -341,10 +343,18 @@ export function Challenges() {
               <CardContent className="p-6 space-y-4">
                 {uploadedImage && <img src={uploadedImage} alt="Analyzed" className="w-full rounded-lg" />}
                 <div className="space-y-3">
-                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <Sparkles className="size-5 text-emerald-600" />
-                    분석 결과
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                      <Sparkles className="size-5 text-emerald-600" />
+                      분석 결과
+                    </h3>
+                    <Badge className={
+                      dietResult.rating === "훌륭함" ? "bg-emerald-100 text-emerald-700" :
+                      dietResult.rating === "좋음" ? "bg-blue-100 text-blue-700" :
+                      dietResult.rating === "보통" ? "bg-yellow-100 text-yellow-700" :
+                      "bg-red-100 text-red-700"
+                    }>{dietResult.rating}</Badge>
+                  </div>
                   <div className="p-4 bg-white rounded-lg border border-emerald-200">
                     <p className="text-sm text-gray-600 mb-1">음식</p>
                     <p className="font-bold text-gray-900">{dietResult.food_name}</p>

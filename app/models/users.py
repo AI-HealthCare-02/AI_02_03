@@ -29,3 +29,4 @@ class User(Base):
     daily_health_logs = relationship("DailyHealthLog", back_populates="user", cascade="all, delete-orphan")
     badges = relationship("UserBadge", back_populates="user", cascade="all, delete-orphan")
     reminders = relationship("Reminder", back_populates="user", cascade="all, delete-orphan")
+    food_logs = relationship("FoodLog", back_populates="user", cascade="all, delete-orphan")

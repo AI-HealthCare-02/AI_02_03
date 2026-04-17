@@ -52,3 +52,6 @@ class Config(BaseSettings):
 
     # Frontend base URL (for OAuth redirect)
     FRONTEND_BASE_URL: str = "http://localhost:5173"
+
+    # OpenAI
+    OPENAI_API_KEY: str = ""

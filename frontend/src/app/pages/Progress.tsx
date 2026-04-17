@@ -191,6 +191,10 @@ export function Progress() {
     api.get<{ key: string; name: string; description: string; emoji: string; earned: boolean }[]>("/api/v1/badges/me").then((r) => {
       setBadges(r.data);
     }).catch(() => {});
+
+    api.get<{ id: number; food_name: string; calories: number; liver_impact: string; recommendation: string; analyzed_at: string }[]>("/api/v1/food/me")
+      .then((r) => setRecentMeals(r.data))
+      .catch(() => {});
   }, []);
 
   const handleJoinChallenge = async (challengeId: number) => {
@@ -225,14 +229,18 @@ export function Progress() {
 
   const [badges, setBadges] = useState<{ key: string; name: string; description: string; emoji: string; earned: boolean }[]>([]);
 
-  // Recent meals
-  const [recentMeals] = useState([
-    { id: 1, date: "2024-04-09 점심", food: "닭가슴살 샐러드", calories: 350, rating: "좋음", image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop" },
-    { id: 2, date: "2024-04-09 아침", food: "그릭 요거트", calories: 180, rating: "훌륭함", image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&h=300&fit=crop" },
-    { id: 3, date: "2024-04-08 저녁", food: "현미밥과 구이", calories: 520, rating: "보통", image: "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=300&fit=crop" },
-    { id: 4, date: "2024-04-08 점심", food: "채소 볶음밥", calories: 420, rating: "좋음", image: "https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400&h=300&fit=crop" },
-    { id: 5, date: "2024-04-08 아침", food: "오트밀", calories: 250, rating: "훌륭함", image: "https://images.unsplash.com/photo-1517686469429-8bdb88b9f907?w=400&h=300&fit=crop" },
-  ]);
+  const [recentMeals, setRecentMeals] = useState<{
+    id: number;
+    food_name: string;
+    calories: number;
+    fat: number;
+    sugar: number;
+    liver_impact: string;
+    recommendation: string;
+    rating: string;
+    image_url: string | null;
+    analyzed_at: string;
+  }[]>([]);
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -595,21 +603,50 @@ export function Progress() {
         <TabsContent value="diet" className="space-y-4">
           <div className="space-y-3">
             <h4 className="font-bold text-gray-900">식단 기록</h4>
-            {recentMeals.map((meal) => (
-              <Card key={meal.id} className="border border-gray-200">
-                <CardContent className="p-4">
-                  <div className="flex gap-4">
-                    <img src={meal.image} alt={meal.food} className="size-24 rounded-lg object-cover flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-600 mb-1">{meal.date}</p>
-                      <p className="font-bold text-gray-900 mb-1">{meal.food}</p>
-                      <p className="text-sm text-gray-600 mb-2">{meal.calories} kcal</p>
-                      <Badge className="bg-emerald-100 text-emerald-700">{meal.rating}</Badge>
-                    </div>
-                  </div>
+            {recentMeals.length === 0 ? (
+              <Card className="border border-gray-200">
+                <CardContent className="p-12 text-center text-gray-500">
+                  <p className="text-sm">아직 분석된 식단이 없습니다</p>
+                  <p className="text-xs mt-1 text-gray-400">챌린지 탭의 식단 분석에서 사진을 업로드해보세요</p>
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              recentMeals.map((meal) => (
+                <Card key={meal.id} className="border border-gray-200">
+                  <CardContent className="p-4">
+                    <div className="flex gap-4">
+                      {meal.image_url && (
+                        <img
+                          src={`http://localhost:8000${meal.image_url}`}
+                          alt={meal.food_name}
+                          className="size-24 rounded-lg object-cover flex-shrink-0"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-1">
+                          <p className="font-bold text-gray-900">{meal.food_name}</p>
+                          <Badge className={
+                            meal.rating === "훌륭함" ? "bg-emerald-100 text-emerald-700 ml-2 flex-shrink-0" :
+                            meal.rating === "좋음" ? "bg-blue-100 text-blue-700 ml-2 flex-shrink-0" :
+                            meal.rating === "보통" ? "bg-yellow-100 text-yellow-700 ml-2 flex-shrink-0" :
+                            "bg-red-100 text-red-700 ml-2 flex-shrink-0"
+                          }>{meal.rating}</Badge>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-2">
+                          {new Date(meal.analyzed_at).toLocaleDateString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                        <div className="flex gap-2 flex-wrap mb-2">
+                          <Badge className="bg-orange-100 text-orange-700">{meal.calories} kcal</Badge>
+                          <Badge className="bg-blue-100 text-blue-700">지방 {meal.fat}g</Badge>
+                          <Badge className="bg-purple-100 text-purple-700">당 {meal.sugar}g</Badge>
+                        </div>
+                        <p className="text-xs text-gray-600 bg-emerald-50 rounded-lg p-2">{meal.liver_impact}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
 
