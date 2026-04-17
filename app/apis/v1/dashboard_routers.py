@@ -109,7 +109,7 @@ async def get_dashboard_message(
         comp_result = await db.execute(
             select(func.count(MedicationCompletion.id)).where(
                 MedicationCompletion.medication_id.in_(med_ids),
-                MedicationCompletion.completed_date == now.date(),
+                MedicationCompletion.log_date == now.date(),
             )
         )
         completion_count = comp_result.scalar() or 0
