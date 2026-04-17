@@ -255,8 +255,9 @@ async def get_suggested_challenges(
                 )
 
         await db.commit()
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("suggested challenges 생성 실패: %s", e)
 
     result = {"next_appointment": next_appt_info, "suggested": suggested}
     await cache_set(cache_key, result, seconds_until_midnight())
