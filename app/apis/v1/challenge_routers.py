@@ -153,24 +153,17 @@ async def get_suggested_challenges(
     )
     joined_ids = {row[0] for row in joined_result.all()}
 
-    # D-day 기준 기간 필터
-    if d_day is None:
-        target_days = [7, 14, 30]
-    elif d_day >= 14:
-        target_days = [14, 30]
-    elif d_day >= 7:
-        target_days = [7, 14]
-    else:
-        target_days = [3, 7]
+    # D-day 기준 기간 필터 — 예약이 있으면 남은 일수 이하만, 없으면 전체
+    duration_filter = Challenge.duration_days <= d_day if d_day is not None else Challenge.duration_days > 0
 
     challenges_result = await db.execute(
         select(Challenge)
         .where(
             Challenge.is_custom == False,  # noqa: E712
-            Challenge.duration_days.in_(target_days),
+            duration_filter,
             Challenge.id.notin_(joined_ids),
         )
-        .order_by(Challenge.duration_days.asc())
+        .order_by(Challenge.duration_days.desc())
         .limit(5)
     )
     challenges = challenges_result.scalars().all()
