@@ -36,9 +36,19 @@ import {
   toChallenge,
   ucToChallenge,
 } from "../types/challenges";
+import { foodService } from "../../services/food";
 
-type DietAnalysisState = "idle" | "loading" | "result";
+type DietAnalysisState = "idle" | "loading" | "result" | "error";
 type CompleteState = "idle" | "loading" | "done";
+
+interface DietResult {
+  food_name: string;
+  calories: number;
+  fat: number;
+  sugar: number;
+  liver_impact: string;
+  recommendation: string;
+}
 
 interface CompleteResult {
   score_before: number;
@@ -49,6 +59,8 @@ interface CompleteResult {
 export function Challenges() {
   const [dietState, setDietState] = useState<DietAnalysisState>("idle");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [dietResult, setDietResult] = useState<DietResult | null>(null);
   const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([]);
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
   const [completedChallenges, setCompletedChallenges] = useState<(Challenge & { completedAt?: string })[]>([]);
@@ -137,15 +149,30 @@ export function Challenges() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setUploadedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setUploadedImage(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
+    if (!uploadedFile) return;
     setDietState("loading");
-    setTimeout(() => setDietState("result"), 2000);
+    try {
+      const result = await foodService.analyze(uploadedFile);
+      setDietResult(result);
+      setDietState("result");
+    } catch {
+      setDietState("error");
+    }
+  };
+
+  const handleResetDiet = () => {
+    setDietState("idle");
+    setUploadedImage(null);
+    setUploadedFile(null);
+    setDietResult(null);
   };
 
   return (
@@ -309,7 +336,7 @@ export function Challenges() {
               </CardContent>
             </Card>
           )}
-          {dietState === "result" && (
+          {dietState === "result" && dietResult && (
             <Card className="border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white">
               <CardContent className="p-6 space-y-4">
                 {uploadedImage && <img src={uploadedImage} alt="Analyzed" className="w-full rounded-lg" />}
@@ -320,37 +347,43 @@ export function Challenges() {
                   </h3>
                   <div className="p-4 bg-white rounded-lg border border-emerald-200">
                     <p className="text-sm text-gray-600 mb-1">음식</p>
-                    <p className="font-bold text-gray-900">닭가슴살 샐러드, 현미밥</p>
+                    <p className="font-bold text-gray-900">{dietResult.food_name}</p>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="p-3 bg-white rounded-lg border border-gray-200 text-center">
                       <p className="text-xs text-gray-600 mb-1">칼로리</p>
-                      <p className="font-bold text-gray-900">420 kcal</p>
+                      <p className="font-bold text-gray-900">{dietResult.calories} kcal</p>
                     </div>
                     <div className="p-3 bg-white rounded-lg border border-gray-200 text-center">
                       <p className="text-xs text-gray-600 mb-1">지방</p>
-                      <p className="font-bold text-gray-900">12g</p>
+                      <p className="font-bold text-gray-900">{dietResult.fat}g</p>
                     </div>
                     <div className="p-3 bg-white rounded-lg border border-gray-200 text-center">
                       <p className="text-xs text-gray-600 mb-1">당</p>
-                      <p className="font-bold text-gray-900">8g</p>
+                      <p className="font-bold text-gray-900">{dietResult.sugar}g</p>
                     </div>
                   </div>
                   <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                    <p className="text-sm font-bold text-emerald-900 mb-1">✨ 한줄 평가</p>
-                    <p className="text-sm text-gray-700">훌륭한 선택입니다! 단백질과 식이섬유가 풍부한 건강한 식단이에요.</p>
+                    <p className="text-sm font-bold text-emerald-900 mb-1">✨ 지방간 영향</p>
+                    <p className="text-sm text-gray-700">{dietResult.liver_impact}</p>
                   </div>
                   <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm font-bold text-blue-900 mb-2">💡 행동 추천</p>
-                    <ul className="text-sm text-gray-700 space-y-1">
-                      <li>• 식후 20분 가벼운 산책을 추천해요</li>
-                      <li>• 물을 충분히 마셔주세요 (2컵 이상)</li>
-                    </ul>
+                    <p className="text-sm font-bold text-blue-900 mb-1">💡 건강 조언</p>
+                    <p className="text-sm text-gray-700">{dietResult.recommendation}</p>
                   </div>
                 </div>
-                <Button onClick={() => { setDietState("idle"); setUploadedImage(null); }} variant="outline" className="w-full">
+                <Button onClick={handleResetDiet} variant="outline" className="w-full">
                   다시 분석하기
                 </Button>
+              </CardContent>
+            </Card>
+          )}
+          {dietState === "error" && (
+            <Card className="border-2 border-red-200 bg-red-50">
+              <CardContent className="p-8 text-center space-y-4">
+                <p className="text-red-600 font-medium">분석 중 오류가 발생했습니다</p>
+                <p className="text-sm text-gray-600">이미지를 다시 업로드하거나 잠시 후 시도해주세요</p>
+                <Button onClick={handleResetDiet} variant="outline">다시 시도하기</Button>
               </CardContent>
             </Card>
           )}
