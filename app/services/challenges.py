@@ -210,7 +210,15 @@ class ChallengeService:
 
         from app.services.badges import BadgeService
 
-        await BadgeService(self._session).evaluate_and_grant(user.id)
+        badge_service = BadgeService(self._session)
+        await badge_service.evaluate_and_grant(user.id)
+        await badge_service.grant_ai_badge(
+            user_id=user.id,
+            challenge_name=uc.challenge.name,
+            challenge_type=uc.challenge.type,
+            duration_days=uc.challenge.duration_days,
+            completed_at=datetime.now(),
+        )
 
         detail = "챌린지를 완료하였습니다." + _MAINTENANCE_MESSAGES.get(uc.challenge.type, "")
         return ChallengeCompleteResponse(

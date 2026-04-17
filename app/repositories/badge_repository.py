@@ -27,6 +27,19 @@ class BadgeRepository:
         await self._session.refresh(badge)
         return badge
 
+    async def grant_ai_badge(self, user_id: int, badge_key: str, name: str, description: str, emoji: str) -> UserBadge:
+        badge = UserBadge(
+            user_id=user_id,
+            badge_key=badge_key,
+            badge_name=name,
+            badge_description=description,
+            badge_emoji=emoji,
+        )
+        self._session.add(badge)
+        await self._session.flush()
+        await self._session.refresh(badge)
+        return badge
+
     async def count_earned(self, user_id: int) -> int:
         result = await self._session.execute(select(UserBadge).where(UserBadge.user_id == user_id))
         return len(result.scalars().all())

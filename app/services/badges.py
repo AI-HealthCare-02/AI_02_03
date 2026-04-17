@@ -1,5 +1,10 @@
+import json
+from datetime import datetime
+
+from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import config
 from app.repositories.badge_repository import BadgeRepository
 from app.repositories.challenge_repository import ChallengeLogRepository, UserChallengeRepository
 
@@ -31,7 +36,8 @@ class BadgeService:
         earned_keys = {b.badge_key for b in earned}
         earned_at_map = {b.badge_key: b.earned_at for b in earned}
 
-        return [
+        # 정적 뱃지
+        result = [
             {
                 **defn,
                 "earned": defn["key"] in earned_keys,
@@ -39,6 +45,22 @@ class BadgeService:
             }
             for defn in BADGE_DEFINITIONS
         ]
+
+        # AI 동적 뱃지 (badge_key가 "ai_generated_"로 시작하는 것)
+        for badge in earned:
+            if badge.badge_key.startswith("ai_generated_"):
+                result.append(
+                    {
+                        "key": badge.badge_key,
+                        "name": badge.badge_name or "특별 뱃지",
+                        "description": badge.badge_description or "",
+                        "emoji": badge.badge_emoji or "🏆",
+                        "earned": True,
+                        "earned_at": badge.earned_at,
+                    }
+                )
+
+        return result
 
     async def get_earned_count(self, user_id: int) -> int:
         return await self.badge_repo.count_earned(user_id)
@@ -82,6 +104,57 @@ class BadgeService:
             newly_granted += await self._grant_if_new(user_id, "alcohol_complete")
 
         return newly_granted
+
+    async def grant_ai_badge(
+        self,
+        user_id: int,
+        challenge_name: str,
+        challenge_type: str,
+        duration_days: int,
+        completed_at: datetime,
+    ) -> dict | None:
+        """챌린지 완료 시 LLM으로 고유 뱃지 생성 (1회성, 캐싱 없음)"""
+        badge_key = f"ai_generated_{int(completed_at.timestamp())}"
+
+        client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
+        prompt = f"""당신은 건강 관리 앱의 뱃지 디자이너입니다.
+아래 챌린지를 완료한 사용자에게 줄 특별한 뱃지를 만들어주세요.
+
+- 챌린지 이름: {challenge_name}
+- 종류: {challenge_type}
+- 기간: {duration_days}일
+- 완료일: {completed_at.strftime("%Y-%m-%d")}
+
+반드시 아래 JSON 형식으로만 응답하세요.
+{{
+  "name": "뱃지 이름 (15자 이내)",
+  "description": "뱃지 설명 (30자 이내)",
+  "emoji": "어울리는 이모지 1개"
+}}"""
+
+        try:
+            resp = await client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=150,
+            )
+            text = resp.choices[0].message.content.strip().replace("```json", "").replace("```", "").strip()
+            data = json.loads(text)
+            badge = await self.badge_repo.grant_ai_badge(
+                user_id=user_id,
+                badge_key=badge_key,
+                name=data.get("name", challenge_name + " 완료"),
+                description=data.get("description", f"{duration_days}일 챌린지 달성"),
+                emoji=data.get("emoji", "🏆"),
+            )
+            return {
+                "key": badge.badge_key,
+                "name": badge.badge_name,
+                "description": badge.badge_description,
+                "emoji": badge.badge_emoji,
+            }
+        except Exception:
+            return None
 
     async def _grant_if_new(self, user_id: int, badge_key: str) -> list[str]:
         if not await self.badge_repo.exists(user_id, badge_key):
