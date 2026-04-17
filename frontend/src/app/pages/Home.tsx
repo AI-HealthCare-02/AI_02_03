@@ -207,7 +207,7 @@ export function Home() {
               <div className="relative">
                 <LiverCharacter healthScore={healthScore} />
                 {/* AI Speech Bubble */}
-                <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-64">
+                <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-80">
                   <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200 p-3 relative">
                     <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l-2 border-t-2 border-emerald-200 rotate-45"></div>
                     <p className="text-center text-sm font-medium text-gray-800">

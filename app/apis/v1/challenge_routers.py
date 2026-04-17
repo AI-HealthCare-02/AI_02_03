@@ -15,6 +15,7 @@ from app.dtos.challenges import ChallengeLogRequest, CustomChallengeCreateReques
 from app.models.appointment import Appointment
 from app.models.badges import UserBadge
 from app.models.challenges import Challenge, UserChallenge
+from app.models.food_logs import FoodLog
 from app.models.users import User
 from app.repositories.prediction_repository import PredictionRepository
 from app.services.challenges import ChallengeService
@@ -159,6 +160,19 @@ async def get_suggested_challenges(
     predictions = await prediction_repo.get_by_user_id(user.id)
     health_context = f"{predictions[0].score:.1f}점 ({predictions[0].grade})" if predictions else "정보 없음"
 
+    # 최근 식단 로그 조회 (최대 5개)
+    food_result = await db.execute(
+        select(FoodLog)
+        .where(FoodLog.user_id == user.id)
+        .order_by(FoodLog.analyzed_at.desc())
+        .limit(5)
+    )
+    recent_foods = food_result.scalars().all()
+    food_context = (
+        ", ".join(f"{f.food_name}({f.rating})" for f in recent_foods)
+        if recent_foods else "없음"
+    )
+
     # 이미 획득한 AI 배지 이름 집합
     earned_badge_result = await db.execute(
         select(UserBadge.badge_name).where(
@@ -176,12 +190,19 @@ async def get_suggested_challenges(
 [사용자 상황]
 - 건강 점수: {health_context}
 - 다음 병원 예약: {appt_context}
+- 최근 먹은 음식: {food_context}
 - 현재 참여 중인 챌린지 수: {len(joined_ids)}개
 
 [중요 제약 — 반드시 지킬 것]
 - duration_days는 절대로 {max_days}를 초과하면 안 됩니다.
 - required_logs는 duration_days 이하여야 합니다.
 - type은 반드시 운동, 식단, 수면, 금주, 금연, 체중감량 중 하나여야 합니다.
+- 최근 먹은 음식 중 '주의' 등급이 있으면 해당 식품을 줄이는 식단 챌린지를 반드시 포함하세요.
+
+[배지 이름 기준]
+- duration_days 7일 이하: 평범하고 소박한 이름 (예: 건강한 선택, 첫 발걸음, 잘했어요)
+- duration_days 8~20일: 보통 수준 이름 (예: 꾸준한 실천, 한 걸음 더)
+- duration_days 21일 이상: 멋진 이름 허용 (예: 습관의 달인, 건강 챔피언)
 
 반드시 아래 JSON 배열 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
 [
