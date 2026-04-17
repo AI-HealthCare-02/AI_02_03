@@ -4,7 +4,7 @@ from httpx import AsyncClient
 # ================================================================
 # 테스트 실행 방법:
 # 1. pip install httpx pytest pytest-asyncio
-# 2. pytest tests/test_all.py -s -v
+# 2. pytest app/tests/test_all.py -s -v
 # ================================================================
 
 BASE_URL = "http://test"
@@ -13,13 +13,14 @@ BASE_URL = "http://test"
 # 🔐 AUTH (인증)
 # ================================================================
 
-
 @pytest.mark.asyncio
 async def test_signup_success(client: AsyncClient):
     """✅ 회원가입 성공"""
-    response = await client.post(
-        "/api/v1/auth/signup", json={"email": "testuser@example.com", "password": "Test1234!", "nickname": "테스터"}
-    )
+    response = await client.post("/api/v1/auth/signup", json={
+        "email": "testuser@example.com",
+        "password": "Test1234!",
+        "nickname": "테스터"
+    })
     print("✅ 회원가입 성공:", response.status_code, response.json())
     assert response.status_code == 201
 
@@ -27,12 +28,16 @@ async def test_signup_success(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_signup_duplicate_email(client: AsyncClient):
     """❌ 회원가입 실패 - 중복 이메일"""
-    await client.post(
-        "/api/v1/auth/signup", json={"email": "dup@example.com", "password": "Test1234!", "nickname": "중복유저"}
-    )
-    response = await client.post(
-        "/api/v1/auth/signup", json={"email": "dup@example.com", "password": "Test1234!", "nickname": "중복유저2"}
-    )
+    await client.post("/api/v1/auth/signup", json={
+        "email": "dup@example.com",
+        "password": "Test1234!",
+        "nickname": "중복유저"
+    })
+    response = await client.post("/api/v1/auth/signup", json={
+        "email": "dup@example.com",
+        "password": "Test1234!",
+        "nickname": "중복유저2"
+    })
     print("❌ 중복 이메일:", response.status_code, response.json())
     assert response.status_code in [409, 400]
 
@@ -40,10 +45,15 @@ async def test_signup_duplicate_email(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_login_success(client: AsyncClient):
     """✅ 로그인 성공"""
-    await client.post(
-        "/api/v1/auth/signup", json={"email": "login@example.com", "password": "Test1234!", "nickname": "로그인유저"}
-    )
-    response = await client.post("/api/v1/auth/login", json={"email": "login@example.com", "password": "Test1234!"})
+    await client.post("/api/v1/auth/signup", json={
+        "email": "login@example.com",
+        "password": "Test1234!",
+        "nickname": "로그인유저"
+    })
+    response = await client.post("/api/v1/auth/login", json={
+        "email": "login@example.com",
+        "password": "Test1234!"
+    })
     print("✅ 로그인 성공:", response.status_code, response.json())
     assert response.status_code == 200
     assert "access_token" in response.json()
@@ -52,9 +62,10 @@ async def test_login_success(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_login_wrong_password(client: AsyncClient):
     """❌ 로그인 실패 - 비밀번호 오류"""
-    response = await client.post(
-        "/api/v1/auth/login", json={"email": "login@example.com", "password": "WrongPassword!"}
-    )
+    response = await client.post("/api/v1/auth/login", json={
+        "email": "login@example.com",
+        "password": "WrongPassword!"
+    })
     print("❌ 비밀번호 오류:", response.status_code, response.json())
     assert response.status_code in [400, 401]
 
@@ -70,9 +81,11 @@ async def test_check_email_available(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_check_nickname_duplicate(client: AsyncClient):
     """❌ 닉네임 중복 확인 - 이미 사용중"""
-    await client.post(
-        "/api/v1/auth/signup", json={"email": "nick@example.com", "password": "Test1234!", "nickname": "중복닉네임"}
-    )
+    await client.post("/api/v1/auth/signup", json={
+        "email": "nick@example.com",
+        "password": "Test1234!",
+        "nickname": "중복닉네임"
+    })
     response = await client.get("/api/v1/auth/check-nickname?nickname=중복닉네임")
     print("❌ 닉네임 중복:", response.status_code, response.json())
     assert response.status_code == 409
@@ -98,13 +111,17 @@ async def test_token_refresh_no_cookie(client: AsyncClient):
 # 👤 USER (유저)
 # ================================================================
 
-
 async def get_token(client: AsyncClient) -> str:
     """테스트용 토큰 발급 헬퍼"""
-    await client.post(
-        "/api/v1/auth/signup", json={"email": "helper@example.com", "password": "Test1234!", "nickname": "헬퍼유저"}
-    )
-    response = await client.post("/api/v1/auth/login", json={"email": "helper@example.com", "password": "Test1234!"})
+    await client.post("/api/v1/auth/signup", json={
+        "email": "helper@example.com",
+        "password": "Test1234!",
+        "nickname": "헬퍼유저"
+    })
+    response = await client.post("/api/v1/auth/login", json={
+        "email": "helper@example.com",
+        "password": "Test1234!"
+    })
     return response.json().get("access_token", "")
 
 
@@ -112,7 +129,10 @@ async def get_token(client: AsyncClient) -> str:
 async def test_get_my_user_info(client: AsyncClient):
     """✅ 내 유저 정보 조회"""
     token = await get_token(client)
-    response = await client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("✅ 내 정보 조회:", response.status_code, response.json())
     assert response.status_code == 200
 
@@ -130,7 +150,9 @@ async def test_update_user_info(client: AsyncClient):
     """✅ 유저 정보 수정"""
     token = await get_token(client)
     response = await client.patch(
-        "/api/v1/users/me", headers={"Authorization": f"Bearer {token}"}, json={"nickname": "수정된닉네임"}
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"nickname": "수정된닉네임"}
     )
     print("✅ 유저 정보 수정:", response.status_code, response.json())
     assert response.status_code == 200
@@ -140,7 +162,6 @@ async def test_update_user_info(client: AsyncClient):
 # 📅 APPOINTMENT (진료 예약)
 # ================================================================
 
-
 @pytest.mark.asyncio
 async def test_create_appointment_success(client: AsyncClient):
     """✅ 진료 예약 생성 성공"""
@@ -148,7 +169,11 @@ async def test_create_appointment_success(client: AsyncClient):
     response = await client.post(
         "/api/v1/appointments",
         headers={"Authorization": f"Bearer {token}"},
-        json={"hospital_name": "서울병원", "visit_date": "2025-06-01T10:00:00", "memo": "정기검진"},
+        json={
+            "hospital_name": "서울병원",
+            "visit_date": "2025-06-01T10:00:00",
+            "memo": "정기검진"
+        }
     )
     print("✅ 예약 생성:", response.status_code, response.json())
     assert response.status_code == 201
@@ -158,7 +183,10 @@ async def test_create_appointment_success(client: AsyncClient):
 async def test_get_my_appointments(client: AsyncClient):
     """✅ 내 예약 목록 조회"""
     token = await get_token(client)
-    response = await client.get("/api/v1/appointments/me", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get(
+        "/api/v1/appointments/me",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("✅ 예약 목록:", response.status_code, response.json())
     assert response.status_code == 200
 
@@ -167,7 +195,10 @@ async def test_get_my_appointments(client: AsyncClient):
 async def test_delete_appointment_not_found(client: AsyncClient):
     """❌ 예약 삭제 실패 - 존재하지 않는 예약"""
     token = await get_token(client)
-    response = await client.delete("/api/v1/appointments/99999", headers={"Authorization": f"Bearer {token}"})
+    response = await client.delete(
+        "/api/v1/appointments/99999",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("❌ 예약 없음:", response.status_code, response.json())
     assert response.status_code == 404
 
@@ -176,12 +207,14 @@ async def test_delete_appointment_not_found(client: AsyncClient):
 # 🏆 BADGE (뱃지)
 # ================================================================
 
-
 @pytest.mark.asyncio
 async def test_get_my_badges(client: AsyncClient):
     """✅ 내 뱃지 목록 조회"""
     token = await get_token(client)
-    response = await client.get("/api/v1/badges/me", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get(
+        "/api/v1/badges/me",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("✅ 뱃지 목록:", response.status_code, response.json())
     assert response.status_code == 200
 
@@ -190,7 +223,10 @@ async def test_get_my_badges(client: AsyncClient):
 async def test_get_my_badge_count(client: AsyncClient):
     """✅ 내 뱃지 개수 조회"""
     token = await get_token(client)
-    response = await client.get("/api/v1/badges/me/count", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get(
+        "/api/v1/badges/me/count",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("✅ 뱃지 개수:", response.status_code, response.json())
     assert response.status_code == 200
 
@@ -199,12 +235,14 @@ async def test_get_my_badge_count(client: AsyncClient):
 # 🎯 CHALLENGE (챌린지)
 # ================================================================
 
-
 @pytest.mark.asyncio
 async def test_get_challenges(client: AsyncClient):
     """✅ 챌린지 목록 조회"""
     token = await get_token(client)
-    response = await client.get("/api/v1/challenges", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get(
+        "/api/v1/challenges",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("✅ 챌린지 목록:", response.status_code, response.json())
     assert response.status_code == 200
 
@@ -213,7 +251,10 @@ async def test_get_challenges(client: AsyncClient):
 async def test_join_challenge_not_found(client: AsyncClient):
     """❌ 챌린지 참여 실패 - 없는 챌린지"""
     token = await get_token(client)
-    response = await client.post("/api/v1/challenges/99999/join", headers={"Authorization": f"Bearer {token}"})
+    response = await client.post(
+        "/api/v1/challenges/99999/join",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("❌ 챌린지 없음:", response.status_code, response.json())
     assert response.status_code == 404
 
@@ -225,7 +266,7 @@ async def test_create_custom_challenge(client: AsyncClient):
     response = await client.post(
         "/api/v1/challenges/custom",
         headers={"Authorization": f"Bearer {token}"},
-        json={"title": "매일 물 2L 마시기", "description": "건강을 위해!", "category": "건강", "duration_days": 30},
+        json={"title": "매일 물 2L 마시기", "description": "건강을 위해!", "category": "건강", "duration_days": 30}
     )
     print("✅ 커스텀 챌린지 생성:", response.status_code, response.json())
     assert response.status_code == 201
@@ -235,13 +276,13 @@ async def test_create_custom_challenge(client: AsyncClient):
 # 📋 HEALTH LOG (건강 로그)
 # ================================================================
 
-
 @pytest.mark.asyncio
 async def test_get_my_health_logs(client: AsyncClient):
     """✅ 건강 로그 조회"""
     token = await get_token(client)
     response = await client.get(
-        "/api/v1/health-logs/me?year=2025&month=5", headers={"Authorization": f"Bearer {token}"}
+        "/api/v1/health-logs/me?year=2025&month=5",
+        headers={"Authorization": f"Bearer {token}"}
     )
     print("✅ 건강 로그 조회:", response.status_code, response.json())
     assert response.status_code == 200
@@ -252,7 +293,8 @@ async def test_get_health_logs_invalid_month(client: AsyncClient):
     """❌ 건강 로그 조회 실패 - 잘못된 month 값"""
     token = await get_token(client)
     response = await client.get(
-        "/api/v1/health-logs/me?year=2025&month=13", headers={"Authorization": f"Bearer {token}"}
+        "/api/v1/health-logs/me?year=2025&month=13",
+        headers={"Authorization": f"Bearer {token}"}
     )
     print("❌ 잘못된 month:", response.status_code, response.json())
     assert response.status_code == 422
@@ -270,8 +312,8 @@ async def test_upsert_health_log(client: AsyncClient):
             "weight": 70.5,
             "exercise_duration": 30,
             "alcohol_amount": 0,
-            "smoking_amount": 0,
-        },
+            "smoking_amount": 0
+        }
     )
     print("✅ 건강 로그 저장:", response.status_code, response.json())
     assert response.status_code == 200
@@ -281,7 +323,6 @@ async def test_upsert_health_log(client: AsyncClient):
 # 💊 MEDICATION (복약)
 # ================================================================
 
-
 @pytest.mark.asyncio
 async def test_create_medication(client: AsyncClient):
     """✅ 복약 정보 생성"""
@@ -289,7 +330,7 @@ async def test_create_medication(client: AsyncClient):
     response = await client.post(
         "/api/v1/medications",
         headers={"Authorization": f"Bearer {token}"},
-        json={"name": "혈압약", "dosage": "1정", "times": ["08:00"]},
+        json={"name": "혈압약", "dosage": "1정", "schedule": "아침"}
     )
     print("✅ 복약 생성:", response.status_code, response.json())
     assert response.status_code == 201
@@ -299,7 +340,10 @@ async def test_create_medication(client: AsyncClient):
 async def test_get_my_medications(client: AsyncClient):
     """✅ 내 복약 목록 조회"""
     token = await get_token(client)
-    response = await client.get("/api/v1/medications/me", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get(
+        "/api/v1/medications/me",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("✅ 복약 목록:", response.status_code, response.json())
     assert response.status_code == 200
 
@@ -308,7 +352,10 @@ async def test_get_my_medications(client: AsyncClient):
 async def test_delete_medication_not_found(client: AsyncClient):
     """❌ 복약 삭제 실패 - 없는 복약"""
     token = await get_token(client)
-    response = await client.delete("/api/v1/medications/99999", headers={"Authorization": f"Bearer {token}"})
+    response = await client.delete(
+        "/api/v1/medications/99999",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("❌ 복약 없음:", response.status_code, response.json())
     assert response.status_code == 404
 
@@ -317,12 +364,14 @@ async def test_delete_medication_not_found(client: AsyncClient):
 # 🔔 NOTIFICATION (알림)
 # ================================================================
 
-
 @pytest.mark.asyncio
 async def test_get_notification_settings(client: AsyncClient):
     """✅ 알림 설정 조회"""
     token = await get_token(client)
-    response = await client.get("/api/v1/notifications/settings", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get(
+        "/api/v1/notifications/settings",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("✅ 알림 설정:", response.status_code, response.json())
     assert response.status_code == 200
 
@@ -334,7 +383,7 @@ async def test_update_notification_settings(client: AsyncClient):
     response = await client.put(
         "/api/v1/notifications/settings",
         headers={"Authorization": f"Bearer {token}"},
-        json={"push_enabled": True, "email_enabled": False},
+        json={"push_enabled": True, "email_enabled": False}
     )
     print("✅ 알림 설정 수정:", response.status_code, response.json())
     assert response.status_code == 200
@@ -343,7 +392,6 @@ async def test_update_notification_settings(client: AsyncClient):
 # ================================================================
 # 📊 SURVEY (설문)
 # ================================================================
-
 
 @pytest.mark.asyncio
 async def test_create_survey(client: AsyncClient):
@@ -369,8 +417,8 @@ async def test_create_survey(client: AsyncClient):
             "sleep_disorder": "없음",
             "diet_questions": [1, 1, 1, 1, 1, 1, 1],
             "diabetes": "없음",
-            "hypertension": "없음",
-        },
+            "hypertension": "없음"
+        }
     )
     print("✅ 설문 생성:", response.status_code, response.json())
     assert response.status_code == 201
@@ -380,7 +428,10 @@ async def test_create_survey(client: AsyncClient):
 async def test_get_my_survey(client: AsyncClient):
     """✅ 내 설문 조회"""
     token = await get_token(client)
-    response = await client.get("/api/v1/surveys/me", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get(
+        "/api/v1/surveys/me",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("✅ 설문 조회:", response.status_code, response.json())
     assert response.status_code in [200, 404]
 
@@ -389,12 +440,14 @@ async def test_get_my_survey(client: AsyncClient):
 # 🤖 PREDICTION (예측)
 # ================================================================
 
-
 @pytest.mark.asyncio
 async def test_create_prediction_no_survey(client: AsyncClient):
     """❌ 예측 생성 실패 - 설문 없음"""
     token = await get_token(client)
-    response = await client.post("/api/v1/predictions", headers={"Authorization": f"Bearer {token}"})
+    response = await client.post(
+        "/api/v1/predictions",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("❌ 설문 없어 예측 불가:", response.status_code, response.json())
     assert response.status_code in [400, 404]
 
@@ -403,7 +456,10 @@ async def test_create_prediction_no_survey(client: AsyncClient):
 async def test_get_my_predictions(client: AsyncClient):
     """✅ 내 예측 목록 조회"""
     token = await get_token(client)
-    response = await client.get("/api/v1/predictions/me", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get(
+        "/api/v1/predictions/me",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("✅ 예측 목록:", response.status_code, response.json())
     assert response.status_code == 200
 
@@ -412,12 +468,14 @@ async def test_get_my_predictions(client: AsyncClient):
 # 📈 ACTIVITY (활동)
 # ================================================================
 
-
 @pytest.mark.asyncio
 async def test_get_my_activity(client: AsyncClient):
     """✅ 내 활동 조회"""
     token = await get_token(client)
-    response = await client.get("/api/v1/activity/me", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get(
+        "/api/v1/activity/me",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("✅ 활동 조회:", response.status_code, response.json())
     assert response.status_code == 200
 
@@ -426,11 +484,13 @@ async def test_get_my_activity(client: AsyncClient):
 # 🏠 DASHBOARD (대시보드)
 # ================================================================
 
-
 @pytest.mark.asyncio
 async def test_get_dashboard_no_prediction(client: AsyncClient):
     """❌ 대시보드 조회 실패 - 예측 없음"""
     token = await get_token(client)
-    response = await client.get("/api/v1/dashboard", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get(
+        "/api/v1/dashboard",
+        headers={"Authorization": f"Bearer {token}"}
+    )
     print("❌ 예측 없어 대시보드 불가:", response.status_code, response.json())
     assert response.status_code == 404
