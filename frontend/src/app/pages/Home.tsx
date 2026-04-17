@@ -79,6 +79,7 @@ export function Home() {
   const [activeChallenges, setActiveChallenges] = useState<UserChallenge[]>([]);
   const [earnedBadgeCount, setEarnedBadgeCount] = useState(0);
   const [completeTarget, setCompleteTarget] = useState<UserChallenge | null>(null);
+  const [aiMessage, setAiMessage] = useState<{ message: string; challenge_reason: string | null } | null>(null);
 
   useEffect(() => {
     api.get<Appointment[]>("/api/v1/appointments/me").then((r) => {
@@ -115,6 +116,10 @@ export function Home() {
     api.get<{ earned_count: number }>("/api/v1/badges/me/count").then((r) => {
       setEarnedBadgeCount(r.data.earned_count);
     }).catch(() => {});
+
+    api.get<{ message: string; challenge_reason: string | null }>("/api/v1/dashboard/message")
+      .then((r) => setAiMessage(r.data))
+      .catch(() => {});
   }, []);
 
   const handleCompleteChallenge = async () => {
@@ -194,11 +199,13 @@ export function Home() {
                   <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200 p-3 relative">
                     <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l-2 border-t-2 border-emerald-200 rotate-45"></div>
                     <p className="text-center text-sm font-medium text-gray-800">
-                      오늘도 챌린지를 완료해보세요! 💪
+                      {aiMessage?.message ?? "오늘도 건강한 하루를 만들어가요! 💪"}
                     </p>
-                    <p className="text-center text-xs text-gray-600 mt-1">
-                      건강 습관을 더 신경 써주세요!
-                    </p>
+                    {aiMessage?.challenge_reason && (
+                      <p className="text-center text-xs text-gray-500 mt-1">
+                        {aiMessage.challenge_reason}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
