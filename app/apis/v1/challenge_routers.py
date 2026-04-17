@@ -13,6 +13,7 @@ from app.db.databases import get_db
 from app.dependencies.security import get_request_user
 from app.dtos.challenges import ChallengeLogRequest, CustomChallengeCreateRequest, MaintenanceCheckinRequest
 from app.models.appointment import Appointment
+from app.models.badges import UserBadge
 from app.models.challenges import Challenge, UserChallenge
 from app.models.users import User
 from app.repositories.prediction_repository import PredictionRepository
@@ -158,6 +159,15 @@ async def get_suggested_challenges(
     predictions = await prediction_repo.get_by_user_id(user.id)
     health_context = f"{predictions[0].score:.1f}점 ({predictions[0].grade})" if predictions else "정보 없음"
 
+    # 이미 획득한 AI 배지 이름 집합
+    earned_badge_result = await db.execute(
+        select(UserBadge.badge_name).where(
+            UserBadge.user_id == user.id,
+            UserBadge.badge_name.isnot(None),
+        )
+    )
+    earned_badge_names = {row[0] for row in earned_badge_result.all()}
+
     max_days = d_day if d_day is not None else 30
 
     prompt = f"""당신은 지방간 환자의 건강 관리를 돕는 AI 코치입니다.
@@ -229,6 +239,9 @@ async def get_suggested_challenges(
                 await db.refresh(challenge)
 
             if challenge.id not in joined_ids:
+                raw_badge = item.get("preview_badge")
+                if raw_badge and raw_badge.get("name") in earned_badge_names:
+                    raw_badge = None
                 suggested.append(
                     {
                         "id": challenge.id,
@@ -237,10 +250,7 @@ async def get_suggested_challenges(
                         "description": challenge.description,
                         "duration_days": challenge.duration_days,
                         "reason": item.get("reason", f"{duration}일 챌린지로 진료 전 건강을 챙겨보세요"),
-                        "preview_badge": item.get(
-                            "preview_badge",
-                            {"name": f"{challenge.name} 완료", "description": f"{duration}일 달성", "emoji": "🏆"},
-                        ),
+                        "preview_badge": raw_badge,
                     }
                 )
 

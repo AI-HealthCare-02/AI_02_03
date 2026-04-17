@@ -85,7 +85,7 @@ export function Challenges() {
     description: string;
     duration_days: number;
     reason: string;
-    preview_badge: { name: string; description: string; emoji: string };
+    preview_badge: { name: string; description: string; emoji: string } | null;
   }
   const [suggested, setSuggested] = useState<SuggestedChallenge[]>([]);
   const [nextAppt, setNextAppt] = useState<{ hospital_name: string; d_day: number } | null>(null);
@@ -291,14 +291,16 @@ export function Challenges() {
                         <Badge className="bg-emerald-100 text-emerald-700 flex-shrink-0">{c.duration_days}일</Badge>
                       </div>
                       <p className="text-sm text-amber-700 bg-amber-50 rounded-lg p-2">{c.reason}</p>
-                      <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-amber-100">
-                        <span className="text-xl">{c.preview_badge.emoji}</span>
-                        <div>
-                          <p className="text-xs font-bold text-gray-800">{c.preview_badge.name}</p>
-                          <p className="text-xs text-gray-500">{c.preview_badge.description}</p>
+                      {c.preview_badge && (
+                        <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-amber-100">
+                          <span className="text-xl">{c.preview_badge.emoji}</span>
+                          <div>
+                            <p className="text-xs font-bold text-gray-800">{c.preview_badge.name}</p>
+                            <p className="text-xs text-gray-500">{c.preview_badge.description}</p>
+                          </div>
+                          <Badge className="ml-auto bg-gray-100 text-gray-500 text-xs">완료 시 획득</Badge>
                         </div>
-                        <Badge className="ml-auto bg-gray-100 text-gray-500 text-xs">완료 시 획득</Badge>
-                      </div>
+                      )}
                       <Button
                         size="sm"
                         className="w-full bg-amber-500 hover:bg-amber-600 text-white"
