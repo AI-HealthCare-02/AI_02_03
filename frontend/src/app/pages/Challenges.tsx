@@ -68,6 +68,7 @@ export function Challenges() {
   const [completedChallenges, setCompletedChallenges] = useState<(Challenge & { completedAt?: string })[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<string>("전체");
   const [joining, setJoining] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState("active");
 
   // 참여 확인 다이얼로그
   const [joinTarget, setJoinTarget] = useState<Challenge | null>(null);
@@ -135,8 +136,10 @@ export function Challenges() {
     try {
       await api.post(`/api/v1/challenges/${joinTarget.id}/join`);
       await fetchActiveChallenges();
-    } catch {
-      // 이미 참여 중이거나 오류
+      setActiveTab("active");
+    } catch (e) {
+      console.error("참여 실패:", e);
+      alert("참여에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setJoining(null);
       setJoinTarget(null);
@@ -163,6 +166,7 @@ export function Challenges() {
       setCompleteResult(r.data);
       setCompleteState("done");
       await fetchActiveChallenges();
+      await fetchCompletedChallenges();
     } catch {
       setCompleteState("idle");
       setCompleteTarget(null);
@@ -213,7 +217,7 @@ export function Challenges() {
         </Link>
       </div>
 
-      <Tabs defaultValue="active" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="active" className="gap-1 text-xs sm:text-sm">
             <Activity className="size-4" />

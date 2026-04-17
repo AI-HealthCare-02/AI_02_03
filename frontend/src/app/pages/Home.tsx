@@ -122,6 +122,18 @@ export function Home() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const refreshChallenges = () => {
+      if (document.visibilityState === "visible") {
+        api.get<UserChallenge[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } })
+          .then((r) => setActiveChallenges(r.data))
+          .catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", refreshChallenges);
+    return () => document.removeEventListener("visibilitychange", refreshChallenges);
+  }, []);
+
   const handleCompleteChallenge = async () => {
     if (!completeTarget) return;
     try {
