@@ -162,16 +162,10 @@ async def get_suggested_challenges(
 
     # 최근 식단 로그 조회 (최대 5개)
     food_result = await db.execute(
-        select(FoodLog)
-        .where(FoodLog.user_id == user.id)
-        .order_by(FoodLog.analyzed_at.desc())
-        .limit(5)
+        select(FoodLog).where(FoodLog.user_id == user.id).order_by(FoodLog.analyzed_at.desc()).limit(5)
     )
     recent_foods = food_result.scalars().all()
-    food_context = (
-        ", ".join(f"{f.food_name}({f.rating})" for f in recent_foods)
-        if recent_foods else "없음"
-    )
+    food_context = ", ".join(f"{f.food_name}({f.rating})" for f in recent_foods) if recent_foods else "없음"
 
     # 이미 획득한 AI 배지 이름 집합
     earned_badge_result = await db.execute(
@@ -278,6 +272,7 @@ async def get_suggested_challenges(
         await db.commit()
     except Exception as e:
         import logging
+
         logging.getLogger(__name__).exception("suggested challenges 생성 실패: %s", e)
 
     result = {"next_appointment": next_appt_info, "suggested": suggested}

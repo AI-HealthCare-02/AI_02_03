@@ -44,10 +44,7 @@ def upgrade() -> None:
 
     # user_badges 레거시 인덱스 삭제
     existing_indexes = {
-        row[0]
-        for row in conn.execute(
-            sa.text("SELECT indexname FROM pg_indexes WHERE tablename='user_badges'")
-        )
+        row[0] for row in conn.execute(sa.text("SELECT indexname FROM pg_indexes WHERE tablename='user_badges'"))
     }
     if "ix_user_badges_user_id" in existing_indexes:
         op.drop_index("ix_user_badges_user_id", table_name="user_badges")
