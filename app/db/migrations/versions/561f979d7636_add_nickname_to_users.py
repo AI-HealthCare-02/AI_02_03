@@ -24,3 +24,22 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_column("users", "nickname")
+
+def upgrade() -> None:
+    # 이미 컬럼이 있으면 건너뜀
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name='users' AND column_name='nickname'
+            ) THEN
+                ALTER TABLE users ADD COLUMN nickname VARCHAR(20);
+                UPDATE users SET nickname = email WHERE nickname IS NULL;
+                ALTER TABLE users ALTER COLUMN nickname SET NOT NULL;
+            END IF;
+        END $$;
+    """)
+
+def downgrade() -> None:
+    op.drop_column("users", "nickname")

@@ -30,6 +30,13 @@ class NotificationSetting(Base):
     alcohol_warning: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     immediate_risk_alert: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     challenge_fail_warning: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # 추가할 컬럼들
+    push_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    appointment_reminder: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    weekly_report: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    challenge_reminder: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    daily_action_reminder: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    goal_achievement_alert: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.now, onupdate=datetime.now, nullable=False
