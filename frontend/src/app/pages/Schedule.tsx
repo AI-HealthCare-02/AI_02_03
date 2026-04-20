@@ -178,7 +178,7 @@ export function Schedule() {
             times: med.times,
             completedByDate: {
               ...(existing?.completedByDate ?? {}),
-              [dateKey]: med.times.map((_, idx) => completions[idx] ?? false),
+              [dateKey]: med.times.map((_, idx) => completions[String(idx)] ?? false),
             },
           };
         });
@@ -538,7 +538,7 @@ export function Schedule() {
         await createReminder({
           type: "medication",
           title: `${trimmedName} 복약 알림`,
-          datetime: `${dateStr} ${time}`,
+          datetime: `${dateStr}T${time}:00`,
           enabled: true,
         });
       }
