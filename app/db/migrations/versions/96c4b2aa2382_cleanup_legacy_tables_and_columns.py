@@ -30,7 +30,15 @@ def upgrade() -> None:
             sa.text("SELECT column_name FROM information_schema.columns WHERE table_name='notification_settings'")
         )
     }
-    for col in ["appointment_reminder", "challenge_reminder", "daily_action_reminder", "goal_achievement_alert", "push_enabled", "weekly_report"]:
+    legacy_cols = [
+        "appointment_reminder",
+        "challenge_reminder",
+        "daily_action_reminder",
+        "goal_achievement_alert",
+        "push_enabled",
+        "weekly_report",
+    ]
+    for col in legacy_cols:
         if col in existing_cols:
             op.drop_column("notification_settings", col)
 
