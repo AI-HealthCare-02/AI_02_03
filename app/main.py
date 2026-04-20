@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+
 from celery import Celery
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
