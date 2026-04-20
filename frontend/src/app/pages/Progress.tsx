@@ -617,7 +617,7 @@ export function Progress() {
                     <div className="flex gap-4">
                       {meal.image_url && (
                         <img
-                          src={`http://127.0.0.1:8000${meal.image_url}`}
+                          src={meal.image_url}
                           alt={meal.food_name}
                           className="size-24 rounded-lg object-cover flex-shrink-0"
                         />

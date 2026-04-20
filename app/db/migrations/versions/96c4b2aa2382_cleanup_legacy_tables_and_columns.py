@@ -20,18 +20,34 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # user_goals 테이블 삭제
-    op.drop_table("user_goals")
+    op.execute("DROP TABLE IF EXISTS user_goals")
 
     # notification_settings 레거시 컬럼 삭제
-    op.drop_column("notification_settings", "appointment_reminder")
-    op.drop_column("notification_settings", "challenge_reminder")
-    op.drop_column("notification_settings", "daily_action_reminder")
-    op.drop_column("notification_settings", "goal_achievement_alert")
-    op.drop_column("notification_settings", "push_enabled")
-    op.drop_column("notification_settings", "weekly_report")
+    conn = op.get_bind()
+    existing_cols = {
+        row[0]
+        for row in conn.execute(
+            sa.text("SELECT column_name FROM information_schema.columns WHERE table_name='notification_settings'")
+        )
+    }
+    legacy_cols = [
+        "appointment_reminder",
+        "challenge_reminder",
+        "daily_action_reminder",
+        "goal_achievement_alert",
+        "push_enabled",
+        "weekly_report",
+    ]
+    for col in legacy_cols:
+        if col in existing_cols:
+            op.drop_column("notification_settings", col)
 
     # user_badges 레거시 인덱스 삭제
-    op.drop_index("ix_user_badges_user_id", table_name="user_badges")
+    existing_indexes = {
+        row[0] for row in conn.execute(sa.text("SELECT indexname FROM pg_indexes WHERE tablename='user_badges'"))
+    }
+    if "ix_user_badges_user_id" in existing_indexes:
+        op.drop_index("ix_user_badges_user_id", table_name="user_badges")
 
     # notification_time nullable 정합성 맞추기
     op.alter_column("notification_settings", "notification_time", existing_type=postgresql.TIME(), nullable=True)

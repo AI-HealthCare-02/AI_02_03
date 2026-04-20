@@ -24,27 +24,29 @@ dependencies = [
     "orjson>=3.11.5",
     "fpdf2>=2.8.7",
     "openai>=2.32.0",
+    "boto3>=1.35.0",
 ]
 
 [dependency-groups]
-ai = [
+ai-worker = [
     "celery>=5.5.0",
-    "imbalanced-learn>=0.13.0",
-    "ipykernel>=6.29.0",
     "joblib>=1.5.0",
     "lightgbm>=4.6.0",
-    "matplotlib>=3.10.0",
     "numpy>=2.2.0",
-    "optuna>=4.3.0",
     "pandas>=2.3.0",
     "scikit-learn>=1.8.0",
+    "xgboost>=3.0.0",
+]
+ai-train = [
+    "imbalanced-learn>=0.13.0",
+    "ipykernel>=6.29.0",
+    "matplotlib>=3.10.0",
+    "optuna>=4.3.0",
     "seaborn>=0.13.0",
     "sentence-transformers>=5.2.0",
-    "shap>=0.47.0",
     "torch",
     "torchvision",
     "torchaudio",
-    "xgboost>=3.0.0",
 ]
 app = [
     "alembic>=1.16.0",

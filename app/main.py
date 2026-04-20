@@ -1,20 +1,13 @@
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from celery import Celery
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from app.apis.v1 import v1_routers
 from app.core import config
 from app.db.databases import engine
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-UPLOAD_DIR = BASE_DIR / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
-(UPLOAD_DIR / "food").mkdir(exist_ok=True)
 
 celery_app = Celery(
     broker=f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/0",
@@ -45,4 +38,3 @@ app.add_middleware(
 )
 
 app.include_router(v1_routers)
-app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")

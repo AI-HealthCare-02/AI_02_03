@@ -1,9 +1,9 @@
 import base64
 import json
 from datetime import datetime
-from pathlib import Path
 from typing import Annotated
 
+import boto3
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import ORJSONResponse as Response
 from openai import AsyncOpenAI
@@ -18,8 +18,14 @@ from app.models.users import User
 
 food_router = APIRouter(prefix="/food", tags=["food"])
 
-UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent.parent / "uploads" / "food"
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+def _s3_client():
+    return boto3.client(
+        "s3",
+        aws_access_key_id=config.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=config.AWS_SECRET_ACCESS_KEY,
+        region_name=config.AWS_REGION,
+    )
 
 
 def _calculate_rating(calories: int, fat: int, sugar: int) -> str:
@@ -75,12 +81,16 @@ async def analyze_food(
     if len(contents) > 10 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="파일 크기는 10MB 이하여야 합니다")
 
-    # 이미지 로컬 저장
     ext = image.filename.rsplit(".", 1)[-1] if image.filename and "." in image.filename else "jpg"
     filename = f"{user.id}_{int(datetime.now().timestamp() * 1000)}.{ext}"
-    file_path = UPLOAD_DIR / filename
-    file_path.write_bytes(contents)
-    image_url = f"/uploads/food/{filename}"
+    s3_key = f"food/{filename}"
+    _s3_client().put_object(
+        Bucket=config.S3_BUCKET_NAME,
+        Key=s3_key,
+        Body=contents,
+        ContentType=image.content_type,
+    )
+    image_url = f"https://{config.S3_BUCKET_NAME}.s3.{config.AWS_REGION}.amazonaws.com/{s3_key}"
 
     base64_image = base64.b64encode(contents).decode("utf-8")
     encoded_url = f"data:{image.content_type};base64,{base64_image}"
