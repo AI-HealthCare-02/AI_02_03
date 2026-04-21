@@ -40,6 +40,10 @@ import { OnboardingStep1 } from "./pages/OnboardingStep1";
 import { OnboardingStep2 } from "./pages/OnboardingStep2";
 import { OnboardingStep3 } from "./pages/OnboardingStep3";
 import { Layout } from "./components/Layout";
+import { Terms } from "./pages/Terms";
+import { Privacy } from "./pages/Privacy";
+import { FindEmail } from "./pages/FindEmail";
+import { ResetPassword } from "./pages/ResetPassword";
 
 export const router = createBrowserRouter([
   {
@@ -71,6 +75,22 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     Component: Login,
+  },
+  {
+  path: "/find-email",
+  Component: FindEmail,
+  },
+  {
+  path: "/reset-password",
+  Component: ResetPassword,
+  },
+  {
+  path: "/privacy",
+  Component: Privacy,
+  },
+  {
+  path: "/terms",
+  Component: Terms,
   },
   {
     path: "/auth/social/callback",

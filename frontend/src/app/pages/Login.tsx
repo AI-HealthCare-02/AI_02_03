@@ -218,13 +218,13 @@ export function Login() {
 
               {/* Find ID/Password Links */}
               <div className="flex items-center justify-center gap-2 text-xs text-gray-500 pt-2">
-                <button type="button" className="hover:text-emerald-600 transition-colors">
+                <Link to="/find-email" className="hover:text-emerald-600 transition-colors">
                   아이디 찾기
-                </button>
+                </Link>
                 <span>|</span>
-                <button type="button" className="hover:text-emerald-600 transition-colors">
+                <Link to="/reset-password" className="hover:text-emerald-600 transition-colors">
                   비밀번호 찾기
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -246,16 +246,22 @@ export function Login() {
 
         {/* Footer */}
         <div className="text-center">
-          <div className="flex items-center justify-center gap-3 text-xs text-gray-500">
-            <button type="button" className="hover:text-emerald-600 transition-colors underline">
-              이용약관
-            </button>
-            <span>|</span>
-            <button type="button" className="hover:text-emerald-600 transition-colors underline">
-              개인정보 처리방침
-            </button>
-          </div>
+         <div className="flex items-center justify-center gap-3 text-xs text-gray-500">
+          <Link
+            to="/terms"
+            className="hover:text-emerald-600 transition-colors underline"
+           >
+            이용약관
+          </Link>
+          <span>|</span>
+          <Link
+            to="/privacy"
+            className="hover:text-emerald-600 transition-colors underline"
+          >
+            개인정보 처리방침
+          </Link>
         </div>
+       </div>
       </div>
     </div>
   );
