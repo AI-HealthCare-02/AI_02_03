@@ -243,20 +243,18 @@ class ChallengeService:
         "야식": ("diet_q7", -1),      # diet_q7: 야식 (부정 → 줄이기)
     }
 
+    _MILESTONES = [7, 14, 21, 30]
+
     @staticmethod
-    def _diet_delta(direction: int, duration_days: int) -> int:
-        """기간에 따라 식습관 점수 변화량 결정
-        ≤7일: 0 (배지만), 8~13일: ±1, 14~20일: ±2, 21일+: ±3
-        """
-        if duration_days <= 7:
-            magnitude = 0
-        elif duration_days >= 21:
-            magnitude = 3
-        elif duration_days >= 14:
-            magnitude = 2
+    def _diet_tier(days: int) -> int:
+        if days <= 7:
+            return 0
+        elif days >= 21:
+            return 3
+        elif days >= 14:
+            return 2
         else:
-            magnitude = 1
-        return direction * magnitude
+            return 1
 
     async def _cumulative_days(self, user_id: int, challenge_type: str, current_duration: int) -> int:
         """현재 챌린지 포함, 동일 타입 완료 챌린지의 누적 duration_days 합산"""
@@ -268,9 +266,17 @@ class ChallengeService:
         )
         return past_days + current_duration
 
+    def _newly_crossed(self, prev: int, new: int) -> list[int]:
+        """prev → new 사이에 새로 넘은 마일스톤 목록"""
+        return [m for m in self._MILESTONES if prev < m <= new]
+
     async def _apply_survey_update(self, uc, survey) -> dict | None:
         ctype = uc.challenge.type
-        cumulative = await self._cumulative_days(uc.user_id, ctype, uc.challenge.duration_days)
+        new_cum = await self._cumulative_days(uc.user_id, ctype, uc.challenge.duration_days)
+        prev_cum = new_cum - uc.challenge.duration_days
+        crossed = self._newly_crossed(prev_cum, new_cum)
+        if not crossed:
+            return None  # 새 마일스톤 없음 → 배지만
         handlers = {
             "식단": self._update_diet,
             "식습관": self._update_diet,
@@ -282,10 +288,10 @@ class ChallengeService:
         }
         handler = handlers.get(ctype)
         if handler:
-            return await handler(uc, survey, cumulative)
+            return await handler(uc, survey, prev_cum, new_cum, crossed)
         return None
 
-    async def _update_diet(self, uc, survey, cumulative: int) -> dict | None:
+    async def _update_diet(self, uc, survey, prev_cum: int, new_cum: int, crossed: list[int]) -> dict | None:
         from app.services.health_surveys import _calc_diet
 
         cname = uc.challenge.name
@@ -296,7 +302,10 @@ class ChallengeService:
         if not matched:
             return None
         field, direction = matched
-        delta = self._diet_delta(direction, cumulative)
+        # 이번에 오른 티어만큼만 delta 적용 (이전 티어 → 현재 티어 차이)
+        delta = (self._diet_tier(new_cum) - self._diet_tier(prev_cum)) * direction
+        if delta == 0:
+            return None
         before_val = getattr(survey, field)
         new_val = max(1, min(5, before_val + delta))
         if new_val == before_val:
@@ -307,25 +316,26 @@ class ChallengeService:
         await self.survey_repo.update(survey, {field: new_val, "diet_score": new_score, "diet_eval": new_eval})
         return {"field": field, "before": before_val, "after": new_val}
 
-    async def _update_weight(self, uc, survey, cumulative: int) -> dict | None:
-        # 누적 14일 미만은 유의미한 감량 불가 → 배지만
-        if cumulative < 14:
+    async def _update_weight(self, uc, survey, prev_cum: int, new_cum: int, crossed: list[int]) -> dict | None:
+        # 14일 마일스톤 첫 돌파 시 -2kg, 30일 마일스톤 첫 돌파 시 추가 -3kg
+        kg_delta = 0.0
+        if 14 in crossed:
+            kg_delta += 2.0
+        if 30 in crossed:
+            kg_delta += 3.0
+        if kg_delta == 0.0:
             return None
-        # 누적 30일 이상이면 5kg, 미만이면 2kg
-        target_kg = 5.0 if cumulative >= 30 else 2.0
         before_weight = survey.weight
-        new_weight = round(max(before_weight - target_kg, 30.0), 1)
+        new_weight = round(max(before_weight - kg_delta, 30.0), 1)
         h = survey.height / 100
         new_bmi = round(new_weight / (h**2), 1)
         new_waist = round(survey.waist * (new_bmi / survey.bmi), 1) if survey.bmi > 0 else survey.waist
         await self.survey_repo.update(survey, {"weight": new_weight, "bmi": new_bmi, "waist": new_waist})
         return {"field": "weight", "before": before_weight, "after": new_weight}
 
-    async def _update_exercise(self, uc, survey, cumulative: int) -> dict | None:
-        # 누적 7일 이하는 배지만
-        if cumulative <= 7:
-            return None
-        target = 5 if cumulative >= 14 else 3
+    async def _update_exercise(self, uc, survey, prev_cum: int, new_cum: int, crossed: list[int]) -> dict | None:
+        # 14일 마일스톤 돌파 → 주5회, 첫 8일(7일 초과) 돌파 → 주3회
+        target = 5 if new_cum >= 14 else 3
         before = survey.weekly_exercise_count
         new_count = max(before, target)
         if new_count == before and survey.exercise == "운동함":
@@ -333,29 +343,25 @@ class ChallengeService:
         await self.survey_repo.update(survey, {"exercise": "운동함", "weekly_exercise_count": new_count})
         return {"field": "weekly_exercise_count", "before": before, "after": new_count}
 
-    async def _update_drinking(self, uc, survey, cumulative: int) -> dict | None:
-        # 누적 14일 미만은 배지만
-        if cumulative < 14:
-            return None
+    async def _update_drinking(self, uc, survey, prev_cum: int, new_cum: int, crossed: list[int]) -> dict | None:
         if survey.drinking == "음주안함":
             return None
         before_amount = survey.drink_amount
         before_freq = survey.weekly_drink_freq
 
-        if cumulative >= 30:
-            # 30일+ : 완전 금주
+        if 30 in crossed:
+            # 30일 마일스톤 돌파 → 완전 금주
             await self.survey_repo.update(
                 survey,
                 {"drinking": "음주안함", "drink_amount": 0.0, "weekly_drink_freq": 0.0, "monthly_binge_freq": 0.0},
             )
             return {"field": "drinking", "before": survey.drinking, "after": "음주안함"}
-        elif cumulative >= 21:
-            # 누적 21~29일: 75% 감소
-            ratio = 0.25
-        else:
-            # 누적 14~20일: 50% 감소
-            ratio = 0.5
 
+        # 새로 넘은 마일스톤(14, 21) 각각 0.5씩 곱함 (복리 감소)
+        reduction_steps = len([m for m in crossed if m in (14, 21)])
+        if reduction_steps == 0:
+            return None
+        ratio = 0.5 ** reduction_steps
         new_amount = round(before_amount * ratio, 2)
         new_freq = round(before_freq * ratio, 2)
         from app.services.health_surveys import _calc_monthly_binge
@@ -367,9 +373,8 @@ class ChallengeService:
         )
         return {"field": "drink_amount", "before": before_amount, "after": new_amount}
 
-    async def _update_smoking(self, uc, survey, cumulative: int) -> dict | None:
-        # 누적 14일 미만은 배지만
-        if cumulative < 14:
+    async def _update_smoking(self, uc, survey, prev_cum: int, new_cum: int, crossed: list[int]) -> dict | None:
+        if 14 not in crossed:
             return None
         if survey.current_smoking == "안함":
             return None
@@ -377,9 +382,8 @@ class ChallengeService:
         await self.survey_repo.update(survey, {"smoking": "비흡연", "current_smoking": "안함"})
         return {"field": "smoking", "before": before, "after": "비흡연"}
 
-    async def _update_sleep(self, uc, survey, cumulative: int) -> dict | None:
-        # 누적 7일 미만은 배지만
-        if cumulative < 7:
+    async def _update_sleep(self, uc, survey, prev_cum: int, new_cum: int, crossed: list[int]) -> dict | None:
+        if 7 not in crossed:
             return None
         before = survey.sleep_hours
         new_hours = max(before, 7.0)
