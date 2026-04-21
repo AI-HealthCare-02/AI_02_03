@@ -164,7 +164,9 @@ class ChallengeService:
             )
         return result
 
-    async def complete_challenge(self, user: User, user_challenge_id: int, input_weight: float | None = None) -> ChallengeCompleteResponse:
+    async def complete_challenge(
+        self, user: User, user_challenge_id: int, input_weight: float | None = None
+    ) -> ChallengeCompleteResponse:
         uc = await self.uc_repo.get_by_id_and_user(user_challenge_id, user.id)
         if not uc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="해당 챌린지를 찾을 수 없습니다.")
@@ -232,15 +234,15 @@ class ChallengeService:
     # ─── 설문 업데이트 방식 (식습관/식단/체중감량만) ────────────────────────
 
     _DIET_CHALLENGE_MAP: dict[str, tuple[str, int]] = {
-        "채소": ("diet_q1", 1),       # diet_q1: 채소 섭취 (긍정)
-        "단음식": ("diet_q2", -1),    # diet_q2: 단 음식 (부정 → 줄이기)
+        "채소": ("diet_q1", 1),  # diet_q1: 채소 섭취 (긍정)
+        "단음식": ("diet_q2", -1),  # diet_q2: 단 음식 (부정 → 줄이기)
         "당류": ("diet_q2", -1),
-        "튀김": ("diet_q3", -1),      # diet_q3: 튀김/패스트푸드 (부정 → 줄이기)
+        "튀김": ("diet_q3", -1),  # diet_q3: 튀김/패스트푸드 (부정 → 줄이기)
         "패스트푸드": ("diet_q3", -1),
-        "균형": ("diet_q4", 1),       # diet_q4: 규칙적 식사 (긍정)
-        "소식": ("diet_q5", -1),      # diet_q5: 과식 (부정 → 줄이기)
-        "단백질": ("diet_q6", 1),     # diet_q6: 단백질 섭취 (긍정)
-        "야식": ("diet_q7", -1),      # diet_q7: 야식 (부정 → 줄이기)
+        "균형": ("diet_q4", 1),  # diet_q4: 규칙적 식사 (긍정)
+        "소식": ("diet_q5", -1),  # diet_q5: 과식 (부정 → 줄이기)
+        "단백질": ("diet_q6", 1),  # diet_q6: 단백질 섭취 (긍정)
+        "야식": ("diet_q7", -1),  # diet_q7: 야식 (부정 → 줄이기)
     }
 
     _MILESTONES = [7, 14, 21, 30]
@@ -260,9 +262,7 @@ class ChallengeService:
         """현재 챌린지 포함, 동일 타입 완료 챌린지의 누적 duration_days 합산"""
         completed = await self.uc_repo.get_by_user_id(user_id, status="완료")
         past_days = sum(
-            uc.challenge.duration_days
-            for uc in completed
-            if uc.challenge and uc.challenge.type == challenge_type
+            uc.challenge.duration_days for uc in completed if uc.challenge and uc.challenge.type == challenge_type
         )
         return past_days + current_duration
 
@@ -320,7 +320,9 @@ class ChallengeService:
         await self.survey_repo.update(survey, {field: new_val, "diet_score": new_score, "diet_eval": new_eval})
         return {"field": field, "before": before_val, "after": new_val}
 
-    async def _update_weight(self, uc, survey, prev_cum: int, new_cum: int, crossed: list[int], input_weight: float | None = None) -> dict | None:
+    async def _update_weight(
+        self, uc, survey, prev_cum: int, new_cum: int, crossed: list[int], input_weight: float | None = None
+    ) -> dict | None:
         before_weight = survey.weight
         if input_weight is not None:
             # 사용자가 직접 입력한 체중 사용
@@ -371,7 +373,7 @@ class ChallengeService:
         reduction_steps = len([m for m in crossed if m in (14, 21)])
         if reduction_steps == 0:
             return None
-        ratio = 0.5 ** reduction_steps
+        ratio = 0.5**reduction_steps
         new_amount = round(before_amount * ratio, 2)
         new_freq = round(before_freq * ratio, 2)
         from app.services.health_surveys import _calc_monthly_binge
