@@ -25,3 +25,8 @@ class TokenRefreshResponse(LoginResponse): ...
 
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: Annotated[str, Field(min_length=8)]
+    new_password: Annotated[str, Field(min_length=8), AfterValidator(validate_password)]

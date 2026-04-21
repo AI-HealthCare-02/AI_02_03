@@ -10,7 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import config
 from app.core.config import Env
 from app.db.databases import get_db
-from app.dtos.auth import LoginRequest, LoginResponse, ResetPasswordRequest, SignUpRequest, TokenRefreshResponse
+from app.dependencies.security import get_request_user
+from app.dtos.auth import (
+    ChangePasswordRequest,
+    LoginRequest,
+    LoginResponse,
+    ResetPasswordRequest,
+    SignUpRequest,
+    TokenRefreshResponse,
+)
+from app.models.users import User
 from app.services.auth import AuthService
 from app.services.jwt import JwtService
 from app.services.oauth import KakaoOAuthService, NaverOAuthService
@@ -156,8 +165,18 @@ async def reset_password(
     request: ResetPasswordRequest,
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> Response:
-    temp_password = await auth_service.reset_password(str(request.email))
-    return Response(content={"temp_password": temp_password}, status_code=status.HTTP_200_OK)
+    await auth_service.reset_password(str(request.email))
+    return Response(content={"detail": "임시 비밀번호를 이메일로 발송했습니다."}, status_code=status.HTTP_200_OK)
+
+
+@auth_router.post("/change-password", status_code=status.HTTP_200_OK)
+async def change_password(
+    request: ChangePasswordRequest,
+    user: Annotated[User, Depends(get_request_user)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> Response:
+    await auth_service.change_password(user, request.current_password, request.new_password)
+    return Response(content={"detail": "비밀번호가 변경되었습니다."}, status_code=status.HTTP_200_OK)
 
 
 @auth_router.get("/check-email", status_code=status.HTTP_200_OK)

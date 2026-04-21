@@ -53,6 +53,9 @@ class Config(BaseSettings):
     # Frontend base URL (for OAuth redirect)
     FRONTEND_BASE_URL: str = "http://localhost:5173"
 
+    # Resend (이메일 발송)
+    RESEND_API_KEY: str = ""
+
     # OpenAI
     OPENAI_API_KEY: str = ""
 
