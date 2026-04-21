@@ -143,7 +143,7 @@ export function Progress() {
           progress: number;
           days_left: number;
         }[]
-      >("/api/v1/user-challenges/me", { params: { status: "진행중" } })
+      >("/api/v1/user-challenges/me", { params: { status: "완료" } })
       .then((r) => {
         setActiveChallengesCount(r.data.length);
         setActiveChallengesList(
@@ -517,86 +517,41 @@ export function Progress() {
 
         {/* Challenges Tab */}
         <TabsContent value="challenges" className="space-y-6">
-          <Tabs defaultValue="active" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2 bg-gray-100">
-              <TabsTrigger value="active">진행중</TabsTrigger>
-              <TabsTrigger value="available">참여 가능</TabsTrigger>
-            </TabsList>
-
-            {/* Active Challenges */}
-            <TabsContent value="active" className="space-y-3">
-              {activeChallengesList.map((challenge) => (
-                <Card key={challenge.id} className="border-2 border-gray-200">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="size-12 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <challenge.icon className="size-6 text-emerald-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-900 mb-1">{challenge.title}</h3>
-                        <p className="text-sm text-gray-600 mb-2">{challenge.description}</p>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge className={getDifficultyColor(challenge.difficulty)}>{challenge.difficulty}</Badge>
-                          <Badge variant="outline" className="text-xs">
-                            <Clock className="size-3 mr-1" />
-                            {challenge.daysLeft}일 남음
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            <Users className="size-3 mr-1" />
-                            {challenge.participants}명
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">진행도</span>
-                        <span className="font-bold text-emerald-600">{challenge.progress}%</span>
-                      </div>
-                      <ProgressBar value={challenge.progress} className="h-2" />
-                    </div>
+            {/* 완료된 챌린지 */}
+            <div className="space-y-3">
+              {activeChallengesList.length === 0 ? (
+                <Card className="border-2 border-gray-200">
+                  <CardContent className="py-12 text-center">
+                    <p className="text-gray-500">완료된 챌린지가 없습니다.</p>
                   </CardContent>
                 </Card>
-              ))}
-            </TabsContent>
-
-            {/* Available Challenges */}
-            <TabsContent value="available" className="space-y-3">
-              {availableChallengesList.map((challenge) => (
-                <Card key={challenge.id} className="border-2 border-gray-200 hover:border-emerald-300 transition-colors">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="size-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <challenge.icon className="size-6 text-gray-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-gray-900 mb-1">{challenge.title}</h3>
-                        <p className="text-sm text-gray-600 mb-2">{challenge.description}</p>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge className={getDifficultyColor(challenge.difficulty)}>{challenge.difficulty}</Badge>
-                          <Badge variant="outline" className="text-xs">
-                            <Clock className="size-3 mr-1" />
-                            {challenge.duration}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            <Users className="size-3 mr-1" />
-                            {challenge.participants}명
-                          </Badge>
+              ) : (
+                activeChallengesList.map((challenge) => (
+                  <Card key={challenge.id} className="border-2 border-emerald-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="size-12 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <challenge.icon className="size-6 text-emerald-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-gray-900 mb-1">{challenge.title}</h3>
+                          <p className="text-sm text-gray-600 mb-2">{challenge.description}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                              <CheckCircle2 className="size-3 mr-1" />
+                              완료
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {challenge.duration}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <Button
-                      className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
-                      onClick={() => handleJoinChallenge(challenge.id)}
-                      disabled={joiningChallenge === challenge.id}
-                    >
-                      {joiningChallenge === challenge.id ? "참여 중..." : "참여하기"}
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </TabsContent>
-          </Tabs>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
         </TabsContent>
 
         {/* Diet Tab */}
