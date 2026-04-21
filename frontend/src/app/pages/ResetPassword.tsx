@@ -51,6 +51,14 @@ export function ResetPassword() {
                     로그인하러 가기
                   </Button>
                 </Link>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setSent(false)}
+                >
+                  이메일을 받지 못하셨나요? 재발송
+                </Button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">

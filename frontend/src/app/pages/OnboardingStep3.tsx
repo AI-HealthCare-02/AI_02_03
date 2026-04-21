@@ -61,7 +61,12 @@ export function OnboardingStep3() {
           hypertension: formData.hypertension === "yes" ? "있음" : "없음",
           sleep_disorder: formData.sleepDisorder === "yes" ? "있음" : "없음",
         };
-        await api.post("/api/v1/surveys", payload);
+        try {
+          await api.post("/api/v1/surveys", payload);
+        } catch (err: unknown) {
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          if (status !== 409) throw err;
+        }
         await api.post("/api/v1/predictions", {});
         sessionStorage.removeItem("onboarding_step1");
         sessionStorage.removeItem("onboarding_step1_raw");

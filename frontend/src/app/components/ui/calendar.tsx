@@ -9,28 +9,60 @@ import { buttonVariants } from "./button";
 
 function CustomCaption({ calendarMonth }: { calendarMonth: import("react-day-picker").CalendarMonth }) {
   const { goToMonth, nextMonth, previousMonth } = useDayPicker();
+  const currentDate = calendarMonth.date;
+
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth();
+
+  const years = Array.from({ length: new Date().getFullYear() - 1930 + 1 }, (_, i) => 1930 + i).reverse();
+  const months = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
+
+  const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    goToMonth(new Date(Number(e.target.value), currentMonth));
+  };
+
+  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    goToMonth(new Date(currentYear, Number(e.target.value)));
+  };
 
   return (
-    <div className="flex items-center justify-between pt-1 w-full">
+    <div className="flex items-center justify-between pt-1 w-full gap-1">
       <button
         onClick={() => previousMonth && goToMonth(previousMonth)}
         disabled={!previousMonth}
         className={cn(
           buttonVariants({ variant: "outline" }),
-          "size-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-20"
+          "size-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-20 shrink-0"
         )}
       >
         <ChevronLeft className="size-4" />
       </button>
-      <span className="text-sm font-medium">
-        {calendarMonth.date.toLocaleDateString("ko-KR", { year: "numeric", month: "long" })}
-      </span>
+      <div className="flex gap-1">
+        <select
+          value={currentYear}
+          onChange={handleYearChange}
+          className="text-sm font-medium border rounded px-1 py-0.5 bg-white cursor-pointer"
+        >
+          {years.map((y) => (
+            <option key={y} value={y}>{y}년</option>
+          ))}
+        </select>
+        <select
+          value={currentMonth}
+          onChange={handleMonthChange}
+          className="text-sm font-medium border rounded px-1 py-0.5 bg-white cursor-pointer"
+        >
+          {months.map((m, i) => (
+            <option key={i} value={i}>{m}</option>
+          ))}
+        </select>
+      </div>
       <button
         onClick={() => nextMonth && goToMonth(nextMonth)}
         disabled={!nextMonth}
         className={cn(
           buttonVariants({ variant: "outline" }),
-          "size-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-20"
+          "size-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-20 shrink-0"
         )}
       >
         <ChevronRight className="size-4" />

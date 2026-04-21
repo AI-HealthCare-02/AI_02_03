@@ -26,18 +26,30 @@ class AuthService:
         return user
 
     async def authenticate(self, data: LoginRequest) -> User:
+        from app.utils.redis import cache_get, cache_delete
+
         user = await self.user_repo.get_user_by_email(str(data.email))
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="이메일 또는 비밀번호가 올바르지 않습니다.",
             )
-        if not verify_password(data.password, user.hashed_password):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="이메일 또는 비밀번호가 올바르지 않습니다.",
-            )
-        return user
+
+        if verify_password(data.password, user.hashed_password):
+            return user
+
+        # 임시 비밀번호 확인 (Redis TTL 기반, 로그인 성공 시 DB에 반영 후 Redis 삭제)
+        redis_key = f"password_reset:{user.id}"
+        temp_data = await cache_get(redis_key)
+        if temp_data and verify_password(data.password, temp_data["hashed"]):
+            await self.user_repo.update_instance(user, {"hashed_password": temp_data["hashed"]})
+            await cache_delete(redis_key)
+            return user
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="이메일 또는 비밀번호가 올바르지 않습니다.",
+        )
 
     async def login(self, user: User) -> dict[str, AccessToken | RefreshToken]:
         return self.jwt_service.issue_jwt_pair(user)
@@ -98,12 +110,13 @@ class AuthService:
         import string
 
         from app.utils.email import send_temp_password_email
+        from app.utils.redis import cache_set
 
         temp_password = "".join(random.choices(string.ascii_letters + string.digits, k=10))
-        await self.user_repo.update_instance(user, {"hashed_password": hash_password(temp_password)})
+        await cache_set(f"password_reset:{user.id}", {"hashed": hash_password(temp_password)}, ttl=600)
         await send_temp_password_email(email, temp_password)
 
     async def change_password(self, user: User, current_password: str, new_password: str) -> None:
         if not verify_password(current_password, user.hashed_password):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="현재 비밀번호가 올바르지 않습니다.")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="현재 비밀번호가 올바르지 않습니다.")
         await self.user_repo.update_instance(user, {"hashed_password": hash_password(new_password)})

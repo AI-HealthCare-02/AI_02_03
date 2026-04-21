@@ -33,3 +33,11 @@ async def cache_set(key: str, value: dict, ttl: int) -> None:
         await client.setex(key, ttl, json.dumps(value, ensure_ascii=False))
     finally:
         await client.aclose()
+
+
+async def cache_delete(key: str) -> None:
+    client = _client()
+    try:
+        await client.delete(key)
+    finally:
+        await client.aclose()

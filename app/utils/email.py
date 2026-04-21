@@ -28,6 +28,7 @@ async def send_temp_password_email(to: str, temp_password: str) -> None:
         <p style="margin: 8px 0 0; font-size: 24px; font-weight: bold;
                   color: #065f46; letter-spacing: 4px;">{temp_password}</p>
       </div>
+      <p style="color: #ef4444; font-size: 13px;">⚠ 이 비밀번호는 <strong>10분 후 만료</strong>됩니다. 빠르게 로그인해주세요.</p>
       <p style="color: #ef4444; font-size: 13px;">⚠ 로그인 후 반드시 비밀번호를 변경해주세요.</p>
     </div>
     """, "html", "utf-8"))
