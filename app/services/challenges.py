@@ -328,11 +328,34 @@ class ChallengeService:
             return None
         if survey.drinking == "음주안함":
             return None
-        before = survey.drinking
+        before_amount = survey.drink_amount
+        before_freq = survey.weekly_drink_freq
+        duration = uc.challenge.duration_days
+
+        if duration >= 30:
+            # 30일+ : 완전 금주
+            await self.survey_repo.update(
+                survey,
+                {"drinking": "음주안함", "drink_amount": 0.0, "weekly_drink_freq": 0.0, "monthly_binge_freq": 0.0},
+            )
+            return {"field": "drinking", "before": survey.drinking, "after": "음주안함"}
+        elif duration >= 21:
+            # 21~29일: 75% 감소
+            ratio = 0.25
+        else:
+            # 14~20일: 50% 감소
+            ratio = 0.5
+
+        new_amount = round(before_amount * ratio, 2)
+        new_freq = round(before_freq * ratio, 2)
+        from app.services.health_surveys import _calc_monthly_binge
+
+        new_binge = _calc_monthly_binge(new_amount, new_freq)
         await self.survey_repo.update(
-            survey, {"drinking": "음주안함", "drink_amount": 0.0, "weekly_drink_freq": 0.0, "monthly_binge_freq": 0.0}
+            survey,
+            {"drink_amount": new_amount, "weekly_drink_freq": new_freq, "monthly_binge_freq": new_binge},
         )
-        return {"field": "drinking", "before": before, "after": "음주안함"}
+        return {"field": "drink_amount", "before": before_amount, "after": new_amount}
 
     async def _update_smoking(self, uc, survey) -> dict | None:
         # 14일 미만은 배지만 (단기간 금연은 습관 변화로 인정 불가)
