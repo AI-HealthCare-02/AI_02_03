@@ -17,6 +17,16 @@ export function ChangePassword() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const getPasswordHint = (pw: string): string => {
+    if (!pw) return "";
+    if (pw.length < 8) return "8자 이상 입력해주세요.";
+    if (!/[a-zA-Z]/.test(pw)) return "영문자를 포함해주세요.";
+    if (!/[0-9]/.test(pw)) return "숫자를 포함해주세요.";
+    if (!/[^a-zA-Z0-9]/.test(pw)) return "특수문자를 포함해주세요.";
+    return "";
+  };
+  const passwordHint = getPasswordHint(formData.newPassword);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -88,7 +98,13 @@ export function ChangePassword() {
                 className="border-2"
                 required
               />
-              <p className="text-sm text-gray-500">8자 이상, 영문/숫자/특수문자 조합을 권장합니다</p>
+              {passwordHint ? (
+                <p className="text-xs text-red-500">{passwordHint}</p>
+              ) : formData.newPassword ? (
+                <p className="text-xs text-emerald-600">사용 가능한 비밀번호입니다.</p>
+              ) : (
+                <p className="text-xs text-gray-500">8자 이상, 영문+숫자+특수문자 포함</p>
+              )}
             </div>
 
             <div className="space-y-2">

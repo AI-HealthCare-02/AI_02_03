@@ -22,6 +22,16 @@ export function Signup() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const getPasswordHint = (pw: string): string => {
+    if (!pw) return "";
+    if (pw.length < 8) return "8자 이상 입력해주세요.";
+    if (!/[a-zA-Z]/.test(pw)) return "영문자를 포함해주세요.";
+    if (!/[0-9]/.test(pw)) return "숫자를 포함해주세요.";
+    if (!/[^a-zA-Z0-9]/.test(pw)) return "특수문자를 포함해주세요.";
+    return "";
+  };
+  const passwordHint = getPasswordHint(formData.password);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -185,6 +195,12 @@ export function Signup() {
                     minLength={8}
                   />
                 </div>
+                {passwordHint && (
+                  <p className="text-xs text-red-500">{passwordHint}</p>
+                )}
+                {formData.password && !passwordHint && (
+                  <p className="text-xs text-emerald-600">사용 가능한 비밀번호입니다.</p>
+                )}
               </div>
 
               {/* Confirm Password */}
