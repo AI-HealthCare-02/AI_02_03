@@ -197,6 +197,10 @@ class ChallengeService:
         survey = await self.survey_repo.get_by_user_id(user.id)
         if survey:
             survey_changes = await self._apply_survey_update(uc, survey, input_weight)
+            # 유지모드 진입 챌린지는 롤백을 위해 변경 전 값 snapshot 저장
+            if survey_changes and uc.challenge.type in _MAINTENANCE_TYPES:
+                snapshot = await self._build_snapshot(survey_changes["field"], survey_changes["before"], survey)
+                await self.uc_repo.update(uc, {"survey_snapshot": snapshot})
 
         # 새 점수 계산
         from app.services.health_surveys import _calc_grade as _grade
@@ -265,6 +269,47 @@ class ChallengeService:
             uc.challenge.duration_days for uc in completed if uc.challenge and uc.challenge.type == challenge_type
         )
         return past_days + current_duration
+
+    async def _build_snapshot(self, field: str, before_val, survey) -> dict:
+        """유지모드 롤백용 snapshot: 변경된 필드의 이전 값 + 연관 필드 저장"""
+        snapshot: dict = {field: before_val}
+        # 금주는 연관 필드 전체 저장
+        if field == "drink_amount":
+            snapshot.update(
+                {
+                    "drinking": survey.drinking,
+                    "drink_amount": survey.drink_amount,  # 변경 전 값은 before_val이나 연관 필드도 필요
+                    "weekly_drink_freq": survey.weekly_drink_freq,
+                    "monthly_binge_freq": survey.monthly_binge_freq,
+                }
+            )
+        # 체중은 BMI, 허리둘레도 저장
+        elif field == "weight":
+            snapshot.update(
+                {
+                    "weight": before_val,
+                    "bmi": survey.bmi,
+                    "waist": survey.waist,
+                }
+            )
+        return snapshot
+
+    async def _rollback_survey(self, user_id: int, snapshot: dict) -> None:
+        """snapshot을 이용해 설문값 복원"""
+        survey = await self.survey_repo.get_by_user_id(user_id)
+        if not survey or not snapshot:
+            return
+        from app.services.health_surveys import _calc_diet
+
+        restore_data = {k: v for k, v in snapshot.items()}
+        # diet 관련 필드면 diet_score/diet_eval 재계산
+        diet_fields = {"diet_q1", "diet_q2", "diet_q3", "diet_q4", "diet_q5", "diet_q6", "diet_q7"}
+        if diet_fields & set(restore_data.keys()):
+            qs = [restore_data.get(f"diet_q{i}", getattr(survey, f"diet_q{i}")) for i in range(1, 8)]
+            new_score, new_eval = _calc_diet(qs)
+            restore_data["diet_score"] = new_score
+            restore_data["diet_eval"] = new_eval
+        await self.survey_repo.update(survey, restore_data)
 
     def _newly_crossed(self, prev: int, new: int) -> list[int]:
         """prev → new 사이에 새로 넘은 마일스톤 목록"""
@@ -461,9 +506,10 @@ class ChallengeService:
             )
 
         if not still_maintaining:
-            await self.uc_repo.update(uc, {"is_maintenance": False})
+            await self._rollback_survey(uc.user_id, uc.survey_snapshot)
+            await self.uc_repo.update(uc, {"is_maintenance": False, "survey_snapshot": None})
             return {
-                "detail": f"{challenge_type} 유지 모드가 종료되었습니다. 다시 도전해보세요!",
+                "detail": f"{challenge_type} 유지 모드가 종료되었습니다. 설문 상태가 복원되었습니다.",
                 "is_maintenance": False,
                 "recovery_rate": 0,
                 "recovery_points": 0,
@@ -519,11 +565,12 @@ class ChallengeService:
         return {"detail": "챌린지가 중단되었습니다."}
 
     async def expire_stale_maintenances(self) -> int:
-        """2주 미응답 유지 모드 자동 해제"""
+        """2주 미응답 유지 모드 자동 해제 + 설문값 롤백"""
         cutoff = datetime.now() - timedelta(days=14)
         stale = await self.uc_repo.get_expired_maintenances(cutoff)
         for uc in stale:
-            await self.uc_repo.update(uc, {"is_maintenance": False})
+            await self._rollback_survey(uc.user_id, uc.survey_snapshot)
+            await self.uc_repo.update(uc, {"is_maintenance": False, "survey_snapshot": None})
         return len(stale)
 
     async def add_log(self, user: User, user_challenge_id: int, is_completed: bool) -> ChallengeLogResponse:

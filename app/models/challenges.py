@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
 from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.databases import Base
@@ -35,6 +36,7 @@ class UserChallenge(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_maintenance: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     last_checkin_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    survey_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     challenge: Mapped["Challenge"] = relationship(back_populates="user_challenges")
     logs: Mapped[list["ChallengeLog"]] = relationship(back_populates="user_challenge")
