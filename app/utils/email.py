@@ -18,7 +18,9 @@ async def send_temp_password_email(to: str, temp_password: str) -> None:
     msg["Subject"] = "[간건강 케어] 임시 비밀번호 안내"
     msg["From"] = config.SMTP_USER
     msg["To"] = to
-    msg.attach(MIMEText(f"""
+    msg.attach(
+        MIMEText(
+            f"""
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
       <h2 style="color: #059669;">간건강 케어 임시 비밀번호 안내</h2>
       <p>안녕하세요. 임시 비밀번호가 발급되었습니다.</p>
@@ -31,7 +33,11 @@ async def send_temp_password_email(to: str, temp_password: str) -> None:
       <p style="color: #ef4444; font-size: 13px;">⚠ 이 비밀번호는 <strong>10분 후 만료</strong>됩니다. 빠르게 로그인해주세요.</p>
       <p style="color: #ef4444; font-size: 13px;">⚠ 로그인 후 반드시 비밀번호를 변경해주세요.</p>
     </div>
-    """, "html", "utf-8"))
+    """,
+            "html",
+            "utf-8",
+        )
+    )
 
     await aiosmtplib.send(
         msg,

@@ -26,7 +26,7 @@ class AuthService:
         return user
 
     async def authenticate(self, data: LoginRequest) -> User:
-        from app.utils.redis import cache_get, cache_delete
+        from app.utils.redis import cache_delete, cache_get
 
         user = await self.user_repo.get_user_by_email(str(data.email))
         if not user:
