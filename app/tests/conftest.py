@@ -1,3 +1,6 @@
+import json
+import re
+import sys
 from collections.abc import AsyncGenerator
 from urllib.parse import quote_plus
 
@@ -12,26 +15,43 @@ from app.db import databases
 from app.db.databases import Base, get_db
 from app.main import app
 
+sys.stdout.reconfigure(encoding="utf-8")
+
 TEST_BASE_URL = "http://test"
 TEST_DATABASE_URL = (
     f"postgresql+asyncpg://{config.DB_USER}:{quote_plus(config.DB_PASSWORD)}@{config.DB_HOST}:{config.DB_PORT}/test"
 )
 
 
+def _mask_jwt(text: str) -> str:
+    return re.sub(r"eyJ[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+", "<JWT>", text)
+
+
+def _pretty(text: str, limit: int = 300) -> str:
+    try:
+        obj = json.loads(text)
+        pretty = json.dumps(obj, ensure_ascii=False, indent=2)
+        if len(pretty) > limit:
+            pretty = pretty[:limit] + "\n  ..."
+        return _mask_jwt(pretty)
+    except Exception:
+        return _mask_jwt(text[:limit])
+
+
 async def _log_request(request: httpx.Request) -> None:
     body = request.content.decode("utf-8", errors="replace") if request.content else ""
-    print(f"\n>>> {request.method} {request.url}")
+    print(f"\n┌─ {request.method} {request.url}")
     if body:
-        print(f"    body: {body}")
+        print(f"│  {_pretty(body)}")
 
 
 async def _log_response(response: httpx.Response) -> None:
     await response.aread()
     try:
-        body = response.text[:500]
+        body = _pretty(response.text)
     except Exception:
         body = "(unreadable)"
-    print(f"<<< {response.status_code}  {body}")
+    print(f"└─ {response.status_code}  {body}")
 
 
 @pytest_asyncio.fixture
