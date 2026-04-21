@@ -1,13 +1,26 @@
+import json
+
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 
 # ================================================================
 # 테스트 실행 방법:
 # 1. pip install httpx pytest pytest-asyncio
-# 2. pytest tests/test_all.py -s -v
+# 2. uv run pytest app/tests/test_all.py -s -v
 # ================================================================
 
 BASE_URL = "http://test"
+
+
+def log(label: str, response: Response, body: dict | None = None) -> None:
+    print(f"\n[{label}]")
+    if body:
+        print(f"  INPUT  : {json.dumps(body, ensure_ascii=False)}")
+    print(f"  STATUS : {response.status_code}")
+    try:
+        print(f"  OUTPUT : {json.dumps(response.json(), ensure_ascii=False)}")
+    except Exception:
+        print("  OUTPUT : (binary/non-json)")
 
 # ================================================================
 # 🔐 AUTH (인증)
