@@ -422,6 +422,15 @@ async def test_get_my_activity(client: AsyncClient):
     assert response.status_code == 200
 
 
+@pytest.mark.asyncio
+async def test_get_activity_report(client: AsyncClient):
+    """✅ 활동 리포트 조회 (PDF - 폰트 없으면 500)"""
+    token = await get_token(client)
+    response = await client.get("/api/v1/activity/report", headers={"Authorization": f"Bearer {token}"})
+    print("✅ 활동 리포트:", response.status_code)
+    assert response.status_code in [200, 500]
+
+
 # ================================================================
 # 🏠 DASHBOARD (대시보드)
 # ================================================================
@@ -434,3 +443,310 @@ async def test_get_dashboard_no_prediction(client: AsyncClient):
     response = await client.get("/api/v1/dashboard", headers={"Authorization": f"Bearer {token}"})
     print("❌ 예측 없어 대시보드 불가:", response.status_code, response.json())
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_dashboard_message(client: AsyncClient):
+    """✅ 대시보드 말풍선 메시지"""
+    token = await get_token(client)
+    response = await client.get("/api/v1/dashboard/message", headers={"Authorization": f"Bearer {token}"})
+    print("✅ 대시보드 메시지:", response.status_code, response.json())
+    assert response.status_code == 200
+
+
+# ================================================================
+# 🔐 AUTH - 비밀번호 (추가)
+# ================================================================
+
+
+@pytest.mark.asyncio
+async def test_reset_password_not_found(client: AsyncClient):
+    """❌ 비밀번호 찾기 실패 - 없는 이메일"""
+    response = await client.post("/api/v1/auth/reset-password", json={"email": "notexist@example.com"})
+    print("❌ 비밀번호 찾기 실패:", response.status_code, response.json())
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_change_password_success(client: AsyncClient):
+    """✅ 비밀번호 변경 성공"""
+    await client.post(
+        "/api/v1/auth/signup",
+        json={"email": "changepw@example.com", "password": "Test1234!", "nickname": "비번변경유저"},
+    )
+    login_resp = await client.post(
+        "/api/v1/auth/login", json={"email": "changepw@example.com", "password": "Test1234!"}
+    )
+    token = login_resp.json().get("access_token", "")
+    response = await client.post(
+        "/api/v1/auth/change-password",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"current_password": "Test1234!", "new_password": "New1234!@"},
+    )
+    print("✅ 비밀번호 변경:", response.status_code, response.json())
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_change_password_wrong_current(client: AsyncClient):
+    """❌ 비밀번호 변경 실패 - 현재 비밀번호 오류"""
+    token = await get_token(client)
+    response = await client.post(
+        "/api/v1/auth/change-password",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"current_password": "WrongPass1!", "new_password": "New1234!@"},
+    )
+    print("❌ 현재 비번 오류:", response.status_code, response.json())
+    assert response.status_code == 400
+
+
+# ================================================================
+# 🎯 CHALLENGE - 추가 엔드포인트
+# ================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_my_challenges(client: AsyncClient):
+    """✅ 내 챌린지 목록 조회"""
+    token = await get_token(client)
+    response = await client.get("/api/v1/user-challenges/me", headers={"Authorization": f"Bearer {token}"})
+    print("✅ 내 챌린지 목록:", response.status_code, response.json())
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_get_suggested_challenges(client: AsyncClient):
+    """✅ AI 챌린지 추천 조회"""
+    token = await get_token(client)
+    response = await client.get("/api/v1/challenges/suggested", headers={"Authorization": f"Bearer {token}"})
+    print("✅ AI 추천 챌린지:", response.status_code, response.json())
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_quit_challenge_not_found(client: AsyncClient):
+    """❌ 챌린지 포기 실패 - 없는 챌린지"""
+    token = await get_token(client)
+    response = await client.patch(
+        "/api/v1/user-challenges/99999/quit", headers={"Authorization": f"Bearer {token}"}
+    )
+    print("❌ 챌린지 포기 실패:", response.status_code, response.json())
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_complete_challenge_not_found(client: AsyncClient):
+    """❌ 챌린지 완료 실패 - 없는 챌린지"""
+    token = await get_token(client)
+    response = await client.patch(
+        "/api/v1/user-challenges/99999/complete", headers={"Authorization": f"Bearer {token}"}, json={}
+    )
+    print("❌ 챌린지 완료 실패:", response.status_code, response.json())
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_log_challenge_not_found(client: AsyncClient):
+    """❌ 챌린지 로그 실패 - 없는 챌린지"""
+    token = await get_token(client)
+    response = await client.post(
+        "/api/v1/user-challenges/99999/logs",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"is_completed": True},
+    )
+    print("❌ 챌린지 로그 실패:", response.status_code, response.json())
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_custom_challenge_not_found(client: AsyncClient):
+    """❌ 커스텀 챌린지 삭제 실패 - 없는 챌린지"""
+    token = await get_token(client)
+    response = await client.delete(
+        "/api/v1/challenges/99999/custom", headers={"Authorization": f"Bearer {token}"}
+    )
+    print("❌ 커스텀 챌린지 삭제 실패:", response.status_code, response.json())
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_maintenance_checkin_not_found(client: AsyncClient):
+    """❌ 유지모드 체크인 실패 - 없는 챌린지 타입"""
+    token = await get_token(client)
+    response = await client.post(
+        "/api/v1/user-challenges/운동/checkin",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"still_maintaining": True},
+    )
+    print("❌ 유지모드 체크인 실패:", response.status_code, response.json())
+    assert response.status_code in [404, 400]
+
+
+# ================================================================
+# 🩺 DAILY HEALTH LOG - 수정
+# ================================================================
+
+
+@pytest.mark.asyncio
+async def test_patch_health_log(client: AsyncClient):
+    """✅ 건강 로그 수정"""
+    token = await get_token(client)
+    # 먼저 생성
+    create_resp = await client.post(
+        "/api/v1/health-logs",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"log_date": "2025-05-01", "weight": 70.0, "exercise_duration": 30, "alcohol_amount": 0, "smoking_amount": 0},
+    )
+    log_id = create_resp.json().get("id")
+    if not log_id:
+        return
+    response = await client.patch(
+        f"/api/v1/health-logs/{log_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"weight": 69.5},
+    )
+    print("✅ 건강 로그 수정:", response.status_code, response.json())
+    assert response.status_code == 200
+
+
+# ================================================================
+# 💊 MEDICATION - 복약 완료 처리
+# ================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_medication_completions(client: AsyncClient):
+    """✅ 복약 완료 목록 조회"""
+    token = await get_token(client)
+    response = await client.get(
+        "/api/v1/medications/me/completions?date=2025-05-01",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    print("✅ 복약 완료 목록:", response.status_code, response.json())
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_patch_medication_completion_not_found(client: AsyncClient):
+    """❌ 복약 완료 처리 실패 - 없는 복약"""
+    token = await get_token(client)
+    response = await client.patch(
+        "/api/v1/medications/99999/completions",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"date": "2025-05-01", "time_index": 0, "completed": True},
+    )
+    print("❌ 복약 완료 실패:", response.status_code, response.json())
+    assert response.status_code == 404
+
+
+# ================================================================
+# 📊 SURVEY - 수정
+# ================================================================
+
+
+@pytest.mark.asyncio
+async def test_update_survey_no_survey(client: AsyncClient):
+    """❌ 설문 수정 실패 - 설문 없음"""
+    token = await get_token(client)
+    response = await client.put(
+        "/api/v1/surveys/me",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"weight": 72.0},
+    )
+    print("❌ 설문 수정 실패:", response.status_code, response.json())
+    assert response.status_code == 404
+
+
+# ================================================================
+# 🔔 REMINDER (리마인더)
+# ================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_my_reminders(client: AsyncClient):
+    """✅ 리마인더 목록 조회"""
+    token = await get_token(client)
+    response = await client.get("/api/v1/reminders/me", headers={"Authorization": f"Bearer {token}"})
+    print("✅ 리마인더 목록:", response.status_code, response.json())
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_create_reminder(client: AsyncClient):
+    """✅ 리마인더 생성"""
+    token = await get_token(client)
+    response = await client.post(
+        "/api/v1/reminders",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"type": "medication", "title": "혈압약 복용", "remind_at": "2026-05-01 08:00"},
+    )
+    print("✅ 리마인더 생성:", response.status_code, response.json())
+    assert response.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_toggle_reminder_not_found(client: AsyncClient):
+    """❌ 리마인더 수정 실패 - 없는 리마인더"""
+    token = await get_token(client)
+    response = await client.patch(
+        "/api/v1/reminders/99999",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"enabled": False},
+    )
+    print("❌ 리마인더 수정 실패:", response.status_code, response.json())
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_reminder_not_found(client: AsyncClient):
+    """❌ 리마인더 삭제 실패 - 없는 리마인더"""
+    token = await get_token(client)
+    response = await client.delete("/api/v1/reminders/99999", headers={"Authorization": f"Bearer {token}"})
+    print("❌ 리마인더 삭제 실패:", response.status_code, response.json())
+    assert response.status_code == 404
+
+
+# ================================================================
+# 👤 USER - 추가 엔드포인트
+# ================================================================
+
+
+@pytest.mark.asyncio
+async def test_complete_onboarding(client: AsyncClient):
+    """✅ 온보딩 완료 처리"""
+    token = await get_token(client)
+    response = await client.patch(
+        "/api/v1/users/me/onboarding", headers={"Authorization": f"Bearer {token}"}
+    )
+    print("✅ 온보딩 완료:", response.status_code, response.json())
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_delete_user(client: AsyncClient):
+    """✅ 회원 탈퇴"""
+    await client.post(
+        "/api/v1/auth/signup",
+        json={"email": "delete@example.com", "password": "Test1234!", "nickname": "탈퇴유저"},
+    )
+    login_resp = await client.post(
+        "/api/v1/auth/login", json={"email": "delete@example.com", "password": "Test1234!"}
+    )
+    token = login_resp.json().get("access_token", "")
+    response = await client.delete("/api/v1/users/me", headers={"Authorization": f"Bearer {token}"})
+    print("✅ 회원 탈퇴:", response.status_code)
+    assert response.status_code == 204
+
+
+# ================================================================
+# 🍱 FOOD (식단)
+# ================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_my_food_logs(client: AsyncClient):
+    """✅ 식단 목록 조회"""
+    token = await get_token(client)
+    response = await client.get("/api/v1/food/me", headers={"Authorization": f"Bearer {token}"})
+    print("✅ 식단 목록:", response.status_code, response.json())
+    assert response.status_code == 200

@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import ORJSONResponse as Response
 from fastapi.responses import StreamingResponse
 from fpdf import FPDF
@@ -75,8 +75,11 @@ async def download_activity_report(
         )
 
     # PDF 생성
-    pdf = _build_pdf(user, result, health_logs)
-    pdf_bytes = bytes(pdf.output())
+    try:
+        pdf = _build_pdf(user, result, health_logs)
+        pdf_bytes = bytes(pdf.output())
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"PDF 생성 실패: {e}") from e
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",

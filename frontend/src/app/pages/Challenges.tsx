@@ -323,7 +323,8 @@ export function Challenges() {
                         size="sm"
                         className="w-full bg-amber-500 hover:bg-amber-600 text-white"
                         disabled={activeJoinedIds.has(c.id) || joining === c.id}
-                        onClick={() => setJoinTarget({ id: c.id, challengeId: c.id, title: c.name, description: c.description, category: c.type, duration: `${c.duration_days}일`, difficulty: "초급", participants: 0 })}
+                        onClick={() => setJoinTarget(toChallenge({ ...c, is_recommended: true, participant_count: 0, is_custom: false, required_logs: c.duration_days }))}
+
                       >
                         {activeJoinedIds.has(c.id) ? "참여 중" : "참여하기"}
                       </Button>
