@@ -1,3 +1,6 @@
+import random
+import string
+
 from fastapi.exceptions import HTTPException
 from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,7 +10,9 @@ from app.dtos.auth import LoginRequest, SignUpRequest
 from app.models.users import User
 from app.repositories.user_repository import UserRepository
 from app.services.jwt import JwtService
+from app.utils.email import send_temp_password_email
 from app.utils.jwt.tokens import AccessToken, RefreshToken
+from app.utils.redis import cache_delete, cache_get, cache_set
 from app.utils.security import hash_password, verify_password
 
 
@@ -26,8 +31,6 @@ class AuthService:
         return user
 
     async def authenticate(self, data: LoginRequest) -> User:
-        from app.utils.redis import cache_delete, cache_get
-
         user = await self.user_repo.get_user_by_email(str(data.email))
         if not user:
             raise HTTPException(
@@ -82,8 +85,6 @@ class AuthService:
 
     async def _make_unique_nickname(self, base: str) -> str:
         """닉네임 중복 시 숫자 접미사로 유일화"""
-        import random
-
         nickname = base[:18]
         if not await self.user_repo.exists_by_nickname(nickname):
             return nickname
@@ -106,12 +107,6 @@ class AuthService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="소셜 로그인 계정은 비밀번호 재설정을 지원하지 않습니다.",
             )
-        import random
-        import string
-
-        from app.utils.email import send_temp_password_email
-        from app.utils.redis import cache_set
-
         temp_password = "".join(random.choices(string.ascii_letters + string.digits, k=10))
         await cache_set(f"password_reset:{user.id}", {"hashed": hash_password(temp_password)}, ttl=600)
         await send_temp_password_email(email, temp_password)
