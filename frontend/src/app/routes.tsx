@@ -42,7 +42,6 @@ import { OnboardingStep3 } from "./pages/OnboardingStep3";
 import { Layout } from "./components/Layout";
 import { Terms } from "./pages/Terms";
 import { Privacy } from "./pages/Privacy";
-import { FindEmail } from "./pages/FindEmail";
 import { ResetPassword } from "./pages/ResetPassword";
 
 export const router = createBrowserRouter([
@@ -77,12 +76,8 @@ export const router = createBrowserRouter([
     Component: Login,
   },
   {
-  path: "/find-email",
-  Component: FindEmail,
-  },
-  {
-  path: "/reset-password",
-  Component: ResetPassword,
+    path: "/reset-password",
+    Component: ResetPassword,
   },
   {
   path: "/privacy",

@@ -21,3 +21,7 @@ class LoginResponse(BaseModel):
 
 
 class TokenRefreshResponse(LoginResponse): ...
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr

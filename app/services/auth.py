@@ -84,3 +84,19 @@ class AuthService:
     async def check_email_exists(self, email: str | EmailStr) -> None:
         if await self.user_repo.exists_by_email(str(email)):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="이미 사용중인 이메일입니다.")
+
+    async def reset_password(self, email: str) -> str:
+        user = await self.user_repo.get_user_by_email(email)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="가입되지 않은 이메일입니다.")
+        if user.social_provider and not user.email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="소셜 로그인 계정은 비밀번호 재설정을 지원하지 않습니다.",
+            )
+        import random
+        import string
+
+        temp_password = "".join(random.choices(string.ascii_letters + string.digits, k=10))
+        await self.user_repo.update_instance(user, {"hashed_password": hash_password(temp_password)})
+        return temp_password

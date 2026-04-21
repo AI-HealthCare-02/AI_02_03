@@ -216,12 +216,8 @@ export function Login() {
                 </div>
               </Button>
 
-              {/* Find ID/Password Links */}
+              {/* Find Password Link */}
               <div className="flex items-center justify-center gap-2 text-xs text-gray-500 pt-2">
-                <Link to="/find-email" className="hover:text-emerald-600 transition-colors">
-                  아이디 찾기
-                </Link>
-                <span>|</span>
                 <Link to="/reset-password" className="hover:text-emerald-600 transition-colors">
                   비밀번호 찾기
                 </Link>

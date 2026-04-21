@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import config
 from app.core.config import Env
 from app.db.databases import get_db
-from app.dtos.auth import LoginRequest, LoginResponse, SignUpRequest, TokenRefreshResponse
+from app.dtos.auth import LoginRequest, LoginResponse, ResetPasswordRequest, SignUpRequest, TokenRefreshResponse
 from app.services.auth import AuthService
 from app.services.jwt import JwtService
 from app.services.oauth import KakaoOAuthService, NaverOAuthService
@@ -149,6 +149,15 @@ async def naver_callback(
         return resp
     except Exception:
         return RedirectResponse(url=f"{frontend_url}/login?error=naver_failed")
+
+
+@auth_router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password(
+    request: ResetPasswordRequest,
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> Response:
+    temp_password = await auth_service.reset_password(str(request.email))
+    return Response(content={"temp_password": temp_password}, status_code=status.HTTP_200_OK)
 
 
 @auth_router.get("/check-email", status_code=status.HTTP_200_OK)
