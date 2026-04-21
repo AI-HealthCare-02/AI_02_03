@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import UTC, date, datetime
 from typing import Annotated
 
@@ -25,6 +26,8 @@ from app.models.users import User
 from app.repositories.prediction_repository import PredictionRepository
 from app.services.challenges import ChallengeService
 from app.utils.redis import cache_get, cache_set, seconds_until_midnight
+
+logger = logging.getLogger(__name__)
 
 challenge_router = APIRouter(tags=["challenges"])
 
@@ -296,9 +299,7 @@ async def get_suggested_challenges(
 
         await db.commit()
     except Exception as e:
-        import logging
-
-        logging.getLogger(__name__).exception("suggested challenges 생성 실패: %s", e)
+        logger.exception("suggested challenges 생성 실패: %s", e)
 
     result = {"next_appointment": next_appt_info, "suggested": suggested}
     await cache_set(cache_key, result, seconds_until_midnight())

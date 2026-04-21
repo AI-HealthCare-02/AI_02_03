@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,6 +8,8 @@ from app.models.users import User
 from app.repositories.challenge_repository import ChallengeLogRepository, ChallengeRepository, UserChallengeRepository
 from app.repositories.health_survey_repository import HealthSurveyRepository
 from app.repositories.prediction_repository import PredictionRepository
+
+logger = logging.getLogger(__name__)
 
 
 def _calc_grade(score: float) -> str:
@@ -73,9 +77,7 @@ class PredictionService:
         try:
             result = task_result.get(timeout=30)
         except Exception as e:
-            import logging
-
-            logging.getLogger(__name__).error("Celery task failed: %s", repr(e))
+            logger.error("Celery task failed: %s", repr(e))
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"AI 예측 서비스에 연결할 수 없습니다. ({repr(e)})",

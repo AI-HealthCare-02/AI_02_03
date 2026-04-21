@@ -20,6 +20,7 @@ from app.dtos.auth import (
     TokenRefreshResponse,
 )
 from app.models.users import User
+from app.repositories.user_repository import UserRepository
 from app.services.auth import AuthService
 from app.services.jwt import JwtService
 from app.services.oauth import KakaoOAuthService, NaverOAuthService
@@ -193,8 +194,6 @@ async def check_nickname(
     nickname: str,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
-    from app.repositories.user_repository import UserRepository
-
     repo = UserRepository(db)
     exists = await repo.exists_by_nickname(nickname)
     if exists:
