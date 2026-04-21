@@ -179,7 +179,7 @@ async def get_suggested_challenges(
     max_days = d_day if d_day is not None else 30
 
     prompt = f"""당신은 지방간 환자의 건강 관리를 돕는 AI 코치입니다.
-아래 사용자 상황에 딱 맞는 개인화 챌린지 3개를 직접 만들어주세요.
+아래 사용자 상황에 딱 맞는 개인화 챌린지 2개를 직접 만들어주세요.
 
 [사용자 상황]
 - 건강 점수: {health_context}
