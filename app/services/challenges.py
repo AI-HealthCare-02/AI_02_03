@@ -297,8 +297,11 @@ class ChallengeService:
         return {"field": field, "before": before_val, "after": new_val}
 
     async def _update_weight(self, uc, survey) -> dict | None:
-        cname = uc.challenge.name
-        target_kg = 5.0 if "5kg" in cname else 2.0
+        # 14일 미만은 유의미한 감량 불가 → 배지만
+        if uc.challenge.duration_days < 14:
+            return None
+        # 30일 이상이면 5kg, 미만이면 2kg
+        target_kg = 5.0 if uc.challenge.duration_days >= 30 else 2.0
         before_weight = survey.weight
         new_weight = round(max(before_weight - target_kg, 30.0), 1)
         h = survey.height / 100
@@ -308,6 +311,9 @@ class ChallengeService:
         return {"field": "weight", "before": before_weight, "after": new_weight}
 
     async def _update_exercise(self, uc, survey) -> dict | None:
+        # 7일 이하는 배지만
+        if uc.challenge.duration_days <= 7:
+            return None
         target = 5 if uc.challenge.duration_days >= 14 else 3
         before = survey.weekly_exercise_count
         new_count = max(before, target)
@@ -316,7 +322,10 @@ class ChallengeService:
         await self.survey_repo.update(survey, {"exercise": "운동함", "weekly_exercise_count": new_count})
         return {"field": "weekly_exercise_count", "before": before, "after": new_count}
 
-    async def _update_drinking(self, uc, survey) -> dict | None:  # noqa: ARG002
+    async def _update_drinking(self, uc, survey) -> dict | None:
+        # 14일 미만은 배지만 (단기간에 음주 습관 변화 불가)
+        if uc.challenge.duration_days < 14:
+            return None
         if survey.drinking == "음주안함":
             return None
         before = survey.drinking
@@ -325,14 +334,20 @@ class ChallengeService:
         )
         return {"field": "drinking", "before": before, "after": "음주안함"}
 
-    async def _update_smoking(self, uc, survey) -> dict | None:  # noqa: ARG002
+    async def _update_smoking(self, uc, survey) -> dict | None:
+        # 14일 미만은 배지만 (단기간 금연은 습관 변화로 인정 불가)
+        if uc.challenge.duration_days < 14:
+            return None
         if survey.current_smoking == "안함":
             return None
         before = survey.smoking
         await self.survey_repo.update(survey, {"smoking": "비흡연", "current_smoking": "안함"})
         return {"field": "smoking", "before": before, "after": "비흡연"}
 
-    async def _update_sleep(self, uc, survey) -> dict | None:  # noqa: ARG002
+    async def _update_sleep(self, uc, survey) -> dict | None:
+        # 7일 미만은 배지만 (수면 습관 개선에 최소 1주일 필요)
+        if uc.challenge.duration_days < 7:
+            return None
         before = survey.sleep_hours
         new_hours = max(before, 7.0)
         if new_hours == before:
