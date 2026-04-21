@@ -164,7 +164,7 @@ class ChallengeService:
             )
         return result
 
-    async def complete_challenge(self, user: User, user_challenge_id: int) -> ChallengeCompleteResponse:
+    async def complete_challenge(self, user: User, user_challenge_id: int, input_weight: float | None = None) -> ChallengeCompleteResponse:
         uc = await self.uc_repo.get_by_id_and_user(user_challenge_id, user.id)
         if not uc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="해당 챌린지를 찾을 수 없습니다.")
@@ -194,7 +194,7 @@ class ChallengeService:
         survey_changes = None
         survey = await self.survey_repo.get_by_user_id(user.id)
         if survey:
-            survey_changes = await self._apply_survey_update(uc, survey)
+            survey_changes = await self._apply_survey_update(uc, survey, input_weight)
 
         # 새 점수 계산
         from app.services.health_surveys import _calc_grade as _grade
@@ -270,17 +270,21 @@ class ChallengeService:
         """prev → new 사이에 새로 넘은 마일스톤 목록"""
         return [m for m in self._MILESTONES if prev < m <= new]
 
-    async def _apply_survey_update(self, uc, survey) -> dict | None:
+    async def _apply_survey_update(self, uc, survey, input_weight: float | None = None) -> dict | None:
         ctype = uc.challenge.type
         new_cum = await self._cumulative_days(uc.user_id, ctype, uc.challenge.duration_days)
         prev_cum = new_cum - uc.challenge.duration_days
         crossed = self._newly_crossed(prev_cum, new_cum)
+
+        if ctype == "체중감량":
+            return await self._update_weight(uc, survey, prev_cum, new_cum, crossed, input_weight)
+
         if not crossed:
-            return None  # 새 마일스톤 없음 → 배지만
+            return None
+
         handlers = {
             "식단": self._update_diet,
             "식습관": self._update_diet,
-            "체중감량": self._update_weight,
             "운동": self._update_exercise,
             "금주": self._update_drinking,
             "금연": self._update_smoking,
@@ -316,17 +320,23 @@ class ChallengeService:
         await self.survey_repo.update(survey, {field: new_val, "diet_score": new_score, "diet_eval": new_eval})
         return {"field": field, "before": before_val, "after": new_val}
 
-    async def _update_weight(self, uc, survey, prev_cum: int, new_cum: int, crossed: list[int]) -> dict | None:
-        # 14일 마일스톤 첫 돌파 시 -2kg, 30일 마일스톤 첫 돌파 시 추가 -3kg
-        kg_delta = 0.0
-        if 14 in crossed:
-            kg_delta += 2.0
-        if 30 in crossed:
-            kg_delta += 3.0
-        if kg_delta == 0.0:
-            return None
+    async def _update_weight(self, uc, survey, prev_cum: int, new_cum: int, crossed: list[int], input_weight: float | None = None) -> dict | None:
         before_weight = survey.weight
-        new_weight = round(max(before_weight - kg_delta, 30.0), 1)
+        if input_weight is not None:
+            # 사용자가 직접 입력한 체중 사용
+            new_weight = round(max(input_weight, 30.0), 1)
+        else:
+            # 마일스톤 기반 자동 감량: 14일 첫 돌파 -2kg, 30일 첫 돌파 추가 -3kg
+            kg_delta = 0.0
+            if 14 in crossed:
+                kg_delta += 2.0
+            if 30 in crossed:
+                kg_delta += 3.0
+            if kg_delta == 0.0:
+                return None
+            new_weight = round(max(before_weight - kg_delta, 30.0), 1)
+        if new_weight >= before_weight:
+            return None
         h = survey.height / 100
         new_bmi = round(new_weight / (h**2), 1)
         new_waist = round(survey.waist * (new_bmi / survey.bmi), 1) if survey.bmi > 0 else survey.waist

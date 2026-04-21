@@ -78,6 +78,9 @@ export function Challenges() {
   const [completeState, setCompleteState] = useState<CompleteState>("idle");
   const [completeResult, setCompleteResult] = useState<CompleteResult | null>(null);
   const [completeTarget, setCompleteTarget] = useState<Challenge | null>(null);
+  // 체중감량 챌린지 체중 입력
+  const [weightInput, setWeightInput] = useState<string>("");
+  const [weightDialogOpen, setWeightDialogOpen] = useState(false);
 
   interface SuggestedChallenge {
     id: number;
@@ -159,10 +162,21 @@ export function Challenges() {
   };
 
   const handleCompleteChallenge = async (challenge: Challenge) => {
+    if (challenge.category === "체중감량") {
+      setCompleteTarget(challenge);
+      setWeightInput("");
+      setWeightDialogOpen(true);
+      return;
+    }
+    await submitComplete(challenge, undefined);
+  };
+
+  const submitComplete = async (challenge: Challenge, weight: number | undefined) => {
     setCompleteTarget(challenge);
     setCompleteState("loading");
     try {
-      const r = await api.patch<CompleteResult>(`/api/v1/user-challenges/${challenge.id}/complete`);
+      const body = weight !== undefined ? { weight } : {};
+      const r = await api.patch<CompleteResult>(`/api/v1/user-challenges/${challenge.id}/complete`, body);
       setCompleteResult(r.data);
       setCompleteState("done");
       await fetchActiveChallenges();
@@ -510,6 +524,42 @@ export function Challenges() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setQuitTarget(null)}>계속 진행하기</Button>
             <Button variant="destructive" onClick={handleQuitConfirm}>중단하기</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 체중 입력 다이얼로그 */}
+      <Dialog open={weightDialogOpen} onOpenChange={(o) => { if (!o) { setWeightDialogOpen(false); setCompleteTarget(null); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>현재 체중을 입력해주세요</DialogTitle>
+            <DialogDescription>챌린지 완료 후 실제 체중을 기록하면 건강 점수에 반영됩니다.</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 py-2">
+            <input
+              type="number"
+              step="0.1"
+              min="30"
+              max="300"
+              value={weightInput}
+              onChange={(e) => setWeightInput(e.target.value)}
+              placeholder="예: 72.5"
+              className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <span className="text-sm text-gray-500">kg</span>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setWeightDialogOpen(false); setCompleteTarget(null); }}>취소</Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              disabled={!weightInput || Number(weightInput) < 30}
+              onClick={() => {
+                setWeightDialogOpen(false);
+                if (completeTarget) submitComplete(completeTarget, Number(weightInput));
+              }}
+            >
+              완료하기
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

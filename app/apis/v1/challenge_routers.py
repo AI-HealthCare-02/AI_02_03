@@ -11,7 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import config
 from app.db.databases import get_db
 from app.dependencies.security import get_request_user
-from app.dtos.challenges import ChallengeLogRequest, CustomChallengeCreateRequest, MaintenanceCheckinRequest
+from app.dtos.challenges import (
+    ChallengeCompleteRequest,
+    ChallengeLogRequest,
+    CustomChallengeCreateRequest,
+    MaintenanceCheckinRequest,
+)
 from app.models.appointment import Appointment
 from app.models.badges import UserBadge
 from app.models.challenges import Challenge, UserChallenge
@@ -92,8 +97,10 @@ async def complete_challenge(
     user_challenge_id: int,
     user: Annotated[User, Depends(get_request_user)],
     service: Annotated[ChallengeService, Depends(get_challenge_service)],
+    body: ChallengeCompleteRequest | None = None,
 ) -> Response:
-    result = await service.complete_challenge(user, user_challenge_id)
+    weight = body.weight if body else None
+    result = await service.complete_challenge(user, user_challenge_id, weight)
     return Response(result.model_dump(), status_code=status.HTTP_200_OK)
 
 

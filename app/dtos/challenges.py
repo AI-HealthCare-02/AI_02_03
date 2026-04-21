@@ -47,6 +47,10 @@ class UserChallengeResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ChallengeCompleteRequest(BaseModel):
+    weight: float | None = None  # 체중감량 챌린지 완료 시 현재 체중 (kg)
+
+
 class ChallengeCompleteResponse(BaseModel):
     detail: str
     score_before: float
