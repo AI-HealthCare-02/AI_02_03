@@ -232,16 +232,25 @@ class ChallengeService:
     # ─── 설문 업데이트 방식 (식습관/식단/체중감량만) ────────────────────────
 
     _DIET_CHALLENGE_MAP: dict[str, tuple[str, int]] = {
-        "채소": ("diet_q1", 1),
-        "균형": ("diet_q4", 1),
-        "소식": ("diet_q5", -1),
-        "야식": ("diet_q7", -1),
+        "채소": ("diet_q1", 1),       # diet_q1: 채소 섭취 (긍정)
+        "단음식": ("diet_q2", -1),    # diet_q2: 단 음식 (부정 → 줄이기)
+        "당류": ("diet_q2", -1),
+        "튀김": ("diet_q3", -1),      # diet_q3: 튀김/패스트푸드 (부정 → 줄이기)
+        "패스트푸드": ("diet_q3", -1),
+        "균형": ("diet_q4", 1),       # diet_q4: 규칙적 식사 (긍정)
+        "소식": ("diet_q5", -1),      # diet_q5: 과식 (부정 → 줄이기)
+        "단백질": ("diet_q6", 1),     # diet_q6: 단백질 섭취 (긍정)
+        "야식": ("diet_q7", -1),      # diet_q7: 야식 (부정 → 줄이기)
     }
 
     @staticmethod
     def _diet_delta(direction: int, duration_days: int) -> int:
-        """기간에 따라 식습관 점수 변화량 결정: 7일→±1, 14일→±2, 21일+→±3"""
-        if duration_days >= 21:
+        """기간에 따라 식습관 점수 변화량 결정
+        ≤7일: 0 (배지만), 8~13일: ±1, 14~20일: ±2, 21일+: ±3
+        """
+        if duration_days <= 7:
+            magnitude = 0
+        elif duration_days >= 21:
             magnitude = 3
         elif duration_days >= 14:
             magnitude = 2
