@@ -2,10 +2,8 @@ import { useEffect, useState } from "react";
 import api from "../../lib/api";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { LiverCharacter } from "../components/LiverCharacter";
-import { Progress as ProgressBar } from "../components/ui/progress";
 import {
   Flame,
   Target,
@@ -16,8 +14,7 @@ import {
   Wine,
   TrendingUp,
   CheckCircle2,
-  Clock,
-  Users,
+
 } from "lucide-react";
 
 import type React from "react";
@@ -63,9 +60,8 @@ export function Progress() {
   const [alcoholData, setAlcoholData] = useState<{ day: string; amount: number }[]>([]);
   const [improvementFactors, setImprovementFactors] = useState<{ category: string; challenge_type: string; score_delta: number }[]>([]);
   const [activeChallengesList, setActiveChallengesList] = useState<Challenge[]>([]);
-  const [availableChallengesList, setAvailableChallengesList] = useState<Challenge[]>([]);
-  const [joiningChallenge, setJoiningChallenge] = useState<number | null>(null);
 
+  
   const sleepHours = lifestyleSummary?.sleep_hours ?? 0;
   const sleepData = [{ day: "설문 기준", hours: sleepHours }];
   const surveyWeight = lifestyleSummary?.weight ?? 0;
@@ -91,7 +87,8 @@ export function Progress() {
       .get<{
         latest_score: number;
         score_history: { score: number; created_at: string }[];
-        lifestyle_summary: { bmi: number; sleep_hours: number; drink_amount: number; exercise: string };
+        lifestyle_summary: { bmi: number; weight: number; sleep_hours: number; drink_amount: number; exercise: string; current_smoking: string };
+        improvement_factors: { category: string; challenge_type: string; score_delta: number }[];
         streak_days: number;
         weekly_rate: number;
       }>("/api/v1/dashboard")
@@ -125,9 +122,6 @@ export function Progress() {
         const recent = r.data.slice(0, 7).reverse();
         setWeightData(recent.map((l) => ({ day: DAYS[new Date(l.log_date).getDay()], value: l.weight ?? 0 })));
         setAlcoholData(recent.map((l) => ({ day: DAYS[new Date(l.log_date).getDay()], amount: l.alcohol_amount ?? 0 })));
-        setSmokingData(
-          recent.map((l) => ({ day: DAYS[new Date(l.log_date).getDay()], amount: l.smoking_amount ?? 0 }))
-        );
       })
       .catch(() => {});
 
@@ -163,27 +157,6 @@ export function Progress() {
       })
       .catch(() => {});
 
-    // 참여 가능 챌린지
-    api
-      .get<{ id: number; type: string; name: string; description: string; duration_days: number }[]>(
-        "/api/v1/challenges"
-      )
-      .then((r) =>
-        setAvailableChallengesList(
-          r.data.map((c) => ({
-            id: c.id,
-            title: c.name,
-            description: c.description,
-            icon: typeIcon(c.type),
-            duration: `${c.duration_days}일`,
-            participants: 0,
-            difficulty: "초급" as const,
-            category: c.type,
-          }))
-        )
-      )
-      .catch(() => {});
-
     api.get<{ earned_count: number }>("/api/v1/badges/me/count").then((r) => {
       setEarnedBadges(r.data.earned_count);
     }).catch(() => {});
@@ -192,40 +165,10 @@ export function Progress() {
       setBadges(r.data);
     }).catch(() => {});
 
-    api.get<{ id: number; food_name: string; calories: number; liver_impact: string; recommendation: string; analyzed_at: string }[]>("/api/v1/food/me")
+    api.get<{ id: number; food_name: string; calories: number; fat: number; sugar: number; liver_impact: string; recommendation: string; rating: string; image_url: string | null; analyzed_at: string }[]>("/api/v1/food/me")
       .then((r) => setRecentMeals(r.data))
       .catch(() => {});
   }, []);
-
-  const handleJoinChallenge = async (challengeId: number) => {
-    setJoiningChallenge(challengeId);
-    try {
-      await api.post(`/api/v1/challenges/${challengeId}/join`);
-      const r = await api.get<{ user_challenge_id: number; challenge_name: string; type: string; description: string; duration_days: number; progress: number; days_left: number }[]>(
-        "/api/v1/user-challenges/me",
-        { params: { status: "진행중" } }
-      );
-      setActiveChallengesCount(r.data.length);
-      setActiveChallengesList(
-        r.data.map((uc) => ({
-          id: uc.user_challenge_id,
-          title: uc.challenge_name,
-          description: uc.description,
-          icon: typeIcon(uc.type),
-          duration: `${uc.duration_days}일`,
-          participants: 0,
-          difficulty: "초급" as const,
-          category: uc.type,
-          progress: uc.progress,
-          daysLeft: uc.days_left,
-        }))
-      );
-    } catch {
-      // 이미 참여 중
-    } finally {
-      setJoiningChallenge(null);
-    }
-  };
 
   const [badges, setBadges] = useState<{ key: string; name: string; description: string; emoji: string; earned: boolean }[]>([]);
 
@@ -241,19 +184,6 @@ export function Progress() {
     image_url: string | null;
     analyzed_at: string;
   }[]>([]);
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case "초급":
-        return "bg-emerald-100 text-emerald-700 border-emerald-200";
-      case "중급":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "고급":
-        return "bg-purple-100 text-purple-700 border-purple-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
 
   return (
     <div className="pb-8 space-y-6">
