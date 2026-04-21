@@ -22,6 +22,7 @@ def log(label: str, response: Response, body: dict | None = None) -> None:
     except Exception:
         print("  OUTPUT : (binary/non-json)")
 
+
 # ================================================================
 # 🔐 AUTH (인증)
 # ================================================================
@@ -540,9 +541,7 @@ async def test_get_suggested_challenges(client: AsyncClient):
 async def test_quit_challenge_not_found(client: AsyncClient):
     """❌ 챌린지 포기 실패 - 없는 챌린지"""
     token = await get_token(client)
-    response = await client.patch(
-        "/api/v1/user-challenges/99999/quit", headers={"Authorization": f"Bearer {token}"}
-    )
+    response = await client.patch("/api/v1/user-challenges/99999/quit", headers={"Authorization": f"Bearer {token}"})
     print("❌ 챌린지 포기 실패:", response.status_code, response.json())
     assert response.status_code == 404
 
@@ -575,9 +574,7 @@ async def test_log_challenge_not_found(client: AsyncClient):
 async def test_delete_custom_challenge_not_found(client: AsyncClient):
     """❌ 커스텀 챌린지 삭제 실패 - 없는 챌린지"""
     token = await get_token(client)
-    response = await client.delete(
-        "/api/v1/challenges/99999/custom", headers={"Authorization": f"Bearer {token}"}
-    )
+    response = await client.delete("/api/v1/challenges/99999/custom", headers={"Authorization": f"Bearer {token}"})
     print("❌ 커스텀 챌린지 삭제 실패:", response.status_code, response.json())
     assert response.status_code == 404
 
@@ -608,7 +605,13 @@ async def test_patch_health_log(client: AsyncClient):
     create_resp = await client.post(
         "/api/v1/health-logs",
         headers={"Authorization": f"Bearer {token}"},
-        json={"log_date": "2025-05-01", "weight": 70.0, "exercise_duration": 30, "alcohol_amount": 0, "smoking_amount": 0},
+        json={
+            "log_date": "2025-05-01",
+            "weight": 70.0,
+            "exercise_duration": 30,
+            "alcohol_amount": 0,
+            "smoking_amount": 0,
+        },
     )
     log_id = create_resp.json().get("id")
     if not log_id:
@@ -728,9 +731,7 @@ async def test_delete_reminder_not_found(client: AsyncClient):
 async def test_complete_onboarding(client: AsyncClient):
     """✅ 온보딩 완료 처리"""
     token = await get_token(client)
-    response = await client.patch(
-        "/api/v1/users/me/onboarding", headers={"Authorization": f"Bearer {token}"}
-    )
+    response = await client.patch("/api/v1/users/me/onboarding", headers={"Authorization": f"Bearer {token}"})
     print("✅ 온보딩 완료:", response.status_code, response.json())
     assert response.status_code == 200
 
@@ -742,9 +743,7 @@ async def test_delete_user(client: AsyncClient):
         "/api/v1/auth/signup",
         json={"email": "delete@example.com", "password": "Test1234!", "nickname": "탈퇴유저"},
     )
-    login_resp = await client.post(
-        "/api/v1/auth/login", json={"email": "delete@example.com", "password": "Test1234!"}
-    )
+    login_resp = await client.post("/api/v1/auth/login", json={"email": "delete@example.com", "password": "Test1234!"})
     token = login_resp.json().get("access_token", "")
     response = await client.delete("/api/v1/users/me", headers={"Authorization": f"Bearer {token}"})
     print("✅ 회원 탈퇴:", response.status_code)
