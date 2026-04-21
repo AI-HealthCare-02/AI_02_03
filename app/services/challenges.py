@@ -158,6 +158,7 @@ class ChallengeService:
                     progress=progress,
                     days_left=days_left,
                     today_completed=bool(today_log and today_log.is_completed),
+                    is_maintenance=uc.is_maintenance,
                     joined_at=uc.joined_at,
                     completed_at=uc.completed_at,
                 )

@@ -41,6 +41,7 @@ class UserChallengeResponse(BaseModel):
     progress: int = 0
     days_left: int = 0
     today_completed: bool = False
+    is_maintenance: bool = False
     joined_at: datetime
     completed_at: datetime | None = None
 

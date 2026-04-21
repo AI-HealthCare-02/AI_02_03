@@ -57,6 +57,7 @@ interface UserChallenge {
   type: string;
   status: string;
   today_completed: boolean;
+  is_maintenance: boolean;
 }
 
 const TYPE_ICON: Record<string, React.ElementType> = {
@@ -80,6 +81,39 @@ export function Home() {
   const [earnedBadgeCount, setEarnedBadgeCount] = useState(0);
   const [completeTarget, setCompleteTarget] = useState<UserChallenge | null>(null);
   const [aiMessage, setAiMessage] = useState<{ message: string; challenge_reason: string | null } | null>(null);
+  const [maintenanceQueue, setMaintenanceQueue] = useState<UserChallenge[]>([]);
+  const [maintenanceSubmitting, setMaintenanceSubmitting] = useState(false);
+
+  const enqueueMaintenance = (challenges: UserChallenge[]) => {
+    const today = new Date().toDateString();
+    const shownKey = `maintenance_shown_${today}`;
+    if (localStorage.getItem(shownKey)) return;
+    const pending = challenges.filter((c) => c.is_maintenance);
+    if (pending.length > 0) {
+      setMaintenanceQueue(pending);
+    }
+  };
+
+  const handleMaintenanceCheckin = async (challenge: UserChallenge, stillMaintaining: boolean) => {
+    setMaintenanceSubmitting(true);
+    try {
+      await api.post(`/api/v1/user-challenges/${challenge.type}/checkin`, { still_maintaining: stillMaintaining });
+    } catch {
+      // ignore
+    } finally {
+      setMaintenanceSubmitting(false);
+      setMaintenanceQueue((prev) => {
+        const next = prev.slice(1);
+        if (next.length === 0) {
+          localStorage.setItem(`maintenance_shown_${new Date().toDateString()}`, "1");
+          api.get<UserChallenge[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } })
+            .then((r) => setActiveChallenges(r.data))
+            .catch(() => {});
+        }
+        return next;
+      });
+    }
+  };
 
   useEffect(() => {
     api.get<Appointment[]>("/api/v1/appointments/me").then((r) => {
@@ -111,6 +145,7 @@ export function Home() {
 
     api.get<UserChallenge[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } }).then((r) => {
       setActiveChallenges(r.data);
+      enqueueMaintenance(r.data);
     }).catch(() => {});
 
     api.get<{ earned_count: number }>("/api/v1/badges/me/count").then((r) => {
@@ -126,7 +161,7 @@ export function Home() {
     const refreshChallenges = () => {
       if (document.visibilityState === "visible") {
         api.get<UserChallenge[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } })
-          .then((r) => setActiveChallenges(r.data))
+          .then((r) => { setActiveChallenges(r.data); enqueueMaintenance(r.data); })
           .catch(() => {});
       }
     };
@@ -490,6 +525,41 @@ export function Home() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 유지 모드 체크인 다이얼로그 */}
+      <Dialog open={maintenanceQueue.length > 0} onOpenChange={() => {}}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>
+              {maintenanceQueue[0]?.type} 유지 중이신가요? 💪
+            </DialogTitle>
+            <DialogDescription>
+              <span className="font-medium text-gray-900">{maintenanceQueue[0]?.challenge_name}</span> 챌린지를 완료하셨습니다.
+              오늘도 계속 유지하고 있다면 확인해주세요.
+            </DialogDescription>
+          </DialogHeader>
+          {maintenanceQueue.length > 1 && (
+            <p className="text-xs text-gray-400 text-center">{maintenanceQueue.length - 1}개 더 확인이 필요합니다</p>
+          )}
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              disabled={maintenanceSubmitting}
+              onClick={() => maintenanceQueue[0] && handleMaintenanceCheckin(maintenanceQueue[0], false)}
+            >
+              그만할게요
+            </Button>
+            <Button
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+              disabled={maintenanceSubmitting}
+              onClick={() => maintenanceQueue[0] && handleMaintenanceCheckin(maintenanceQueue[0], true)}
+            >
+              <CheckCircle2 className="size-4 mr-2" />
+              네, 유지 중이에요!
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 챌린지 완료 확인 다이얼로그 */}
       <Dialog open={!!completeTarget} onOpenChange={(o) => !o && setCompleteTarget(null)}>
