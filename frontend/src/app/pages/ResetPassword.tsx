@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import api from "../../../lib/api";
+import api from "../../lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
