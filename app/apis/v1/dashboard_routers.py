@@ -146,10 +146,14 @@ async def get_dashboard_message(
         key=lambda f: f.get("score_delta", 0) if isinstance(f, dict) else getattr(f, "score_delta", 0),
         reverse=True,
     )[:2]
-    improvement_context = ", ".join(
-        f"{f.get('challenge_type') if isinstance(f, dict) else f.challenge_type}(+{f.get('score_delta') if isinstance(f, dict) else f.score_delta}점)"
-        for f in factors
-    ) if factors else "없음"
+    improvement_context = (
+        ", ".join(
+            f"{f.get('challenge_type') if isinstance(f, dict) else f.challenge_type}(+{f.get('score_delta') if isinstance(f, dict) else f.score_delta}점)"
+            for f in factors
+        )
+        if factors
+        else "없음"
+    )
 
     client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
     prompt = f"""당신은 지방간 환자의 건강 관리를 돕는 AI 코치입니다.

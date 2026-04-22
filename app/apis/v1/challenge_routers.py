@@ -210,7 +210,11 @@ async def get_suggested_challenges(
     raw_factors = predictions[0].improvement_factors if predictions else []
     score_delta_map = _build_score_delta_map(raw_factors)
     # score_delta 내림차순 정렬 (LLM 프롬프트용)
-    sorted_factors = sorted(raw_factors, key=lambda f: f.get("score_delta", 0) if isinstance(f, dict) else getattr(f, "score_delta", 0), reverse=True)
+    sorted_factors = sorted(
+        raw_factors,
+        key=lambda f: f.get("score_delta", 0) if isinstance(f, dict) else getattr(f, "score_delta", 0),
+        reverse=True,
+    )
 
     # 최근 식단 로그 조회 (최대 5개)
     food_result = await db.execute(
@@ -302,7 +306,7 @@ async def get_suggested_challenges(
         else "없음"
     )
     if target_types:
-        slots = "\n".join(f'  - 챌린지 {i+1}: type은 반드시 "{t}"' for i, t in enumerate(target_types))
+        slots = "\n".join(f'  - 챌린지 {i + 1}: type은 반드시 "{t}"' for i, t in enumerate(target_types))
         target_instruction = f"아래 슬롯에 맞춰 정확히 {len(target_types)}개를 만드세요:\n{slots}"
     else:
         target_instruction = "챌린지 2개를 자유롭게 만드세요."
@@ -324,9 +328,9 @@ async def get_suggested_challenges(
         resp = await client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
             max_tokens=800,
         )
         usage = resp.usage
@@ -363,7 +367,9 @@ async def get_suggested_challenges(
                 await db.flush()
                 await db.refresh(challenge)
 
-            allowed_types = set(target_types) if target_types else (set(score_delta_map.keys()) if score_delta_map else None)
+            allowed_types = (
+                set(target_types) if target_types else (set(score_delta_map.keys()) if score_delta_map else None)
+            )
             already_typed = {s["type"] for s in suggested}
             type_ok = allowed_types is None or challenge.type in allowed_types
             if challenge.id not in joined_ids and type_ok and challenge.type not in already_typed:
