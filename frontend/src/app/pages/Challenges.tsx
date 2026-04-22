@@ -89,7 +89,9 @@ export function Challenges() {
     description: string;
     duration_days: number;
     reason: string;
-    preview_badge: { name: string; description: string; emoji: string } | null;
+    motivation: string | null;
+    expected_effect: string | null;
+    preview_badge: { name: string; description: string; emoji: string; condition: string | null } | null;
   }
   const [suggested, setSuggested] = useState<SuggestedChallenge[]>([]);
   const [nextAppt, setNextAppt] = useState<{ hospital_name: string; d_day: number } | null>(null);
@@ -309,14 +311,23 @@ export function Challenges() {
                         <Badge className="bg-emerald-100 text-emerald-700 flex-shrink-0">{c.duration_days}일</Badge>
                       </div>
                       <p className="text-sm text-amber-700 bg-amber-50 rounded-lg p-2">{c.reason}</p>
+                      {c.motivation && (
+                        <p className="text-sm text-blue-700 bg-blue-50 rounded-lg p-2">💡 {c.motivation}</p>
+                      )}
+                      {c.expected_effect && (
+                        <p className="text-sm text-emerald-700 bg-emerald-50 rounded-lg p-2">📈 {c.expected_effect}</p>
+                      )}
                       {c.preview_badge && (
                         <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-amber-100">
                           <span className="text-xl">{c.preview_badge.emoji}</span>
-                          <div>
+                          <div className="flex-1">
                             <p className="text-xs font-bold text-gray-800">{c.preview_badge.name}</p>
                             <p className="text-xs text-gray-500">{c.preview_badge.description}</p>
+                            {c.preview_badge.condition && (
+                              <p className="text-xs text-gray-400 mt-0.5">{c.preview_badge.condition}</p>
+                            )}
                           </div>
-                          <Badge className="ml-auto bg-gray-100 text-gray-500 text-xs">완료 시 획득</Badge>
+                          <Badge className="ml-auto bg-gray-100 text-gray-500 text-xs flex-shrink-0">완료 시 획득</Badge>
                         </div>
                       )}
                       <Button
