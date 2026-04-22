@@ -156,14 +156,18 @@ async def get_suggested_challenges(
         }
         appt_context = f"{next_appt.hospital_name} D-{d_day}"
 
-    # 이미 참여 중인 챌린지 ID
+    # 이미 참여 중인 챌린지 ID + 타입
     joined_result = await db.execute(
-        select(UserChallenge.challenge_id).where(
+        select(UserChallenge.challenge_id, Challenge.type)
+        .join(Challenge, Challenge.id == UserChallenge.challenge_id)
+        .where(
             UserChallenge.user_id == user.id,
             UserChallenge.status == "진행중",
         )
     )
-    joined_ids = {row[0] for row in joined_result.all()}
+    joined_rows = joined_result.all()
+    joined_ids = {row[0] for row in joined_rows}
+    joined_types = list({row[1] for row in joined_rows})
 
     # 건강 점수 조회
     prediction_repo = PredictionRepository(db)
@@ -187,28 +191,23 @@ async def get_suggested_challenges(
     earned_badge_names = {row[0] for row in earned_badge_result.all()}
 
     max_days = d_day if d_day is not None else 30
+    joined_types_str = ", ".join(joined_types) if joined_types else "없음"
 
-    prompt = f"""당신은 지방간 환자의 건강 관리를 돕는 AI 코치입니다.
-아래 사용자 상황에 딱 맞는 개인화 챌린지 2개를 직접 만들어주세요.
-
-[사용자 상황]
-- 건강 점수: {health_context}
-- 다음 병원 예약: {appt_context}
-- 최근 먹은 음식: {food_context}
-- 현재 참여 중인 챌린지 수: {len(joined_ids)}개
+    system_prompt = """당신은 지방간 환자의 건강 관리를 돕는 AI 코치입니다.
+사용자 상황에 딱 맞는 개인화 챌린지 2개를 직접 만들어주세요.
 
 [중요 제약 — 반드시 지킬 것]
-- duration_days는 절대로 {max_days}를 초과하면 안 됩니다.
+- duration_days는 사용자 상황의 max_days를 초과하면 안 됩니다.
 - required_logs는 duration_days 이하여야 합니다.
 - type은 반드시 운동, 식단, 수면, 금주, 금연, 체중감량 중 하나여야 합니다.
 - 최근 먹은 음식 중 '주의' 등급이 있으면 해당 식품을 줄이는 식단 챌린지를 반드시 포함하세요.
+- 이미 참여 중인 타입과 동일한 타입은 추천하지 마세요. 다른 타입으로 다양하게 구성하세요.
 
 [타입별 점수 반영 규칙 — 반드시 준수]
 - 식단 타입: 이름에 반드시 아래 키워드 중 하나를 포함하세요.
   * '채소' (채소 섭취 늘리기), '균형' (규칙적 식사), '단백질' (단백질 섭취 늘리기)
   * '단음식' 또는 '당류' (단 음식 줄이기), '튀김' 또는 '패스트푸드' (기름진 음식 줄이기)
   * '소식' (과식 줄이기), '야식' (야식 줄이기)
-  * 예: '채소 한 접시', '야식 끊기 도전', '튀김 줄이기', '단백질 챙기기'
   * duration_days 7일 이하: 배지만, 8~13일: ±1점, 14~20일: ±2점, 21일+: ±3점
 - 운동 타입: 최소 8일 이상으로 설정하세요. (7일 이하는 배지만, 점수 변화 없음)
   * 8~13일: 주 3회 목표, 14일 이상: 주 5회 목표
@@ -228,27 +227,37 @@ async def get_suggested_challenges(
 
 반드시 아래 JSON 배열 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
 [
-  {{
+  {
     "name": "챌린지 이름 (20자 이내)",
     "type": "운동|식단|수면|금주|금연|체중감량 중 하나",
     "description": "챌린지 설명 (50자 이내)",
-    "duration_days": {max_days} 이하의 정수,
+    "duration_days": max_days 이하의 정수,
     "required_logs": duration_days 이하의 정수,
     "reason": "이 사용자에게 추천하는 구체적 이유 한 문장 (40자 이내)",
-    "preview_badge": {{
+    "preview_badge": {
       "name": "완료 시 받을 배지 이름 (15자 이내)",
       "description": "배지 설명 (30자 이내)",
       "emoji": "어울리는 이모지 1개"
-    }}
-  }}
+    }
+  }
 ]"""
+
+    user_prompt = f"""[사용자 상황]
+- 건강 점수: {health_context}
+- 다음 병원 예약: {appt_context}
+- 최근 먹은 음식: {food_context}
+- 이미 참여 중인 챌린지 타입: {joined_types_str}
+- max_days: {max_days}"""
 
     suggested = []
     try:
         client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
         resp = await client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
             max_tokens=800,
         )
         text = resp.choices[0].message.content.strip().replace("```json", "").replace("```", "").strip()
