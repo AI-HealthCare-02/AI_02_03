@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import ORJSONResponse as Response
+from json_repair import repair_json
 from openai import AsyncOpenAI
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -261,7 +262,7 @@ async def get_suggested_challenges(
             max_tokens=800,
         )
         text = resp.choices[0].message.content.strip().replace("```json", "").replace("```", "").strip()
-        items = json.loads(text)
+        items = json.loads(repair_json(text))
 
         for item in items:
             duration = min(int(item.get("duration_days", 7)), max_days)
