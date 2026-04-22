@@ -162,6 +162,14 @@ async def get_suggested_challenges(
     cache_key = f"suggested:{user.id}:{today}"
     cached = await cache_get(cache_key)
     if cached:
+        done_result = await db.execute(
+            select(UserChallenge.challenge_id).where(
+                UserChallenge.user_id == user.id,
+                UserChallenge.status.in_(["진행중", "완료"]),
+            )
+        )
+        done_ids = {row[0] for row in done_result.all()}
+        cached["suggested"] = [s for s in cached.get("suggested", []) if s["id"] not in done_ids]
         return Response(cached, status_code=status.HTTP_200_OK)
 
     now = datetime.now(UTC)
@@ -190,17 +198,22 @@ async def get_suggested_challenges(
         }
         appt_context = f"{next_appt.hospital_name} D-{d_day}"
 
-    # 이미 참여 중인 챌린지 ID + 타입
+    # 완료 포함한 챌린지 ID (동일 챌린지 재추천 방지)
+    done_result = await db.execute(
+        select(UserChallenge.challenge_id).where(
+            UserChallenge.user_id == user.id,
+            UserChallenge.status.in_(["진행중", "완료"]),
+        )
+    )
+    joined_ids = {row[0] for row in done_result.all()}
+
+    # 진행 중인 타입 (타입 중복 추천 방지)
     joined_result = await db.execute(
         select(UserChallenge.challenge_id, Challenge.type)
         .join(Challenge, Challenge.id == UserChallenge.challenge_id)
-        .where(
-            UserChallenge.user_id == user.id,
-            UserChallenge.status == "진행중",
-        )
+        .where(UserChallenge.user_id == user.id, UserChallenge.status == "진행중")
     )
     joined_rows = joined_result.all()
-    joined_ids = {row[0] for row in joined_rows}
     joined_types = list({row[1] for row in joined_rows})
 
     # 건강 점수 조회 + 타입별 score_delta 맵
