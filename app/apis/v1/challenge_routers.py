@@ -226,6 +226,12 @@ async def get_suggested_challenges(
 - duration_days 8~20일: 활기차고 동기부여되는 이름 (예: 건강 루틴 메이커, 꾸준함의 힘, 간 건강 지킴이, 습관 형성 중)
 - duration_days 21일 이상: 멋지고 인상적인 이름 (예: 습관의 달인, 간 건강 챔피언, 전설의 건강러, 철벽 루틴 마스터)
 
+[expected_effect 작성 기준]
+- 점수 변화가 있는 챌린지는 구체적인 점수 상승 폭을 포함하세요.
+  * 예: "완료 시 건강 점수 +2점 상승", "완료 시 건강 점수 +5점 상승 가능"
+- 점수 변화가 없는 챌린지(배지만)는 건강 측면의 기대 효과를 작성하세요.
+  * 예: "꾸준한 습관 형성으로 간 건강 개선"
+
 반드시 아래 JSON 배열 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
 [
   {
@@ -235,6 +241,8 @@ async def get_suggested_challenges(
     "duration_days": max_days 이하의 정수,
     "required_logs": duration_days 이하의 정수,
     "reason": "이 사용자에게 추천하는 구체적 이유 한 문장 (40자 이내)",
+    "motivation": "이 챌린지를 시작해야 하는 동기부여 문구 (40자 이내)",
+    "expected_effect": "완료 시 기대 효과, 점수 변화 포함 (40자 이내)",
     "preview_badge": {
       "name": "완료 시 받을 배지 이름 (15자 이내)",
       "description": "배지 설명 (30자 이내)",
@@ -261,6 +269,10 @@ async def get_suggested_challenges(
                 ],
             max_tokens=800,
         )
+        usage = resp.usage
+        cached = getattr(getattr(usage, "prompt_tokens_details", None), "cached_tokens", 0)
+        logger.info("LLM usage — total: %s, cached: %s", usage.total_tokens, cached)
+
         text = resp.choices[0].message.content.strip().replace("```json", "").replace("```", "").strip()
         items = json.loads(repair_json(text))
 
@@ -303,6 +315,8 @@ async def get_suggested_challenges(
                         "description": challenge.description,
                         "duration_days": challenge.duration_days,
                         "reason": item.get("reason", f"{duration}일 챌린지로 진료 전 건강을 챙겨보세요"),
+                        "motivation": item.get("motivation"),
+                        "expected_effect": item.get("expected_effect"),
                         "preview_badge": raw_badge,
                     }
                 )
