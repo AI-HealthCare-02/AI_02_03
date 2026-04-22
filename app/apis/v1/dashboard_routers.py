@@ -13,7 +13,7 @@ from app.db.databases import get_db
 from app.dependencies.security import get_request_user
 from app.dtos.dashboard import DashboardResponse, LifestyleSummary, ScoreHistoryItem
 from app.models.appointment import Appointment
-from app.models.challenges import UserChallenge
+from app.models.challenges import Challenge, UserChallenge
 from app.models.medications import Medication, MedicationCompletion
 from app.models.users import User
 from app.repositories.challenge_repository import ChallengeLogRepository, UserChallengeRepository
@@ -131,11 +131,29 @@ async def get_dashboard_message(
         d_day = (visit.date() - now.date()).days
         appt_info = f"{next_appt.hospital_name} D-{d_day}"
 
-    # 진행 중 챌린지
+    # 진행 중 챌린지 타입
     uc_result = await db.execute(
-        select(UserChallenge).where(UserChallenge.user_id == user.id, UserChallenge.status == "진행중")
+        select(Challenge.type)
+        .join(UserChallenge, Challenge.id == UserChallenge.challenge_id)
+        .where(UserChallenge.user_id == user.id, UserChallenge.status == "진행중")
     )
-    active_challenges = uc_result.scalars().all()
+    active_types = [r[0] for r in uc_result.all()]
+    challenge_context = f"진행 중: {', '.join(active_types)}" if active_types else "진행 중인 챌린지 없음"
+
+    # 개선 요인 타입 (score_delta 높은 순 최대 2개)
+    factors = sorted(
+        latest.improvement_factors or [],
+        key=lambda f: f.get("score_delta", 0) if isinstance(f, dict) else getattr(f, "score_delta", 0),
+        reverse=True,
+    )[:2]
+    improvement_context = (
+        ", ".join(
+            f"{f.get('challenge_type') if isinstance(f, dict) else f.challenge_type}(+{f.get('score_delta') if isinstance(f, dict) else f.score_delta}점)"
+            for f in factors
+        )
+        if factors
+        else "없음"
+    )
 
     client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
     prompt = f"""당신은 지방간 환자의 건강 관리를 돕는 AI 코치입니다.
@@ -144,12 +162,13 @@ async def get_dashboard_message(
 - 건강 점수: {latest.score:.1f}점 ({latest.grade})
 - 오늘 복약 완료: {med_rate}
 - 다음 병원 예약: {appt_info}
-- 진행 중 챌린지 수: {len(active_challenges)}개
+- 챌린지 현황: {challenge_context}
+- 개선 시 점수 상승 가능 항목: {improvement_context}
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
 {{
   "message": "오늘 환자에게 건넬 따뜻하고 구체적인 한 문장 (40자 이내)",
-  "challenge_reason": "지금 챌린지를 시작하면 좋은 이유 한 문장 (40자 이내)"
+  "challenge_reason": "개선 가능 항목의 점수를 언급하며 챌린지 참여를 유도하는 한 문장 (40자 이내, 예: '체중감량 챌린지로 +9점 올려보세요!')"
 }}"""
 
     try:

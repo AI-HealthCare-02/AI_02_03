@@ -103,18 +103,6 @@ const liverImage =
         </div>
       </div>
 
-      {/* Status Message */}
-      <div className="space-y-2">
-        <p className="font-bold text-xl text-gray-900">{statusInfo.message}</p>
-        <p className="text-sm text-gray-600">{statusInfo.subMessage}</p>
-        <div className="flex items-center justify-center gap-2 mt-4">
-          <div className="px-5 py-2.5 bg-gray-100 rounded-full">
-            <span className="text-sm font-medium text-gray-700">
-              건강 점수: <span className="text-emerald-600 font-bold">{healthScore}점</span>
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

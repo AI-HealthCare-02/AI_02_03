@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import ORJSONResponse as Response
+from json_repair import repair_json
 from openai import AsyncOpenAI
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +31,39 @@ from app.utils.redis import cache_get, cache_set, seconds_until_midnight
 logger = logging.getLogger(__name__)
 
 challenge_router = APIRouter(tags=["challenges"])
+
+
+_CHALLENGE_TYPE_ALIASES: dict[str, list[str]] = {
+    "식습관": ["식단"],
+}
+
+
+def _build_target_types(sorted_factors: list, joined_types: list[str]) -> list[str] | None:
+    top_types = [
+        f.get("challenge_type") if isinstance(f, dict) else f.challenge_type
+        for f in sorted_factors
+        if (f.get("challenge_type") if isinstance(f, dict) else f.challenge_type) not in joined_types
+    ]
+    expanded: list[str] = []
+    for t in top_types:
+        if t not in expanded:
+            expanded.append(t)
+        for alias in _CHALLENGE_TYPE_ALIASES.get(t, []):
+            if alias not in expanded:
+                expanded.append(alias)
+    return expanded[:2] if expanded else None
+
+
+def _build_score_delta_map(factors: list) -> dict[str, int]:
+    result = {}
+    for f in factors:
+        ctype = f.get("challenge_type") if isinstance(f, dict) else getattr(f, "challenge_type", None)
+        delta = f.get("score_delta") if isinstance(f, dict) else getattr(f, "score_delta", None)
+        if ctype and delta is not None:
+            result[ctype] = delta
+            for alias in _CHALLENGE_TYPE_ALIASES.get(ctype, []):
+                result[alias] = delta
+    return result
 
 
 def get_challenge_service(db: Annotated[AsyncSession, Depends(get_db)]) -> ChallengeService:
@@ -156,19 +190,31 @@ async def get_suggested_challenges(
         }
         appt_context = f"{next_appt.hospital_name} D-{d_day}"
 
-    # 이미 참여 중인 챌린지 ID
+    # 이미 참여 중인 챌린지 ID + 타입
     joined_result = await db.execute(
-        select(UserChallenge.challenge_id).where(
+        select(UserChallenge.challenge_id, Challenge.type)
+        .join(Challenge, Challenge.id == UserChallenge.challenge_id)
+        .where(
             UserChallenge.user_id == user.id,
             UserChallenge.status == "진행중",
         )
     )
-    joined_ids = {row[0] for row in joined_result.all()}
+    joined_rows = joined_result.all()
+    joined_ids = {row[0] for row in joined_rows}
+    joined_types = list({row[1] for row in joined_rows})
 
-    # 건강 점수 조회
+    # 건강 점수 조회 + 타입별 score_delta 맵
     prediction_repo = PredictionRepository(db)
     predictions = await prediction_repo.get_by_user_id(user.id)
     health_context = f"{predictions[0].score:.1f}점 ({predictions[0].grade})" if predictions else "정보 없음"
+    raw_factors = predictions[0].improvement_factors if predictions else []
+    score_delta_map = _build_score_delta_map(raw_factors)
+    # score_delta 내림차순 정렬 (LLM 프롬프트용)
+    sorted_factors = sorted(
+        raw_factors,
+        key=lambda f: f.get("score_delta", 0) if isinstance(f, dict) else getattr(f, "score_delta", 0),
+        reverse=True,
+    )
 
     # 최근 식단 로그 조회 (최대 5개)
     food_result = await db.execute(
@@ -187,28 +233,23 @@ async def get_suggested_challenges(
     earned_badge_names = {row[0] for row in earned_badge_result.all()}
 
     max_days = d_day if d_day is not None else 30
+    joined_types_str = ", ".join(joined_types) if joined_types else "없음"
 
-    prompt = f"""당신은 지방간 환자의 건강 관리를 돕는 AI 코치입니다.
-아래 사용자 상황에 딱 맞는 개인화 챌린지 2개를 직접 만들어주세요.
-
-[사용자 상황]
-- 건강 점수: {health_context}
-- 다음 병원 예약: {appt_context}
-- 최근 먹은 음식: {food_context}
-- 현재 참여 중인 챌린지 수: {len(joined_ids)}개
+    system_prompt = """당신은 지방간 환자의 건강 관리를 돕는 AI 코치입니다.
+사용자 상황에 딱 맞는 개인화 챌린지 2개를 직접 만들어주세요.
 
 [중요 제약 — 반드시 지킬 것]
-- duration_days는 절대로 {max_days}를 초과하면 안 됩니다.
+- duration_days는 사용자 상황의 max_days를 초과하면 안 됩니다.
 - required_logs는 duration_days 이하여야 합니다.
 - type은 반드시 운동, 식단, 수면, 금주, 금연, 체중감량 중 하나여야 합니다.
-- 최근 먹은 음식 중 '주의' 등급이 있으면 해당 식품을 줄이는 식단 챌린지를 반드시 포함하세요.
+- 반드시 지정된 타입으로만 챌린지를 만드세요. 지정되지 않은 타입은 절대 사용하지 마세요.
+- 이미 참여 중인 타입과 동일한 타입은 추천하지 마세요.
 
 [타입별 점수 반영 규칙 — 반드시 준수]
 - 식단 타입: 이름에 반드시 아래 키워드 중 하나를 포함하세요.
   * '채소' (채소 섭취 늘리기), '균형' (규칙적 식사), '단백질' (단백질 섭취 늘리기)
   * '단음식' 또는 '당류' (단 음식 줄이기), '튀김' 또는 '패스트푸드' (기름진 음식 줄이기)
   * '소식' (과식 줄이기), '야식' (야식 줄이기)
-  * 예: '채소 한 접시', '야식 끊기 도전', '튀김 줄이기', '단백질 챙기기'
   * duration_days 7일 이하: 배지만, 8~13일: ±1점, 14~20일: ±2점, 21일+: ±3점
 - 운동 타입: 최소 8일 이상으로 설정하세요. (7일 이하는 배지만, 점수 변화 없음)
   * 8~13일: 주 3회 목표, 14일 이상: 주 5회 목표
@@ -222,37 +263,82 @@ async def get_suggested_challenges(
   * 7일 이상 완료 시 수면시간이 7시간으로 개선됩니다.
 
 [배지 이름 기준]
+- 반드시 긍정적이고 성취감을 주는 이름이어야 합니다. 부정적·이상한 뉘앙스(예: 아웃사이더, 괴짜, 실패자 등)는 절대 사용하지 마세요.
 - duration_days 7일 이하: 귀엽고 아기자기한 이름 (예: 새싹 건강러, 간 사랑꾼, 오늘도 한 걸음, 소소한 도전, 간이 좋아해)
-- duration_days 8~20일: 활기차고 동기부여되는 이름 (예: 건강 루틴 메이커, 꾸준함의 힘, 간 건강 지킴이, 습관 형성 중)
+- duration_days 8~20일: 활기차고 동기부여되는 이름 (예: 건강 루틴 메이커, 꾸준함의 힘, 간 건강 지킴이, 습관 형성 중, 도전하는 건강러)
 - duration_days 21일 이상: 멋지고 인상적인 이름 (예: 습관의 달인, 간 건강 챔피언, 전설의 건강러, 철벽 루틴 마스터)
+
+[expected_effect 작성 기준]
+- 점수 변화가 있는 챌린지는 구체적인 점수 상승 폭을 포함하세요.
+  * 예: "완료 시 건강 점수 +2점 상승", "완료 시 건강 점수 +5점 상승 가능"
+- 점수 변화가 없는 챌린지(배지만)는 건강 측면의 기대 효과를 작성하세요.
+  * 예: "꾸준한 습관 형성으로 간 건강 개선"
 
 반드시 아래 JSON 배열 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
 [
-  {{
+  {
     "name": "챌린지 이름 (20자 이내)",
     "type": "운동|식단|수면|금주|금연|체중감량 중 하나",
     "description": "챌린지 설명 (50자 이내)",
-    "duration_days": {max_days} 이하의 정수,
+    "duration_days": max_days 이하의 정수,
     "required_logs": duration_days 이하의 정수,
     "reason": "이 사용자에게 추천하는 구체적 이유 한 문장 (40자 이내)",
-    "preview_badge": {{
+    "motivation": "이 챌린지를 시작해야 하는 동기부여 문구 (40자 이내)",
+    "expected_effect": "완료 시 기대 효과, 점수 변화 포함 (40자 이내)",
+    "preview_badge": {
       "name": "완료 시 받을 배지 이름 (15자 이내)",
       "description": "배지 설명 (30자 이내)",
-      "emoji": "어울리는 이모지 1개"
-    }}
-  }}
+      "emoji": "어울리는 이모지 1개",
+      "condition": "획득 조건 한 줄 (예: 14일 운동 챌린지 완료 시 획득) (30자 이내)"
+    }
+  }
 ]"""
+
+    # 상위 2개 타입 결정 (이미 참여 중인 타입 제외)
+    target_types = _build_target_types(sorted_factors, joined_types)
+
+    improvement_context = (
+        ", ".join(
+            f"{f.get('challenge_type') if isinstance(f, dict) else f.challenge_type}(+{f.get('score_delta') if isinstance(f, dict) else f.score_delta}점)"
+            for f in sorted_factors
+        )
+        if sorted_factors
+        else "없음"
+    )
+    if target_types:
+        slots = "\n".join(f'  - 챌린지 {i + 1}: type은 반드시 "{t}"' for i, t in enumerate(target_types))
+        target_instruction = f"아래 슬롯에 맞춰 정확히 {len(target_types)}개를 만드세요:\n{slots}"
+    else:
+        target_instruction = "챌린지 2개를 자유롭게 만드세요."
+
+    user_prompt = f"""[사용자 상황]
+- 건강 점수: {health_context}
+- 개선 가능 타입 (score_delta 높은 순): {improvement_context}
+- 다음 병원 예약: {appt_context}
+- 최근 먹은 음식: {food_context}
+- 이미 참여 중인 챌린지 타입: {joined_types_str}
+- max_days: {max_days}
+
+[생성할 챌린지]
+{target_instruction}"""
 
     suggested = []
     try:
         client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
         resp = await client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
             max_tokens=800,
         )
+        usage = resp.usage
+        cached = getattr(getattr(usage, "prompt_tokens_details", None), "cached_tokens", 0)
+        logger.info("LLM usage — total: %s, cached: %s", usage.total_tokens, cached)
+
         text = resp.choices[0].message.content.strip().replace("```json", "").replace("```", "").strip()
-        items = json.loads(text)
+        items = json.loads(repair_json(text))
 
         for item in items:
             duration = min(int(item.get("duration_days", 7)), max_days)
@@ -281,7 +367,12 @@ async def get_suggested_challenges(
                 await db.flush()
                 await db.refresh(challenge)
 
-            if challenge.id not in joined_ids:
+            allowed_types = (
+                set(target_types) if target_types else (set(score_delta_map.keys()) if score_delta_map else None)
+            )
+            already_typed = {s["type"] for s in suggested}
+            type_ok = allowed_types is None or challenge.type in allowed_types
+            if challenge.id not in joined_ids and type_ok and challenge.type not in already_typed:
                 raw_badge = item.get("preview_badge")
                 if raw_badge and raw_badge.get("name") in earned_badge_names:
                     raw_badge = None
@@ -293,6 +384,7 @@ async def get_suggested_challenges(
                         "description": challenge.description,
                         "duration_days": challenge.duration_days,
                         "reason": item.get("reason", f"{duration}일 챌린지로 진료 전 건강을 챙겨보세요"),
+                        "score_delta": score_delta_map.get(challenge.type),
                         "preview_badge": raw_badge,
                     }
                 )
@@ -301,6 +393,8 @@ async def get_suggested_challenges(
     except Exception as e:
         logger.exception("suggested challenges 생성 실패: %s", e)
 
+    suggested.sort(key=lambda x: x.get("score_delta") or 0, reverse=True)
+    suggested = suggested[:2]
     result = {"next_appointment": next_appt_info, "suggested": suggested}
     await cache_set(cache_key, result, seconds_until_midnight())
     return Response(result, status_code=status.HTTP_200_OK)
