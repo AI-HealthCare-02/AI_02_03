@@ -38,6 +38,22 @@ _CHALLENGE_TYPE_ALIASES: dict[str, list[str]] = {
 }
 
 
+def _build_target_types(sorted_factors: list, joined_types: list[str]) -> list[str] | None:
+    top_types = [
+        f.get("challenge_type") if isinstance(f, dict) else f.challenge_type
+        for f in sorted_factors
+        if (f.get("challenge_type") if isinstance(f, dict) else f.challenge_type) not in joined_types
+    ]
+    expanded: list[str] = []
+    for t in top_types:
+        if t not in expanded:
+            expanded.append(t)
+        for alias in _CHALLENGE_TYPE_ALIASES.get(t, []):
+            if alias not in expanded:
+                expanded.append(alias)
+    return expanded[:2] if expanded else None
+
+
 def _build_score_delta_map(factors: list) -> dict[str, int]:
     result = {}
     for f in factors:
@@ -275,20 +291,7 @@ async def get_suggested_challenges(
 ]"""
 
     # 상위 2개 타입 결정 (이미 참여 중인 타입 제외)
-    top_types = [
-        f.get("challenge_type") if isinstance(f, dict) else f.challenge_type
-        for f in sorted_factors
-        if (f.get("challenge_type") if isinstance(f, dict) else f.challenge_type) not in joined_types
-    ]
-    # score_delta 맵에 별칭 적용된 타입도 포함
-    top_types_expanded = []
-    for t in top_types:
-        if t not in top_types_expanded:
-            top_types_expanded.append(t)
-        for alias in _CHALLENGE_TYPE_ALIASES.get(t, []):
-            if alias not in top_types_expanded:
-                top_types_expanded.append(alias)
-    target_types = top_types_expanded[:2] if top_types_expanded else None
+    target_types = _build_target_types(sorted_factors, joined_types)
 
     improvement_context = (
         ", ".join(
