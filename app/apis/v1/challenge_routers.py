@@ -246,7 +246,8 @@ async def get_suggested_challenges(
     "preview_badge": {
       "name": "완료 시 받을 배지 이름 (15자 이내)",
       "description": "배지 설명 (30자 이내)",
-      "emoji": "어울리는 이모지 1개"
+      "emoji": "어울리는 이모지 1개",
+      "condition": "획득 조건 한 줄 (예: 14일 운동 챌린지 완료 시 획득) (30자 이내)"
     }
   }
 ]"""
