@@ -2,6 +2,7 @@ import json
 import re
 import sys
 from collections.abc import AsyncGenerator
+from unittest.mock import patch
 from urllib.parse import quote_plus
 
 import httpx
@@ -76,6 +77,32 @@ async def db_session(engine) -> AsyncGenerator[AsyncSession, None]:
     async with session_maker() as session:
         yield session
         await session.rollback()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def fake_redis():
+    store: dict = {}
+
+    class _FakeRedis:
+        async def get(self, key):
+            import json as _json
+
+            v = store.get(key)
+            return _json.dumps(v, ensure_ascii=False) if v is not None else None
+
+        async def setex(self, key, ttl, value):
+            import json as _json
+
+            store[key] = _json.loads(value)
+
+        async def delete(self, key):
+            store.pop(key, None)
+
+        async def aclose(self):
+            pass
+
+    with patch("app.utils.redis._client", return_value=_FakeRedis()):
+        yield store
 
 
 @pytest_asyncio.fixture
