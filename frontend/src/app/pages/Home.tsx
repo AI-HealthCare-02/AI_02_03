@@ -242,19 +242,21 @@ export function Home() {
               <div className="relative">
                 <LiverCharacter healthScore={healthScore} />
                 {/* AI Speech Bubble */}
-                <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-80">
-                  <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200 p-3 relative">
-                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l-2 border-t-2 border-emerald-200 rotate-45"></div>
-                    <p className="text-center text-sm font-medium text-gray-800">
-                      {aiMessage?.message ?? "오늘도 건강한 하루를 만들어가요! 💪"}
-                    </p>
-                    {aiMessage?.challenge_reason && (
-                      <p className="text-center text-xs text-gray-500 mt-1">
-                        {aiMessage.challenge_reason}
+                {aiMessage && (
+                  <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-max max-w-sm">
+                    <div className="bg-white rounded-2xl shadow-lg border-2 border-emerald-200 p-3 relative">
+                      <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l-2 border-t-2 border-emerald-200 rotate-45"></div>
+                      <p className="text-center text-sm font-medium text-gray-800">
+                        {aiMessage.message}
                       </p>
-                    )}
+                      {aiMessage.challenge_reason && (
+                        <p className="text-center text-xs text-gray-500 mt-1">
+                          {aiMessage.challenge_reason}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
               {/* Health Score */}
               <div className="mt-8 text-center">
