@@ -33,6 +33,16 @@ logger = logging.getLogger(__name__)
 challenge_router = APIRouter(tags=["challenges"])
 
 
+def _build_score_delta_map(factors: list) -> dict[str, int]:
+    result = {}
+    for f in factors:
+        ctype = f.get("challenge_type") if isinstance(f, dict) else getattr(f, "challenge_type", None)
+        delta = f.get("score_delta") if isinstance(f, dict) else getattr(f, "score_delta", None)
+        if ctype and delta is not None:
+            result[ctype] = delta
+    return result
+
+
 def get_challenge_service(db: Annotated[AsyncSession, Depends(get_db)]) -> ChallengeService:
     return ChallengeService(db)
 
@@ -170,10 +180,11 @@ async def get_suggested_challenges(
     joined_ids = {row[0] for row in joined_rows}
     joined_types = list({row[1] for row in joined_rows})
 
-    # 건강 점수 조회
+    # 건강 점수 조회 + 타입별 score_delta 맵
     prediction_repo = PredictionRepository(db)
     predictions = await prediction_repo.get_by_user_id(user.id)
     health_context = f"{predictions[0].score:.1f}점 ({predictions[0].grade})" if predictions else "정보 없음"
+    score_delta_map = _build_score_delta_map(predictions[0].improvement_factors if predictions else [])
 
     # 최근 식단 로그 조회 (최대 5개)
     food_result = await db.execute(
@@ -316,8 +327,7 @@ async def get_suggested_challenges(
                         "description": challenge.description,
                         "duration_days": challenge.duration_days,
                         "reason": item.get("reason", f"{duration}일 챌린지로 진료 전 건강을 챙겨보세요"),
-                        "motivation": item.get("motivation"),
-                        "expected_effect": item.get("expected_effect"),
+                        "score_delta": score_delta_map.get(challenge.type),
                         "preview_badge": raw_badge,
                     }
                 )
