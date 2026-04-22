@@ -25,6 +25,7 @@ dependencies = [
     { name = "cryptography" },
     { name = "fastapi" },
     { name = "fpdf2" },
+    { name = "json-repair" },
     { name = "openai" },
     { name = "orjson" },
     { name = "passlib" },
@@ -34,7 +35,6 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "python-multipart" },
     { name = "redis" },
-    { name = "resend" },
     { name = "sqlalchemy" },
     { name = "tomlkit" },
     { name = "tzdata" },
@@ -80,6 +80,7 @@ app = [
 ]
 dev = [
     { name = "coverage" },
+    { name = "fakeredis" },
     { name = "jupyterlab" },
     { name = "mypy" },
     { name = "pytest-asyncio" },
@@ -90,7 +91,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiosmtplib", specifier = ">=3.0.0" },
+    { name = "aiosmtplib", specifier = ">=5.1.0" },
     { name = "alembic", specifier = ">=1.18.4" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "bcrypt", specifier = ">=4.0.1" },
@@ -98,6 +99,7 @@ requires-dist = [
     { name = "cryptography", specifier = ">=46.0.3" },
     { name = "fastapi", specifier = ">=0.128.0" },
     { name = "fpdf2", specifier = ">=2.8.7" },
+    { name = "json-repair", specifier = ">=0.59.4" },
     { name = "openai", specifier = ">=2.32.0" },
     { name = "orjson", specifier = ">=3.11.5" },
     { name = "passlib", specifier = ">=1.7.4" },
@@ -107,7 +109,6 @@ requires-dist = [
     { name = "python-dateutil", specifier = ">=2.9.0.post0" },
     { name = "python-multipart", specifier = ">=0.0.22" },
     { name = "redis", specifier = ">=7.1.0" },
-    { name = "resend", specifier = ">=2.29.0" },
     { name = "sqlalchemy", specifier = ">=2.0.48" },
     { name = "tomlkit", specifier = ">=0.14.0" },
     { name = "tzdata", specifier = ">=2025.3" },
@@ -153,6 +154,7 @@ app = [
 ]
 dev = [
     { name = "coverage", specifier = ">=7.13.2" },
+    { name = "fakeredis", specifier = ">=2.35.1" },
     { name = "jupyterlab", specifier = ">=4.5.6" },
     { name = "mypy", specifier = ">=1.19.1" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
@@ -934,6 +936,19 @@ wheels = [
 ]
 
 [[package]]
+name = "fakeredis"
+version = "2.35.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "redis" },
+    { name = "sortedcontainers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/43/50/b748233c02fa77e5105238190cc9bb58b852eb1c8b1d0763230d3a5b745a/fakeredis-2.35.1.tar.gz", hash = "sha256:5bae5eba7b9d93cb968944ac40936373cf2397ff71667d4b595df65c3d2e413f", size = 189118, upload-time = "2026-04-12T17:05:58.539Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6f/27/b8b057a23f7777177e92d3a602fd866751b6b45014964548997e92e048fd/fakeredis-2.35.1-py3-none-any.whl", hash = "sha256:67d97e11f562b7870e11e5c30cf182270bfb2dd37f6707dba47cc6d91628d1b9", size = 129678, upload-time = "2026-04-12T17:05:56.86Z" },
+]
+
+[[package]]
 name = "fastapi"
 version = "0.128.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1476,6 +1491,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/41/f2/d34e8b3a08a9cc79a50b2208a93dce981fe615b64d5a4d4abee421d898df/joblib-1.5.3.tar.gz", hash = "sha256:8561a3269e6801106863fd0d6d84bb737be9e7631e33aaed3fb9ce5953688da3", size = 331603, upload-time = "2025-12-15T08:41:46.427Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7b/91/984aca2ec129e2757d1e4e3c81c3fcda9d0f85b74670a094cc443d9ee949/joblib-1.5.3-py3-none-any.whl", hash = "sha256:5fc3c5039fc5ca8c0276333a188bbd59d6b7ab37fe6632daa76bc7f9ec18e713", size = 309071, upload-time = "2025-12-15T08:41:44.973Z" },
+]
+
+[[package]]
+name = "json-repair"
+version = "0.59.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/32/41/4ae9c6e711647a41b4e0c04bce815113ce9c0286eff6dc6fb86979b2fb9f/json_repair-0.59.4.tar.gz", hash = "sha256:559ca1828f6f566530663cd96d64bee29f8282b9d2ff0e661e05fa87b4171ab3", size = 47624, upload-time = "2026-04-15T06:48:40.776Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/74/c4/ec3068436d2275731539b7a43fbc947f502bc3fe149856a5d00368c7b087/json_repair-0.59.4-py3-none-any.whl", hash = "sha256:46052e646bc0b0c39db672ebbf732f774f3c1a5bde81a54f0b0e19d3af4f45cd", size = 46697, upload-time = "2026-04-15T06:48:39.61Z" },
 ]
 
 [[package]]
@@ -3038,19 +3062,6 @@ wheels = [
 ]
 
 [[package]]
-name = "resend"
-version = "2.29.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/b0/e7/ebb504fee5dac9710192ca04550e8c8250bb2a7612a2397829e3934eb157/resend-2.29.0.tar.gz", hash = "sha256:cd905809a64128b29d5beda1d4a5bda8d60d438a66942ed736ca40238e9d2331", size = 43125, upload-time = "2026-04-16T13:14:56.183Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b0/91/9299b0eac66a33d48dea8c825063077f28d188d89b2d3178c3837c40b3df/resend-2.29.0-py2.py3-none-any.whl", hash = "sha256:aad7c6097c26cf2dbe46534a1fc8d92637fbdea28243b00a3363c8d3136331de", size = 68320, upload-time = "2026-04-16T13:14:54.928Z" },
-]
-
-[[package]]
 name = "rfc3339-validator"
 version = "0.1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -3478,6 +3489,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/87/a6771e1546d97e7e041b6ae58d80074f81b7d5121207425c964ddf5cfdbd/sniffio-1.3.1.tar.gz", hash = "sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc", size = 20372, upload-time = "2024-02-25T23:20:04.057Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl", hash = "sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2", size = 10235, upload-time = "2024-02-25T23:20:01.196Z" },
+]
+
+[[package]]
+name = "sortedcontainers"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88", size = 30594, upload-time = "2021-05-16T22:03:42.897Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0", size = 29575, upload-time = "2021-05-16T22:03:41.177Z" },
 ]
 
 [[package]]
