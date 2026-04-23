@@ -113,8 +113,8 @@ _IMPROVEMENT_BUNDLES = [
         "category": "식습관",
         "challenge_type": "식습관",
         "penalty_based": False,
-        "condition": lambda row, p: row.get("식습관자가평가") not in ("좋음", "매우좋음"),
-        "changes": {"식습관자가평가": "좋음"},
+        "condition": lambda row, p: row.get("식습관자가평가") != "매우좋음",
+        "changes": {"식습관자가평가": "매우좋음"},
     },
     {
         "category": "체중감량",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -6,16 +6,27 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Switch } from "../components/ui/switch";
 import { ArrowLeft, User, Mail, Lock, Bell, Save } from "lucide-react";
+import api from "../../lib/api";
 
 export function Profile() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    name: "홍길동",
-    email: "hong@example.com",
+    name: "",
+    email: "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+
+  useEffect(() => {
+    api.get("/api/v1/users/me").then((res) => {
+      setFormData((prev) => ({
+        ...prev,
+        name: res.data.nickname ?? "",
+        email: res.data.email ?? "",
+      }));
+    });
+  }, []);
 
   const [notifications, setNotifications] = useState({
     challenge: true,
