@@ -12,6 +12,11 @@ async function requireAuth() {
     if (!user.is_onboarded) {
       return redirect("/onboarding/step0");
     }
+    const apiClient = (await import("../lib/api")).default;
+    const predictions = await apiClient.get("/api/v1/predictions/me");
+    if (!predictions.data || predictions.data.length === 0) {
+      return redirect("/onboarding/step3");
+    }
   } catch {
     // 토큰 만료 등 → api.ts 인터셉터가 처리
   }
