@@ -1,16 +1,20 @@
 from datetime import date, datetime
-from pydantic import BaseModel, Field, field_validator
+
+from pydantic import BaseModel, Field
+
 from app.dtos.base import BaseSerializerModel
+
 
 class DailyHealthLogUpsertRequest(BaseModel):
     log_date: date
-    weight: float | None = Field(None, ge=10, le=500)        # 10~500kg
+    weight: float | None = Field(None, ge=10, le=500)  # 10~500kg
     exercise_done: bool = False
     exercise_duration: int | None = Field(None, ge=0, le=1440)  # 0~1440분
     alcohol_consumed: bool = False
-    alcohol_amount: float | None = Field(None, ge=0, le=100)    # 0~100잔
+    alcohol_amount: float | None = Field(None, ge=0, le=100)  # 0~100잔
     smoking_done: bool = False
-    smoking_amount: int | None = Field(None, ge=0, le=200)      # 0~200개비
+    smoking_amount: int | None = Field(None, ge=0, le=200)  # 0~200개비
+
 
 class DailyHealthLogUpdateRequest(BaseModel):
     weight: float | None = Field(None, ge=10, le=500)
@@ -20,6 +24,7 @@ class DailyHealthLogUpdateRequest(BaseModel):
     alcohol_amount: float | None = Field(None, ge=0, le=100)
     smoking_done: bool | None = None
     smoking_amount: int | None = Field(None, ge=0, le=200)
+
 
 class DailyHealthLogResponse(BaseSerializerModel):
     id: int
@@ -32,4 +37,4 @@ class DailyHealthLogResponse(BaseSerializerModel):
     smoking_done: bool
     smoking_amount: int | None
     created_at: datetime
-    updated_at: datetime    
+    updated_at: datetime

@@ -25,6 +25,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_column("users", "nickname")
 
+
 def upgrade() -> None:
     # 이미 컬럼이 있으면 건너뜀
     op.execute("""
@@ -40,6 +41,7 @@ def upgrade() -> None:
             END IF;
         END $$;
     """)
+
 
 def downgrade() -> None:
     op.drop_column("users", "nickname")

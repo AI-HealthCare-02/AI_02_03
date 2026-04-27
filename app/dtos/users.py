@@ -1,10 +1,8 @@
 import re
-from pydantic import field_validator
-
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.dtos.base import BaseSerializerModel
 
@@ -16,7 +14,7 @@ class UserUpdateRequest(BaseModel):
     @field_validator("nickname")
     @classmethod
     def validate_nickname(cls, v):
-        if v and not re.match(r'^[a-zA-Z0-9가-힣_]+$', v):
+        if v and not re.match(r"^[a-zA-Z0-9가-힣_]+$", v):
             raise ValueError("닉네임에는 특수문자를 사용할 수 없습니다.")
         return v
 

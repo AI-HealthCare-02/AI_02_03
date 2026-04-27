@@ -6,7 +6,7 @@ from app.dtos.base import BaseSerializerModel
 
 
 class MedicationCreateRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=100)   # ← min_length=1 추가
+    name: str = Field(min_length=1, max_length=100)  # ← min_length=1 추가
     dosage: str = Field(min_length=1, max_length=50)  # ← min_length=1 추가
     times: list[str] = Field(min_length=1, description="복용 시간 목록, 예: ['08:00', '18:00']")
 

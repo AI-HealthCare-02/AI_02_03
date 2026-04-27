@@ -1,22 +1,19 @@
 import json
-import requests
+
 import psycopg2
+import requests
 
 BASE_URL = "http://localhost:8000/api/v1"
 
 # ================================================================
 # DB 연결 설정
 # ================================================================
-DB_CONFIG = {
-    "host": "localhost",
-    "port": 5432,
-    "user": "postgres",
-    "password": "postgres123",
-    "dbname": "liver_db"
-}
+DB_CONFIG = {"host": "localhost", "port": 5432, "user": "postgres", "password": "postgres123", "dbname": "liver_db"}
+
 
 def get_db():
     return psycopg2.connect(**DB_CONFIG)
+
 
 def delete_dummy_data(email: str):
     try:
@@ -62,27 +59,32 @@ def delete_dummy_data(email: str):
 # ================================================================
 results = []
 
+
 def run_test(label, response, expected_status):
     success = response.status_code == expected_status
-    results.append({
-        "label": label,
-        "success": success,
-        "status": response.status_code,
-        "expected": expected_status,
-        "response": response.text
-    })
+    results.append(
+        {
+            "label": label,
+            "success": success,
+            "status": response.status_code,
+            "expected": expected_status,
+            "response": response.text,
+        }
+    )
     return success
+
 
 def input_with_default(prompt, default):
     value = input(f"{prompt} (기본값: {default}): ").strip()
     return value if value else default
+
 
 def print_summary():
     total = len(results)
     success = sum(1 for r in results if r["success"])
     failed = [r for r in results if not r["success"]]
 
-    print(f"\n{'='*55}")
+    print(f"\n{'=' * 55}")
     print(f"📊 테스트 결과: 전체 {total}개 중 {success}개 성공 ✅")
 
     if failed:
@@ -90,14 +92,14 @@ def print_summary():
         for r in failed:
             print(f"  - {r['label']} | 예상: {r['expected']} / 실제: {r['status']}")
             try:
-                body = json.loads(r['response'])
-                detail = body.get('detail', r['response'])
+                body = json.loads(r["response"])
+                detail = body.get("detail", r["response"])
                 print(f"    → {detail}")
             except Exception:
                 print(f"    → {r['response'][:100]}")
     else:
         print("🎉 모든 테스트 통과!")
-    print('='*55)
+    print("=" * 55)
 
 
 # ================================================================
@@ -147,14 +149,10 @@ print("\n테스트 실행 중...")
 # ================================================================
 
 # 🔐 AUTH
-res = requests.post(f"{BASE_URL}/auth/signup", json={
-    "email": email, "password": password, "nickname": nickname
-})
+res = requests.post(f"{BASE_URL}/auth/signup", json={"email": email, "password": password, "nickname": nickname})
 run_test("회원가입", res, 201)
 
-res = requests.post(f"{BASE_URL}/auth/login", json={
-    "email": email, "password": password
-})
+res = requests.post(f"{BASE_URL}/auth/login", json={"email": email, "password": password})
 run_test("로그인 성공", res, 200)
 token = res.json().get("access_token", "") if res.status_code == 200 else ""
 headers = {"Authorization": f"Bearer {token}"}
@@ -185,8 +183,11 @@ res = requests.patch(f"{BASE_URL}/users/me", headers=headers, json={"nickname": 
 run_test("유저 정보 수정", res, 200)
 
 # 📅 APPOINTMENT
-res = requests.post(f"{BASE_URL}/appointments", headers=headers,
-    json={"hospital_name": hospital_name, "visit_date": visit_date, "memo": memo})
+res = requests.post(
+    f"{BASE_URL}/appointments",
+    headers=headers,
+    json={"hospital_name": hospital_name, "visit_date": visit_date, "memo": memo},
+)
 run_test("진료 예약 생성", res, 201)
 appointment_id = res.json().get("id") if res.status_code == 201 else None
 
@@ -214,9 +215,16 @@ run_test("챌린지 목록", res, 200)
 res = requests.post(f"{BASE_URL}/challenges/99999/join", headers=headers)
 run_test("챌린지 참여 실패 - 없는 챌린지", res, 404)
 
-res = requests.post(f"{BASE_URL}/challenges/custom", headers=headers,
-    json={"title": challenge_title, "description": challenge_desc,
-          "category": challenge_category, "duration_days": int(challenge_days)})
+res = requests.post(
+    f"{BASE_URL}/challenges/custom",
+    headers=headers,
+    json={
+        "title": challenge_title,
+        "description": challenge_desc,
+        "category": challenge_category,
+        "duration_days": int(challenge_days),
+    },
+)
 run_test("커스텀 챌린지 생성", res, 201)
 
 # 📋 HEALTH LOG
@@ -226,15 +234,25 @@ run_test("건강 로그 조회", res, 200)
 res = requests.get(f"{BASE_URL}/health-logs/me?year=2025&month=13", headers=headers)
 run_test("건강 로그 조회 실패 - 잘못된 month", res, 422)
 
-res = requests.post(f"{BASE_URL}/health-logs", headers=headers,
-    json={"log_date": log_date, "weight": float(weight),
-          "exercise_duration": int(exercise_duration),
-          "alcohol_amount": float(alcohol_amount), "smoking_amount": int(smoking_amount)})
+res = requests.post(
+    f"{BASE_URL}/health-logs",
+    headers=headers,
+    json={
+        "log_date": log_date,
+        "weight": float(weight),
+        "exercise_duration": int(exercise_duration),
+        "alcohol_amount": float(alcohol_amount),
+        "smoking_amount": int(smoking_amount),
+    },
+)
 run_test("건강 로그 저장", res, 200)
 
 # 💊 MEDICATION
-res = requests.post(f"{BASE_URL}/medications", headers=headers,
-    json={"name": med_name, "dosage": med_dosage, "times": med_times.split(",")})
+res = requests.post(
+    f"{BASE_URL}/medications",
+    headers=headers,
+    json={"name": med_name, "dosage": med_dosage, "times": med_times.split(",")},
+)
 run_test("복약 생성", res, 201)
 medication_id = res.json().get("id") if res.status_code == 201 else None
 
@@ -252,21 +270,40 @@ run_test("복약 삭제 실패 - 없는 복약", res, 404)
 res = requests.get(f"{BASE_URL}/notifications/settings", headers=headers)
 run_test("알림 설정 조회", res, 200)
 
-res = requests.put(f"{BASE_URL}/notifications/settings", headers=headers,
-    json={"challenge_notification": challenge_noti.lower() == "true",
-          "prediction_notification": prediction_noti.lower() == "true"})
+res = requests.put(
+    f"{BASE_URL}/notifications/settings",
+    headers=headers,
+    json={
+        "challenge_notification": challenge_noti.lower() == "true",
+        "prediction_notification": prediction_noti.lower() == "true",
+    },
+)
 run_test("알림 설정 수정", res, 200)
 
 # 📊 SURVEY
-res = requests.post(f"{BASE_URL}/surveys", headers=headers,
-    json={"age": int(age), "gender": gender, "height": float(height),
-          "weight": float(weight_survey), "waist": float(waist),
-          "drinking": drinking, "drink_amount": 0.0, "weekly_drink_freq": 0.0,
-          "exercise": exercise, "weekly_exercise_count": 0,
-          "smoking": smoking, "current_smoking": "안함",
-          "sleep_hours": float(sleep_hours), "sleep_disorder": sleep_disorder,
-          "diet_questions": [1, 1, 1, 1, 1, 1, 1],
-          "diabetes": diabetes, "hypertension": hypertension})
+res = requests.post(
+    f"{BASE_URL}/surveys",
+    headers=headers,
+    json={
+        "age": int(age),
+        "gender": gender,
+        "height": float(height),
+        "weight": float(weight_survey),
+        "waist": float(waist),
+        "drinking": drinking,
+        "drink_amount": 0.0,
+        "weekly_drink_freq": 0.0,
+        "exercise": exercise,
+        "weekly_exercise_count": 0,
+        "smoking": smoking,
+        "current_smoking": "안함",
+        "sleep_hours": float(sleep_hours),
+        "sleep_disorder": sleep_disorder,
+        "diet_questions": [1, 1, 1, 1, 1, 1, 1],
+        "diabetes": diabetes,
+        "hypertension": hypertension,
+    },
+)
 run_test("설문 생성", res, 201)
 
 res = requests.get(f"{BASE_URL}/surveys/me", headers=headers)
