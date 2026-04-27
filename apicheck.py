@@ -1,271 +1,132 @@
 import json
 import requests
+import psycopg2
 
 BASE_URL = "http://localhost:8000/api/v1"
 
 # ================================================================
+# DB 연결 설정
+# ================================================================
+DB_CONFIG = {
+    "host": "localhost",
+    "port": 5432,
+    "user": "postgres",
+    "password": "postgres123",
+    "dbname": "liver_db"
+}
+
+def get_db():
+    return psycopg2.connect(**DB_CONFIG)
+
+def delete_dummy_data(email: str):
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+        row = cur.fetchone()
+        if not row:
+            print("\n⚠️ 삭제할 유저를 찾을 수 없습니다.")
+            return
+        user_id = row[0]
+        tables = [
+            "challenge_logs",
+            "user_challenges",
+            "medication_completions",
+            "medications",
+            "appointments",
+            "daily_health_logs",
+            "user_badges",
+            "notification_settings",
+            "health_surveys",
+            "predictions",
+            "food_logs",
+            "reminders",
+        ]
+        for table in tables:
+            try:
+                cur.execute(f"DELETE FROM {table} WHERE user_id = %s", (user_id,))
+            except Exception:
+                conn.rollback()
+        cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+        conn.commit()
+        print(f"🗑️  더미데이터 삭제 완료! (email: {email})")
+    except Exception as e:
+        print(f"⚠️ 더미데이터 삭제 중 오류: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ================================================================
 # 헬퍼 함수
 # ================================================================
+results = []
 
-def print_result(label, response):
-    emoji = "✅" if response.status_code < 400 else "❌"
-    print(f"\n{'='*55}")
-    print(f"{emoji} {label}")
-    print(f"상태코드: {response.status_code}")
-    try:
-        print(f"응답: {json.dumps(response.json(), ensure_ascii=False, indent=2)}")
-    except Exception:
-        print(f"응답: {response.text}")
-    print('='*55)
-
+def run_test(label, response, expected_status):
+    success = response.status_code == expected_status
+    results.append({
+        "label": label,
+        "success": success,
+        "status": response.status_code,
+        "expected": expected_status,
+        "response": response.text
+    })
+    return success
 
 def input_with_default(prompt, default):
-    """기본값 있는 입력 - 그냥 Enter 치면 기본값 사용"""
     value = input(f"{prompt} (기본값: {default}): ").strip()
     return value if value else default
 
+def print_summary():
+    total = len(results)
+    success = sum(1 for r in results if r["success"])
+    failed = [r for r in results if not r["success"]]
+
+    print(f"\n{'='*55}")
+    print(f"📊 테스트 결과: 전체 {total}개 중 {success}개 성공 ✅")
+
+    if failed:
+        print(f"\n❌ 실패한 테스트 ({len(failed)}개):")
+        for r in failed:
+            print(f"  - {r['label']} | 예상: {r['expected']} / 실제: {r['status']}")
+            try:
+                body = json.loads(r['response'])
+                detail = body.get('detail', r['response'])
+                print(f"    → {detail}")
+            except Exception:
+                print(f"    → {r['response'][:100]}")
+    else:
+        print("🎉 모든 테스트 통과!")
+    print('='*55)
+
 
 # ================================================================
-# 🔐 AUTH (인증)
+# 입력
 # ================================================================
-print("\n\n🔐 ===== AUTH =====")
 print("※ 회원가입 정보를 입력해주세요")
-
 email = input("이메일: ").strip()
 password = input("비밀번호: ").strip()
 nickname = input("닉네임: ").strip()
-
-# ✅ 회원가입
-res = requests.post(f"{BASE_URL}/auth/signup", json={
-    "email": email,
-    "password": password,
-    "nickname": nickname
-})
-print_result("회원가입", res)
-
-# ✅ 로그인
-res = requests.post(f"{BASE_URL}/auth/login", json={
-    "email": email,
-    "password": password
-})
-print_result("로그인", res)
-token = res.json().get("access_token", "")
-headers = {"Authorization": f"Bearer {token}"}
-
-# ❌ 로그인 실패 - 비밀번호 오류
-res = requests.post(f"{BASE_URL}/auth/login", json={
-    "email": email,
-    "password": "WrongPassword!"
-})
-print_result("로그인 실패 - 비밀번호 오류", res)
-
-# ✅ 이메일 중복 확인
-res = requests.get(f"{BASE_URL}/auth/check-email?email={email}")
-print_result("이메일 중복 확인", res)
-
-# ✅ 닉네임 중복 확인
-res = requests.get(f"{BASE_URL}/auth/check-nickname?nickname={nickname}")
-print_result("닉네임 중복 확인", res)
-
-# ✅ 로그아웃
-res = requests.post(f"{BASE_URL}/auth/logout")
-print_result("로그아웃", res)
-
-# ❌ 토큰 갱신 실패
-res = requests.get(f"{BASE_URL}/auth/token/refresh")
-print_result("토큰 갱신 실패 - refresh_token 없음", res)
-
-
-# ================================================================
-# 👤 USER (유저)
-# ================================================================
-print("\n\n👤 ===== USER =====")
-
-# ✅ 내 정보 조회
-res = requests.get(f"{BASE_URL}/users/me", headers=headers)
-print_result("내 정보 조회", res)
-
-# ❌ 토큰 없이 조회
-res = requests.get(f"{BASE_URL}/users/me")
-print_result("내 정보 조회 실패 - 토큰 없음", res)
-
-# ✅ 유저 정보 수정
-print("\n※ 유저 정보 수정")
 new_nickname = input_with_default("새 닉네임", f"{nickname}_수정")
-res = requests.patch(f"{BASE_URL}/users/me", headers=headers,
-    json={"nickname": new_nickname})
-print_result("유저 정보 수정", res)
-
-
-# ================================================================
-# 📅 APPOINTMENT (진료 예약)
-# ================================================================
-print("\n\n📅 ===== APPOINTMENT =====")
-print("※ 진료 예약 정보를 입력해주세요")
-
 hospital_name = input_with_default("병원명", "서울병원")
 visit_date = input_with_default("방문날짜 (예: 2025-06-01T10:00:00)", "2025-06-01T10:00:00")
 memo = input_with_default("메모", "정기검진")
-
-# ✅ 예약 생성
-res = requests.post(f"{BASE_URL}/appointments", headers=headers,
-    json={
-        "hospital_name": hospital_name,
-        "visit_date": visit_date,
-        "memo": memo
-    })
-print_result("진료 예약 생성", res)
-appointment_id = res.json().get("id") if res.status_code == 201 else None
-
-# ✅ 예약 목록 조회
-res = requests.get(f"{BASE_URL}/appointments/me", headers=headers)
-print_result("예약 목록 조회", res)
-
-# ❌ 없는 예약 삭제
-res = requests.delete(f"{BASE_URL}/appointments/99999", headers=headers)
-print_result("예약 삭제 실패 - 없는 예약", res)
-
-# ✅ 예약 삭제 (방금 만든 예약)
-if appointment_id:
-    res = requests.delete(f"{BASE_URL}/appointments/{appointment_id}", headers=headers)
-    print_result(f"예약 삭제 성공 (id: {appointment_id})", res)
-
-
-# ================================================================
-# 🏆 BADGE (뱃지)
-# ================================================================
-print("\n\n🏆 ===== BADGE =====")
-
-res = requests.get(f"{BASE_URL}/badges/me", headers=headers)
-print_result("내 뱃지 목록", res)
-
-res = requests.get(f"{BASE_URL}/badges/me/count", headers=headers)
-print_result("내 뱃지 개수", res)
-
-
-# ================================================================
-# 🎯 CHALLENGE (챌린지)
-# ================================================================
-print("\n\n🎯 ===== CHALLENGE =====")
-
-# ✅ 챌린지 목록
-res = requests.get(f"{BASE_URL}/challenges", headers=headers)
-print_result("챌린지 목록", res)
-
-# ❌ 없는 챌린지 참여
-res = requests.post(f"{BASE_URL}/challenges/99999/join", headers=headers)
-print_result("챌린지 참여 실패 - 없는 챌린지", res)
-
-# ✅ 커스텀 챌린지 생성
-print("\n※ 커스텀 챌린지 정보를 입력해주세요")
 challenge_title = input_with_default("챌린지 이름", "매일 물 2L 마시기")
 challenge_desc = input_with_default("설명", "건강을 위해!")
 challenge_category = input_with_default("카테고리", "건강")
 challenge_days = input_with_default("기간 (일)", "30")
-
-res = requests.post(f"{BASE_URL}/challenges/custom", headers=headers,
-    json={
-        "title": challenge_title,
-        "description": challenge_desc,
-        "category": challenge_category,
-        "duration_days": int(challenge_days)
-    })
-print_result("커스텀 챌린지 생성", res)
-
-
-# ================================================================
-# 📋 HEALTH LOG (건강 로그)
-# ================================================================
-print("\n\n📋 ===== HEALTH LOG =====")
-print("※ 건강 로그 정보를 입력해주세요")
-
 log_year = input_with_default("조회 연도", "2025")
 log_month = input_with_default("조회 월 (1-12)", "5")
-
-# ✅ 건강 로그 조회
-res = requests.get(f"{BASE_URL}/health-logs/me?year={log_year}&month={log_month}", headers=headers)
-print_result("건강 로그 조회", res)
-
-# ❌ 잘못된 month
-res = requests.get(f"{BASE_URL}/health-logs/me?year=2025&month=13", headers=headers)
-print_result("건강 로그 조회 실패 - 잘못된 month", res)
-
-# ✅ 건강 로그 저장
 log_date = input_with_default("로그 날짜 (예: 2025-05-01)", "2025-05-01")
 weight = input_with_default("체중 (kg)", "70.5")
 exercise_duration = input_with_default("운동 시간 (분)", "30")
 alcohol_amount = input_with_default("음주량 (잔)", "0")
 smoking_amount = input_with_default("흡연량 (개)", "0")
-
-res = requests.post(f"{BASE_URL}/health-logs", headers=headers,
-    json={
-        "log_date": log_date,
-        "weight": float(weight),
-        "exercise_duration": int(exercise_duration),
-        "alcohol_amount": float(alcohol_amount),
-        "smoking_amount": int(smoking_amount)
-    })
-print_result("건강 로그 저장", res)
-
-
-# ================================================================
-# 💊 MEDICATION (복약)
-# ================================================================
-print("\n\n💊 ===== MEDICATION =====")
-print("※ 복약 정보를 입력해주세요")
-
 med_name = input_with_default("약 이름", "혈압약")
 med_dosage = input_with_default("용량", "1정")
-med_schedule = input_with_default("복용 시간 (예: 아침/점심/저녁)", "아침")
-
-# ✅ 복약 생성
-res = requests.post(f"{BASE_URL}/medications", headers=headers,
-    json={"name": med_name, "dosage": med_dosage, "schedule": med_schedule})
-print_result("복약 생성", res)
-medication_id = res.json().get("id") if res.status_code == 201 else None
-
-# ✅ 복약 목록
-res = requests.get(f"{BASE_URL}/medications/me", headers=headers)
-print_result("복약 목록", res)
-
-# ✅ 복약 삭제 (방금 만든 복약)
-if medication_id:
-    res = requests.delete(f"{BASE_URL}/medications/{medication_id}", headers=headers)
-    print_result(f"복약 삭제 성공 (id: {medication_id})", res)
-
-# ❌ 없는 복약 삭제
-res = requests.delete(f"{BASE_URL}/medications/99999", headers=headers)
-print_result("복약 삭제 실패 - 없는 복약", res)
-
-
-# ================================================================
-# 🔔 NOTIFICATION (알림)
-# ================================================================
-print("\n\n🔔 ===== NOTIFICATION =====")
-
-# ✅ 알림 설정 조회
-res = requests.get(f"{BASE_URL}/notifications/settings", headers=headers)
-print_result("알림 설정 조회", res)
-
-# ✅ 알림 설정 수정
-print("\n※ 알림 설정을 입력해주세요")
+med_times = input_with_default("복용 시간 (예: 08:00,12:00,18:00)", "08:00")
 challenge_noti = input_with_default("챌린지 알림 (true/false)", "true")
 prediction_noti = input_with_default("예측 알림 (true/false)", "true")
-
-res = requests.put(f"{BASE_URL}/notifications/settings", headers=headers,
-    json={
-        "challenge_notification": challenge_noti.lower() == "true",
-        "prediction_notification": prediction_noti.lower() == "true",
-    })
-print_result("알림 설정 수정", res)
-
-
-# ================================================================
-# 📊 SURVEY (설문)
-# ================================================================
-print("\n\n📊 ===== SURVEY =====")
-print("※ 설문 정보를 입력해주세요")
-
 age = input_with_default("나이", "30")
 gender = input_with_default("성별 (male/female)", "male")
 height = input_with_default("키 (cm)", "170")
@@ -279,65 +140,164 @@ sleep_disorder = input_with_default("수면장애 (없음/있음)", "없음")
 diabetes = input_with_default("당뇨 (없음/있음)", "없음")
 hypertension = input_with_default("고혈압 (없음/있음)", "없음")
 
-survey_data = {
-    "age": int(age),
-    "gender": gender,
-    "height": float(height),
-    "weight": float(weight_survey),
-    "waist": float(waist),
-    "drinking": drinking,
-    "drink_amount": 0.0,
-    "weekly_drink_freq": 0.0,
-    "exercise": exercise,
-    "weekly_exercise_count": 0,
-    "smoking": smoking,
-    "current_smoking": "안함",
-    "sleep_hours": float(sleep_hours),
-    "sleep_disorder": sleep_disorder,
-    "diet_questions": [1, 1, 1, 1, 1, 1, 1],
-    "diabetes": diabetes,
-    "hypertension": hypertension
-}
+print("\n테스트 실행 중...")
 
-# ✅ 설문 생성
-res = requests.post(f"{BASE_URL}/surveys", headers=headers, json=survey_data)
-print_result("설문 생성", res)
+# ================================================================
+# 테스트 실행
+# ================================================================
 
-# ✅ 설문 조회
+# 🔐 AUTH
+res = requests.post(f"{BASE_URL}/auth/signup", json={
+    "email": email, "password": password, "nickname": nickname
+})
+run_test("회원가입", res, 201)
+
+res = requests.post(f"{BASE_URL}/auth/login", json={
+    "email": email, "password": password
+})
+run_test("로그인 성공", res, 200)
+token = res.json().get("access_token", "") if res.status_code == 200 else ""
+headers = {"Authorization": f"Bearer {token}"}
+
+res = requests.post(f"{BASE_URL}/auth/login", json={"email": email, "password": "WrongPassword!"})
+run_test("로그인 실패 - 비밀번호 오류", res, 401)
+
+res = requests.get(f"{BASE_URL}/auth/check-email?email={email}")
+run_test("이메일 중복 확인 - 중복", res, 409)
+
+res = requests.get(f"{BASE_URL}/auth/check-nickname?nickname={nickname}")
+run_test("닉네임 중복 확인 - 중복", res, 409)
+
+res = requests.post(f"{BASE_URL}/auth/logout")
+run_test("로그아웃", res, 200)
+
+res = requests.get(f"{BASE_URL}/auth/token/refresh")
+run_test("토큰 갱신 실패 - refresh_token 없음", res, 401)
+
+# 👤 USER
+res = requests.get(f"{BASE_URL}/users/me", headers=headers)
+run_test("내 정보 조회", res, 200)
+
+res = requests.get(f"{BASE_URL}/users/me")
+run_test("내 정보 조회 실패 - 토큰 없음", res, 401)
+
+res = requests.patch(f"{BASE_URL}/users/me", headers=headers, json={"nickname": new_nickname})
+run_test("유저 정보 수정", res, 200)
+
+# 📅 APPOINTMENT
+res = requests.post(f"{BASE_URL}/appointments", headers=headers,
+    json={"hospital_name": hospital_name, "visit_date": visit_date, "memo": memo})
+run_test("진료 예약 생성", res, 201)
+appointment_id = res.json().get("id") if res.status_code == 201 else None
+
+res = requests.get(f"{BASE_URL}/appointments/me", headers=headers)
+run_test("예약 목록 조회", res, 200)
+
+res = requests.delete(f"{BASE_URL}/appointments/99999", headers=headers)
+run_test("예약 삭제 실패 - 없는 예약", res, 404)
+
+if appointment_id:
+    res = requests.delete(f"{BASE_URL}/appointments/{appointment_id}", headers=headers)
+    run_test("예약 삭제 성공", res, 200)
+
+# 🏆 BADGE
+res = requests.get(f"{BASE_URL}/badges/me", headers=headers)
+run_test("내 뱃지 목록", res, 200)
+
+res = requests.get(f"{BASE_URL}/badges/me/count", headers=headers)
+run_test("내 뱃지 개수", res, 200)
+
+# 🎯 CHALLENGE
+res = requests.get(f"{BASE_URL}/challenges", headers=headers)
+run_test("챌린지 목록", res, 200)
+
+res = requests.post(f"{BASE_URL}/challenges/99999/join", headers=headers)
+run_test("챌린지 참여 실패 - 없는 챌린지", res, 404)
+
+res = requests.post(f"{BASE_URL}/challenges/custom", headers=headers,
+    json={"title": challenge_title, "description": challenge_desc,
+          "category": challenge_category, "duration_days": int(challenge_days)})
+run_test("커스텀 챌린지 생성", res, 201)
+
+# 📋 HEALTH LOG
+res = requests.get(f"{BASE_URL}/health-logs/me?year={log_year}&month={log_month}", headers=headers)
+run_test("건강 로그 조회", res, 200)
+
+res = requests.get(f"{BASE_URL}/health-logs/me?year=2025&month=13", headers=headers)
+run_test("건강 로그 조회 실패 - 잘못된 month", res, 422)
+
+res = requests.post(f"{BASE_URL}/health-logs", headers=headers,
+    json={"log_date": log_date, "weight": float(weight),
+          "exercise_duration": int(exercise_duration),
+          "alcohol_amount": float(alcohol_amount), "smoking_amount": int(smoking_amount)})
+run_test("건강 로그 저장", res, 200)
+
+# 💊 MEDICATION
+res = requests.post(f"{BASE_URL}/medications", headers=headers,
+    json={"name": med_name, "dosage": med_dosage, "times": med_times.split(",")})
+run_test("복약 생성", res, 201)
+medication_id = res.json().get("id") if res.status_code == 201 else None
+
+res = requests.get(f"{BASE_URL}/medications/me", headers=headers)
+run_test("복약 목록", res, 200)
+
+if medication_id:
+    res = requests.delete(f"{BASE_URL}/medications/{medication_id}", headers=headers)
+    run_test("복약 삭제 성공", res, 200)
+
+res = requests.delete(f"{BASE_URL}/medications/99999", headers=headers)
+run_test("복약 삭제 실패 - 없는 복약", res, 404)
+
+# 🔔 NOTIFICATION
+res = requests.get(f"{BASE_URL}/notifications/settings", headers=headers)
+run_test("알림 설정 조회", res, 200)
+
+res = requests.put(f"{BASE_URL}/notifications/settings", headers=headers,
+    json={"challenge_notification": challenge_noti.lower() == "true",
+          "prediction_notification": prediction_noti.lower() == "true"})
+run_test("알림 설정 수정", res, 200)
+
+# 📊 SURVEY
+res = requests.post(f"{BASE_URL}/surveys", headers=headers,
+    json={"age": int(age), "gender": gender, "height": float(height),
+          "weight": float(weight_survey), "waist": float(waist),
+          "drinking": drinking, "drink_amount": 0.0, "weekly_drink_freq": 0.0,
+          "exercise": exercise, "weekly_exercise_count": 0,
+          "smoking": smoking, "current_smoking": "안함",
+          "sleep_hours": float(sleep_hours), "sleep_disorder": sleep_disorder,
+          "diet_questions": [1, 1, 1, 1, 1, 1, 1],
+          "diabetes": diabetes, "hypertension": hypertension})
+run_test("설문 생성", res, 201)
+
 res = requests.get(f"{BASE_URL}/surveys/me", headers=headers)
-print_result("설문 조회", res)
+run_test("설문 조회", res, 200)
 
-
-# ================================================================
-# 🤖 PREDICTION (예측)
-# ================================================================
-print("\n\n🤖 ===== PREDICTION =====")
-
-# ✅ 예측 생성
+# 🤖 PREDICTION
 res = requests.post(f"{BASE_URL}/predictions", headers=headers)
-print_result("건강 예측 생성", res)
+run_test("건강 예측 생성", res, 200)
 
-# ✅ 예측 목록
 res = requests.get(f"{BASE_URL}/predictions/me", headers=headers)
-print_result("예측 목록 조회", res)
+run_test("예측 목록 조회", res, 200)
 
-
-# ================================================================
-# 📈 ACTIVITY (활동)
-# ================================================================
-print("\n\n📈 ===== ACTIVITY =====")
-
+# 📈 ACTIVITY
 res = requests.get(f"{BASE_URL}/activity/me", headers=headers)
-print_result("활동 조회", res)
+run_test("활동 조회", res, 200)
 
-
-# ================================================================
-# 🏠 DASHBOARD (대시보드)
-# ================================================================
-print("\n\n🏠 ===== DASHBOARD =====")
-
+# 🏠 DASHBOARD
 res = requests.get(f"{BASE_URL}/dashboard", headers=headers)
-print_result("대시보드 조회", res)
+run_test("대시보드 조회", res, 200)
 
+# ================================================================
+# 📊 결과 요약
+# ================================================================
+print_summary()
 
-print("\n\n🎉 전체 API 확인 완료!")
+# ================================================================
+# 🗑️ 더미데이터 삭제
+# ================================================================
+print()
+delete_yn = input("더미데이터를 삭제하시겠습니까? (y/n): ").strip().lower()
+if delete_yn == "y":
+    delete_dummy_data(email)
+else:
+    print("더미데이터를 유지합니다.")
