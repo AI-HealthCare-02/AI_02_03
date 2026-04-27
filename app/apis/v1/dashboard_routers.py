@@ -132,7 +132,7 @@ async def get_dashboard_message(
     predictions = await prediction_repo.get_by_user_id(user.id)
     if not predictions:
         return Response(
-            {"message": "건강 예측을 먼저 진행해주세요!", "challenge_reason": None},
+            {"message": "건강 예측을 먼저 진행해주세요!"},
             status_code=status.HTTP_200_OK,
         )
     latest = predictions[0]
@@ -178,50 +178,30 @@ async def get_dashboard_message(
     active_types = [r[0] for r in uc_result.all()]
     challenge_context = f"진행 중: {', '.join(active_types)}" if active_types else "진행 중인 챌린지 없음"
 
-    # 개선 요인 타입 (score_delta 높은 순 최대 2개)
-    factors = sorted(
-        latest.improvement_factors or [],
-        key=lambda f: f.get("score_delta", 0) if isinstance(f, dict) else getattr(f, "score_delta", 0),
-        reverse=True,
-    )[:2]
-    improvement_context = (
-        ", ".join(
-            f"{f.get('challenge_type') if isinstance(f, dict) else f.challenge_type}(+{f.get('score_delta') if isinstance(f, dict) else f.score_delta}점)"
-            for f in factors
-        )
-        if factors
-        else "없음"
-    )
-
     client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
     prompt = f"""당신은 지방간 환자의 건강 관리를 돕는 AI 코치입니다.
-아래 정보를 바탕으로 오늘 하루를 응원하는 짧은 말풍선 메시지와, 챌린지 추천 이유를 생성하세요.
+아래 정보를 바탕으로 오늘 하루를 응원하는 짧은 말풍선 메시지를 생성하세요.
 
 - 건강 점수: {latest.score:.1f}점 ({latest.grade})
 - 오늘 복약 완료: {med_rate}
 - 다음 병원 예약: {appt_info}
 - 챌린지 현황: {challenge_context}
-- 개선 시 점수 상승 가능 항목: {improvement_context}
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
 {{
-  "message": "오늘 환자에게 건넬 따뜻하고 구체적인 한 문장 (40자 이내)",
-  "challenge_reason": "개선 가능 항목의 점수를 언급하며 챌린지 참여를 유도하는 한 문장 (40자 이내, 예: '체중감량 챌린지로 +9점 올려보세요!')"
+  "message": "오늘 환자에게 건넬 따뜻하고 구체적인 한 문장 (40자 이내)"
 }}"""
 
     try:
         resp = await client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=200,
+            max_tokens=100,
         )
         text = resp.choices[0].message.content.strip().replace("```json", "").replace("```", "").strip()
         result = json.loads(text)
     except Exception:
-        result = {
-            "message": "오늘도 건강한 하루 보내세요!",
-            "challenge_reason": "작은 챌린지 하나가 큰 변화를 만들어요",
-        }
+        result = {"message": "오늘도 건강한 하루 보내세요!"}
 
     await cache_set(cache_key, result, seconds_until_midnight())
     return Response(result, status_code=status.HTTP_200_OK)

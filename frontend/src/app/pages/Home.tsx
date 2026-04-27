@@ -55,6 +55,12 @@ interface Medication {
   completedToday: boolean[];
 }
 
+interface ImprovementFactor {
+  category: string;
+  challenge_type: string;
+  score_delta: number;
+}
+
 interface UserChallenge {
   user_challenge_id: number;
   challenge_name: string;
@@ -118,7 +124,7 @@ export function Home() {
   const [healthScore, setHealthScore] = useState(0);
   const [scorePercentile, setScorePercentile] = useState<{ value: number; label: string; ageGroup: number } | null>(null);
   const [streakDays, setStreakDays] = useState(0);
-  const [aiMessage, setAiMessage] = useState<{ message: string; challenge_reason: string | null } | null>(null);
+  const [aiMessage, setAiMessage] = useState<{ message: string } | null>(null);
   const [activeChallenges, setActiveChallenges] = useState<UserChallenge[]>([]);
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
@@ -128,6 +134,7 @@ export function Home() {
   const [maintenanceQueue, setMaintenanceQueue] = useState<UserChallenge[]>([]);
   const [maintenanceSubmitting, setMaintenanceSubmitting] = useState(false);
 
+  const [improvementFactors, setImprovementFactors] = useState<ImprovementFactor[]>([]);
   const [earnedBadge, setEarnedBadge] = useState<{ name: string; emoji: string } | null>(null);
 
   const [foodAnalyzing, setFoodAnalyzing] = useState(false);
@@ -154,14 +161,15 @@ export function Home() {
   useEffect(() => {
     const today = format(new Date(), "yyyy-MM-dd");
 
-    api.get<{ latest_score: number; streak_days: number; score_percentile: number; score_percentile_label: string; age_group: number }>("/api/v1/dashboard")
+    api.get<{ latest_score: number; streak_days: number; improvement_factors: ImprovementFactor[]; score_percentile: number; score_percentile_label: string; age_group: number }>("/api/v1/dashboard")
       .then((r) => {
         setHealthScore(Math.round(r.data.latest_score));
         setScorePercentile(r.data.score_percentile != null ? { value: r.data.score_percentile, label: r.data.score_percentile_label, ageGroup: r.data.age_group } : null);
         setStreakDays(r.data.streak_days);
+        setImprovementFactors(r.data.improvement_factors || []);
       }).catch(() => {});
 
-    api.get<{ message: string; challenge_reason: string | null }>("/api/v1/dashboard/message")
+    api.get<{ message: string }>("/api/v1/dashboard/message")
       .then((r) => setAiMessage(r.data)).catch(() => {});
 
     fetchChallenges();
@@ -453,9 +461,6 @@ export function Home() {
                         <div className="w-4 h-4 bg-white border-r border-b border-gray-200 rotate-45" />
                       </div>
                       <p className="text-center font-bold text-gray-900 text-sm">{aiMessage.message}</p>
-                      {aiMessage.challenge_reason && (
-                        <p className="text-center text-xs text-gray-500 mt-1">{aiMessage.challenge_reason}</p>
-                      )}
                     </div>
                   </div>
                 )}
@@ -481,6 +486,19 @@ export function Home() {
                     />
                   </div>
 
+                  {improvementFactors.length > 0 && (
+                    <div className="text-center space-y-2 pt-2">
+                      <p className="text-sm font-semibold text-gray-700">지금 하면 점수가 올라요</p>
+                      <div className="space-y-1 text-sm">
+                        {improvementFactors.slice(0, 3).map((f) => (
+                          <p key={f.category} className="text-gray-600">
+                            {f.category}하면{" "}
+                            <span className="font-bold text-emerald-600">+{f.score_delta}점</span>
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
