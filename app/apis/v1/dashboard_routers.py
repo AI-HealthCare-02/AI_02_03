@@ -13,7 +13,7 @@ from app.db.databases import get_db
 from app.dependencies.security import get_request_user
 from app.dtos.dashboard import DashboardResponse, LifestyleSummary, ScoreHistoryItem
 from app.models.appointment import Appointment
-from app.models.challenges import Challenge, UserChallenge
+from app.models.challenges import ChallengeLog
 from app.models.health_surveys import HealthSurvey
 from app.models.medications import Medication, MedicationCompletion
 from app.models.predictions import Prediction
@@ -24,6 +24,67 @@ from app.repositories.prediction_repository import PredictionRepository
 from app.utils.redis import cache_get, cache_set, get_time_period
 
 dashboard_router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+
+async def _build_message_context(db: AsyncSession, user_id: int, now: datetime) -> str:
+    lines: list[str] = []
+
+    # 복약 (있는 사람만)
+    med_result = await db.execute(select(Medication).where(Medication.user_id == user_id))
+    med_ids = [m.id for m in med_result.scalars().all()]
+    if med_ids:
+        comp_result = await db.execute(
+            select(func.count(MedicationCompletion.id)).where(
+                MedicationCompletion.medication_id.in_(med_ids),
+                MedicationCompletion.log_date == now.date(),
+            )
+        )
+        done = comp_result.scalar() or 0
+        lines.append(f"오늘 복약 {done}/{len(med_ids)} 완료")
+
+    # 병원 예약 (있는 사람만)
+    appt_result = await db.execute(
+        select(Appointment)
+        .where(Appointment.user_id == user_id, Appointment.visit_date > now)
+        .order_by(Appointment.visit_date.asc())
+        .limit(1)
+    )
+    next_appt = appt_result.scalar_one_or_none()
+    if next_appt:
+        visit = next_appt.visit_date
+        if visit.tzinfo is None:
+            visit = visit.replace(tzinfo=UTC)
+        d_day = (visit.date() - now.date()).days
+        lines.append(f"다음 병원: {next_appt.hospital_name} D-{d_day}")
+
+    # 챌린지 현황
+    uc_repo = UserChallengeRepository(db)
+    log_repo = ChallengeLogRepository(db)
+    active_ucs = await uc_repo.get_by_user_id(user_id, status="진행중")
+    active_uc_ids = [uc.id for uc in active_ucs]
+
+    streak_days = await log_repo.get_streak_days(active_uc_ids)
+    if streak_days > 0:
+        lines.append(f"연속 참여 {streak_days}일째")
+
+    incomplete: list[str] = []
+    for uc in active_ucs:
+        log = await db.execute(
+            select(ChallengeLog).where(
+                ChallengeLog.user_challenge_id == uc.id,
+                ChallengeLog.log_date == now.date(),
+                ChallengeLog.is_completed.is_(True),
+            )
+        )
+        if log.scalar_one_or_none() is None:
+            incomplete.append(uc.challenge.name)
+
+    if incomplete:
+        lines.append(f"오늘 미완료 챌린지: {', '.join(incomplete)}")
+    elif active_ucs:
+        lines.append("오늘 챌린지 모두 완료!")
+
+    return "\n".join(f"- {line}" for line in lines) if lines else "- 아직 활동 내역 없음"
 
 
 @dashboard_router.get("", response_model=DashboardResponse, status_code=status.HTTP_200_OK)
@@ -128,7 +189,6 @@ async def get_dashboard_message(
     if cached:
         return Response(cached, status_code=status.HTTP_200_OK)
 
-    # 최신 건강 점수
     prediction_repo = PredictionRepository(db)
     predictions = await prediction_repo.get_by_user_id(user.id)
     if not predictions:
@@ -136,48 +196,9 @@ async def get_dashboard_message(
             {"message": "건강 예측을 먼저 진행해주세요!"},
             status_code=status.HTTP_200_OK,
         )
-    latest = predictions[0]
 
-    # 오늘 복약 완료율
     now = datetime.now(UTC)
-    med_result = await db.execute(select(Medication).where(Medication.user_id == user.id))
-    medications = med_result.scalars().all()
-    med_ids = [m.id for m in medications]
-    completion_count = 0
-    if med_ids:
-        comp_result = await db.execute(
-            select(func.count(MedicationCompletion.id)).where(
-                MedicationCompletion.medication_id.in_(med_ids),
-                MedicationCompletion.log_date == now.date(),
-            )
-        )
-        completion_count = comp_result.scalar() or 0
-    med_rate = f"{completion_count}/{len(med_ids)}" if med_ids else "없음"
-
-    # 다음 진료 예약
-    appt_result = await db.execute(
-        select(Appointment)
-        .where(Appointment.user_id == user.id, Appointment.visit_date > now)
-        .order_by(Appointment.visit_date.asc())
-        .limit(1)
-    )
-    next_appt = appt_result.scalar_one_or_none()
-    appt_info = "없음"
-    if next_appt:
-        visit = next_appt.visit_date
-        if visit.tzinfo is None:
-            visit = visit.replace(tzinfo=UTC)
-        d_day = (visit.date() - now.date()).days
-        appt_info = f"{next_appt.hospital_name} D-{d_day}"
-
-    # 진행 중 챌린지 타입
-    uc_result = await db.execute(
-        select(Challenge.type)
-        .join(UserChallenge, Challenge.id == UserChallenge.challenge_id)
-        .where(UserChallenge.user_id == user.id, UserChallenge.status == "진행중")
-    )
-    active_types = [r[0] for r in uc_result.all()]
-    challenge_context = f"진행 중: {', '.join(active_types)}" if active_types else "진행 중인 챌린지 없음"
+    context_str = await _build_message_context(db, user.id, now)
 
     period_context = {
         "morning": "아침입니다. 오늘 복약과 챌린지 계획을 세우도록 유도하세요.",
@@ -190,15 +211,12 @@ async def get_dashboard_message(
 지금은 {period_context}
 아래 데이터를 바탕으로 지금 당장 행동하고 싶게 만드는 짧은 메시지를 생성하세요.
 
-- 건강 점수: {latest.score:.1f}점 ({latest.grade})
-- 오늘 복약 완료: {med_rate}
-- 다음 병원 예약: {appt_info}
-- 챌린지 현황: {challenge_context}
+{context_str}
 
 규칙:
 - 막연한 응원("힘내세요", "잘할 수 있어요") 금지
 - 위 데이터 중 하나를 구체적으로 언급해 행동을 유도할 것
-- 예시: "복약 아직 {med_rate}이에요, 지금 바로 챙겨보세요!", "오늘 챌린지 하나만 완료하면 연속 기록 달성!"
+- 예시: "복약 아직 1/3이에요, 지금 바로 챙겨보세요!", "연속 5일째, 오늘 챌린지 완료하면 기록 유지!"
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
 {{
