@@ -179,17 +179,23 @@ async def get_dashboard_message(
     challenge_context = f"진행 중: {', '.join(active_types)}" if active_types else "진행 중인 챌린지 없음"
 
     client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
-    prompt = f"""당신은 지방간 환자의 건강 관리를 돕는 AI 코치입니다.
-아래 정보를 바탕으로 오늘 하루를 응원하는 짧은 말풍선 메시지를 생성하세요.
+    prompt = f"""당신은 지방간 환자의 건강 관리를 돕는 적극적인 AI 코치입니다.
+아래 데이터를 바탕으로 오늘 당장 행동하고 싶게 만드는 짧은 메시지를 생성하세요.
 
 - 건강 점수: {latest.score:.1f}점 ({latest.grade})
 - 오늘 복약 완료: {med_rate}
 - 다음 병원 예약: {appt_info}
 - 챌린지 현황: {challenge_context}
 
+규칙:
+- 막연한 응원("힘내세요", "잘할 수 있어요") 금지
+- 위 데이터 중 하나를 구체적으로 언급해 행동을 유도할 것
+- 오늘 실제로 할 수 있는 행동 한 가지를 제안할 것
+- 예시: "복약 아직 {med_rate}이에요, 지금 바로 챙겨보세요!", "오늘 챌린지 하나만 완료하면 연속 기록 달성!"
+
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
 {{
-  "message": "오늘 환자에게 건넬 따뜻하고 구체적인 한 문장 (40자 이내)"
+  "message": "행동을 유도하는 구체적인 한 문장 (40자 이내)"
 }}"""
 
     try:
