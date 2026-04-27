@@ -142,12 +142,12 @@ export function Challenges() {
     try {
       await api.post(`/api/v1/challenges/${joinTarget.id}/join`);
       await fetchActiveChallenges();
-      setJoinTarget(null);
       setActiveTab("active");
     } catch {
       setJoinError("참여에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setJoining(null);
+      setJoinTarget(null);
     }
   };
 
@@ -232,6 +232,10 @@ export function Challenges() {
           </Button>
         </Link>
       </div>
+
+      {joinError && (
+        <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{joinError}</p>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
@@ -497,7 +501,7 @@ export function Challenges() {
       </Tabs>
 
       {/* 참여 확인 다이얼로그 */}
-      <Dialog open={!!joinTarget} onOpenChange={(o) => { if (!o) { setJoinTarget(null); setJoinError(""); } }}>
+      <Dialog open={!!joinTarget} onOpenChange={(o) => !o && setJoinTarget(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>챌린지를 시작하시겠습니까?</DialogTitle>
@@ -506,9 +510,8 @@ export function Challenges() {
               {joinTarget && ` (${joinTarget.duration} / ${joinTarget.difficulty})`}
             </DialogDescription>
           </DialogHeader>
-          {joinError && <p className="text-sm text-red-500 px-1">{joinError}</p>}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setJoinTarget(null); setJoinError(""); }}>취소</Button>
+            <Button variant="outline" onClick={() => setJoinTarget(null)}>취소</Button>
             <Button
               className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
               onClick={handleJoinConfirm}
