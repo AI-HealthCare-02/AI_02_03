@@ -289,7 +289,7 @@ async def test_create_medication(client: AsyncClient):
     response = await client.post(
         "/api/v1/medications",
         headers={"Authorization": f"Bearer {token}"},
-        json={"name": "혈압약", "dosage": "1정", "schedule": "아침"},
+        json={"name": "혈압약", "dosage": "1정", "times": ["08:00"]},
     )
     print("✅ 복약 생성:", response.status_code, response.json())
     assert response.status_code == 201
