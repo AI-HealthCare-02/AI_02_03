@@ -62,8 +62,7 @@ export function Login() {
   };
 
   const handleSocialLogin = (provider: "naver" | "kakao") => {
-    const base = import.meta.env.VITE_OAUTH_BASE_URL || "http://127.0.0.1:8000";
-    window.location.href = `${base}/api/v1/auth/${provider}`;
+    window.location.href = `/api/v1/auth/${provider}`;
   };
 
   return (
