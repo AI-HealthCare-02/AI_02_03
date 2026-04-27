@@ -14,8 +14,8 @@ from app.dependencies.security import get_request_user
 from app.dtos.dashboard import DashboardResponse, LifestyleSummary, ScoreHistoryItem
 from app.models.appointment import Appointment
 from app.models.challenges import Challenge, UserChallenge
-from app.models.medications import Medication, MedicationCompletion
 from app.models.health_surveys import HealthSurvey
+from app.models.medications import Medication, MedicationCompletion
 from app.models.predictions import Prediction
 from app.models.users import User
 from app.repositories.challenge_repository import ChallengeLogRepository, UserChallengeRepository
