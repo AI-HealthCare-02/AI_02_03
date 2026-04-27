@@ -26,5 +26,5 @@ class DashboardResponse(BaseModel):
     lifestyle_summary: LifestyleSummary
     streak_days: int
     weekly_rate: float
-    score_percentile: int    # 표시할 % 숫자
+    score_percentile: int  # 표시할 % 숫자
     score_percentile_label: str  # "상위" or "하위"
