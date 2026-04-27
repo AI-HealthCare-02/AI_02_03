@@ -103,7 +103,7 @@ export function Home() {
   const { user } = useAuthStore();
 
   const [healthScore, setHealthScore] = useState(0);
-  const [scorePercentile, setScorePercentile] = useState<{ value: number; label: string } | null>(null);
+  const [scorePercentile, setScorePercentile] = useState<{ value: number; label: string; ageGroup: number } | null>(null);
   const [streakDays, setStreakDays] = useState(0);
   const [improvementFactors, setImprovementFactors] = useState<ImprovementFactor[]>([]);
   const [aiMessage, setAiMessage] = useState<{ message: string; challenge_reason: string | null } | null>(null);
@@ -140,10 +140,10 @@ export function Home() {
   useEffect(() => {
     const today = format(new Date(), "yyyy-MM-dd");
 
-    api.get<{ latest_score: number; streak_days: number; improvement_factors: ImprovementFactor[]; score_percentile: number; score_percentile_label: string }>("/api/v1/dashboard")
+    api.get<{ latest_score: number; streak_days: number; improvement_factors: ImprovementFactor[]; score_percentile: number; score_percentile_label: string; age_group: number }>("/api/v1/dashboard")
       .then((r) => {
         setHealthScore(Math.round(r.data.latest_score));
-        setScorePercentile(r.data.score_percentile != null ? { value: r.data.score_percentile, label: r.data.score_percentile_label } : null);
+        setScorePercentile(r.data.score_percentile != null ? { value: r.data.score_percentile, label: r.data.score_percentile_label, ageGroup: r.data.age_group } : null);
         setStreakDays(r.data.streak_days);
         setImprovementFactors(r.data.improvement_factors || []);
       }).catch(() => {});
@@ -437,7 +437,7 @@ export function Home() {
                     <p className="text-3xl font-bold text-emerald-600">
                       {healthScore}점
                       {scorePercentile !== null && (
-                        <span className="text-base font-medium text-gray-500 ml-2">({scorePercentile.label} {scorePercentile.value}%)</span>
+                        <span className="text-base font-medium text-gray-500 ml-2">({scorePercentile.ageGroup}대 {scorePercentile.label} {scorePercentile.value}%)</span>
                       )}
                     </p>
                   </div>

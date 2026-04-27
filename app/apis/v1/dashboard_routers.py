@@ -108,6 +108,7 @@ async def get_dashboard(
         weekly_rate=weekly_rate,
         score_percentile=display_pct,
         score_percentile_label=percentile_label,
+        age_group=age_group_min,
     )
 
     return Response(result.model_dump(mode="json"), status_code=status.HTTP_200_OK)

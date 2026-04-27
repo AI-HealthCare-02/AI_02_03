@@ -28,3 +28,4 @@ class DashboardResponse(BaseModel):
     weekly_rate: float
     score_percentile: int  # 표시할 % 숫자
     score_percentile_label: str  # "상위" or "하위"
+    age_group: int  # 나이대 시작값 (e.g. 20, 30)
