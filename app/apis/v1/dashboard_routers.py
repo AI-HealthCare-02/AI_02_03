@@ -15,6 +15,7 @@ from app.dtos.dashboard import DashboardResponse, LifestyleSummary, ScoreHistory
 from app.models.appointment import Appointment
 from app.models.challenges import Challenge, UserChallenge
 from app.models.medications import Medication, MedicationCompletion
+from app.models.predictions import Prediction
 from app.models.users import User
 from app.repositories.challenge_repository import ChallengeLogRepository, UserChallengeRepository
 from app.repositories.health_survey_repository import HealthSurveyRepository
@@ -55,6 +56,21 @@ async def get_dashboard(
 
     latest = predictions[0]
 
+    # 유저별 최신 예측 ID 서브쿼리
+    latest_id_subq = select(func.max(Prediction.id)).group_by(Prediction.user_id).scalar_subquery()
+    total_res = await db.execute(
+        select(func.count()).where(Prediction.id.in_(latest_id_subq))
+    )
+    total = total_res.scalar() or 1
+    below_res = await db.execute(
+        select(func.count()).where(
+            Prediction.id.in_(latest_id_subq),
+            Prediction.score < latest.score,
+        )
+    )
+    below = below_res.scalar() or 0
+    score_percentile = max(1, min(99, 100 - round(below / total * 100)))
+
     result = DashboardResponse(
         latest_score=round(latest.score, 1),
         latest_grade=latest.grade,
@@ -71,6 +87,7 @@ async def get_dashboard(
         ),
         streak_days=streak_days,
         weekly_rate=weekly_rate,
+        score_percentile=score_percentile,
     )
 
     return Response(result.model_dump(mode="json"), status_code=status.HTTP_200_OK)

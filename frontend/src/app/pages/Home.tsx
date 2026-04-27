@@ -103,6 +103,7 @@ export function Home() {
   const { user } = useAuthStore();
 
   const [healthScore, setHealthScore] = useState(0);
+  const [scorePercentile, setScorePercentile] = useState<number | null>(null);
   const [streakDays, setStreakDays] = useState(0);
   const [improvementFactors, setImprovementFactors] = useState<ImprovementFactor[]>([]);
   const [aiMessage, setAiMessage] = useState<{ message: string; challenge_reason: string | null } | null>(null);
@@ -139,9 +140,10 @@ export function Home() {
   useEffect(() => {
     const today = format(new Date(), "yyyy-MM-dd");
 
-    api.get<{ latest_score: number; streak_days: number; improvement_factors: ImprovementFactor[] }>("/api/v1/dashboard")
+    api.get<{ latest_score: number; streak_days: number; improvement_factors: ImprovementFactor[]; score_percentile: number }>("/api/v1/dashboard")
       .then((r) => {
         setHealthScore(Math.round(r.data.latest_score));
+        setScorePercentile(r.data.score_percentile ?? null);
         setStreakDays(r.data.streak_days);
         setImprovementFactors(r.data.improvement_factors || []);
       }).catch(() => {});
@@ -432,9 +434,19 @@ export function Home() {
                 <div className="w-full max-w-xs space-y-4">
                   <div className="text-center">
                     <p className="text-sm text-gray-600">건강 점수</p>
-                    <p className="text-3xl font-bold text-emerald-600">{healthScore}점</p>
+                    <p className="text-3xl font-bold text-emerald-600">
+                      {healthScore}점
+                      {scorePercentile !== null && (
+                        <span className="text-base font-medium text-gray-500 ml-2">(상위 {scorePercentile}%)</span>
+                      )}
+                    </p>
                   </div>
-                  <Progress value={healthScore} className="h-2" />
+                  <div className="relative h-2 w-full rounded-full overflow-hidden" style={{ background: "linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e)" }}>
+                    <div
+                      className="absolute top-0 right-0 h-full bg-gray-100 rounded-r-full transition-all duration-700"
+                      style={{ width: `${100 - healthScore}%` }}
+                    />
+                  </div>
 
                   {improvementFactors.length > 0 && (
                     <div className="text-center space-y-2 pt-2">

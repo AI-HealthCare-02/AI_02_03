@@ -26,3 +26,4 @@ class DashboardResponse(BaseModel):
     lifestyle_summary: LifestyleSummary
     streak_days: int
     weekly_rate: float
+    score_percentile: int  # 상위 X% (낮을수록 우수)
