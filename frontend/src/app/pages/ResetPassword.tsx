@@ -21,7 +21,7 @@ export function ResetPassword() {
       setSent(true);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setError(msg ?? "비밀번호 재설정에 실패했습니다.");
+      setError(msg ?? "비밀번호 재설정에 실패했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setLoading(false);
     }

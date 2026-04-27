@@ -82,9 +82,13 @@ async def get_dashboard(
         )
     )
     below = below_res.scalar() or 0
-    rank_pct = round(below / total * 100)  # 나보다 낮은 사람 비율
-    display_pct = max(1, min(99, 100 - rank_pct))
-    percentile_label = "상위" if rank_pct >= 50 else "하위"
+    if total <= 1:
+        display_pct = 50
+        percentile_label = "상위"
+    else:
+        rank_pct = round(below / total * 100)  # 나보다 낮은 사람 비율
+        display_pct = max(1, min(99, 100 - rank_pct))
+        percentile_label = "상위" if rank_pct >= 50 else "하위"
 
     result = DashboardResponse(
         latest_score=round(latest.score, 1),
