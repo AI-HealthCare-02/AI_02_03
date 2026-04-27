@@ -98,11 +98,13 @@ export function Challenges() {
 
   const activeJoinedIds = new Set(activeChallenges.map((c) => c.challengeId));
   const completedChallengeIds = new Set(completedChallenges.map((c) => c.challengeId));
+  const suggestedIds = new Set(suggested.map((c) => c.id));
 
   const CATEGORIES = ["전체", "운동", "식단", "식습관", "수면", "체중감량", "금주", "금연"];
 
   const sortedAvailable = [...availableChallenges]
     .filter((c) => !completedChallengeIds.has(c.id))
+    .filter((c) => !suggestedIds.has(c.id))
     .filter((c) => categoryFilter === "전체" || c.category === categoryFilter)
     .sort((a, b) => {
       const aJoined = activeJoinedIds.has(a.id) ? 1 : 0;
