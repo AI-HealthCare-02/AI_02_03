@@ -31,8 +31,40 @@ import {
   startOfDay,
 } from "date-fns";
 import { ko } from "date-fns/locale";
+import api from "../../lib/api";
+
+interface FoodAnalysisResult {
+  food_name: string;
+  calories: number;
+  fat: number;
+  sugar: number;
+  liver_impact: string;
+  recommendation: string;
+  rating: string;
+  image_url: string;
+}
 
 export function Home() {
+  const [foodAnalyzing, setFoodAnalyzing] = useState(false);
+  const [foodResult, setFoodResult] = useState<FoodAnalysisResult | null>(null);
+
+  const handleDietImageCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFoodResult(null);
+    setFoodAnalyzing(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await api.post("/api/v1/food/analyze", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setFoodResult(res.data);
+    } finally {
+      setFoodAnalyzing(false);
+      e.target.value = "";
+    }
+  };
   const [todayHabits] = useState([
     {
       id: 1,
@@ -564,14 +596,46 @@ export function Home() {
           </Card>
 
           {/* 식단 기록 CTA 버튼 - 모바일에서만 표시 */}
-          <div className="md:hidden">
-            <Button
-              disabled
-              className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 opacity-50 cursor-not-allowed"
-            >
-              <Camera className="size-4 mr-2" />
-              식단 기록하기 (준비 중)
-            </Button>
+          <div className="md:hidden space-y-3">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/jpg"
+              capture="environment"
+              onChange={handleDietImageCapture}
+              className="hidden"
+              id="diet-camera-input"
+            />
+            <label htmlFor="diet-camera-input">
+              <Button
+                asChild
+                disabled={foodAnalyzing}
+                className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <Camera className="size-4" />
+                  {foodAnalyzing ? "분석 중..." : "식단 기록하기"}
+                </span>
+              </Button>
+            </label>
+            {foodResult && (
+              <Card className="border border-emerald-200 bg-emerald-50/50">
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-gray-900">{foodResult.food_name}</p>
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                      {foodResult.rating}
+                    </span>
+                  </div>
+                  <div className="flex gap-3 text-sm text-gray-600">
+                    <span>칼로리 {foodResult.calories}kcal</span>
+                    <span>지방 {foodResult.fat}g</span>
+                    <span>당류 {foodResult.sugar}g</span>
+                  </div>
+                  <p className="text-sm text-gray-700">{foodResult.liver_impact}</p>
+                  <p className="text-sm text-emerald-700 font-medium">{foodResult.recommendation}</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <Card className="border border-gray-200">
