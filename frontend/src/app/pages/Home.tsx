@@ -64,12 +64,6 @@ interface UserChallenge {
   is_maintenance: boolean;
 }
 
-interface ImprovementFactor {
-  category: string;
-  challenge_type: string;
-  score_delta: number;
-}
-
 interface FoodAnalysisResult {
   food_name: string;
   calories: number;
@@ -124,7 +118,6 @@ export function Home() {
   const [healthScore, setHealthScore] = useState(0);
   const [scorePercentile, setScorePercentile] = useState<{ value: number; label: string; ageGroup: number } | null>(null);
   const [streakDays, setStreakDays] = useState(0);
-  const [improvementFactors, setImprovementFactors] = useState<ImprovementFactor[]>([]);
   const [aiMessage, setAiMessage] = useState<{ message: string; challenge_reason: string | null } | null>(null);
   const [activeChallenges, setActiveChallenges] = useState<UserChallenge[]>([]);
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
@@ -134,6 +127,8 @@ export function Home() {
   const [completeTarget, setCompleteTarget] = useState<UserChallenge | null>(null);
   const [maintenanceQueue, setMaintenanceQueue] = useState<UserChallenge[]>([]);
   const [maintenanceSubmitting, setMaintenanceSubmitting] = useState(false);
+
+  const [earnedBadge, setEarnedBadge] = useState<{ name: string; emoji: string } | null>(null);
 
   const [foodAnalyzing, setFoodAnalyzing] = useState(false);
   const [foodResult, setFoodResult] = useState<FoodAnalysisResult | null>(null);
@@ -159,12 +154,11 @@ export function Home() {
   useEffect(() => {
     const today = format(new Date(), "yyyy-MM-dd");
 
-    api.get<{ latest_score: number; streak_days: number; improvement_factors: ImprovementFactor[]; score_percentile: number; score_percentile_label: string; age_group: number }>("/api/v1/dashboard")
+    api.get<{ latest_score: number; streak_days: number; score_percentile: number; score_percentile_label: string; age_group: number }>("/api/v1/dashboard")
       .then((r) => {
         setHealthScore(Math.round(r.data.latest_score));
         setScorePercentile(r.data.score_percentile != null ? { value: r.data.score_percentile, label: r.data.score_percentile_label, ageGroup: r.data.age_group } : null);
         setStreakDays(r.data.streak_days);
-        setImprovementFactors(r.data.improvement_factors || []);
       }).catch(() => {});
 
     api.get<{ message: string; challenge_reason: string | null }>("/api/v1/dashboard/message")
@@ -252,7 +246,14 @@ export function Home() {
   const handleCompleteChallenge = async () => {
     if (!completeTarget) return;
     try {
-      await api.post(`/api/v1/user-challenges/${completeTarget.user_challenge_id}/logs`, { is_completed: true });
+      const res = await api.post<{ earned_badge?: { name: string; emoji: string } | null }>(
+        `/api/v1/user-challenges/${completeTarget.user_challenge_id}/logs`,
+        { is_completed: true },
+      );
+      if (res.data.earned_badge) {
+        setEarnedBadge(res.data.earned_badge);
+        setTimeout(() => setEarnedBadge(null), 4000);
+      }
       await fetchChallenges();
     } catch { /* 이미 오늘 기록함 */ } finally {
       setCompleteTarget(null);
@@ -411,6 +412,19 @@ export function Home() {
         </div>
       )}
 
+      {/* 뱃지 획득 토스트 */}
+      {earnedBadge && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl shadow-lg px-6 py-4 flex items-center gap-3">
+            <span className="text-3xl">{earnedBadge.emoji}</span>
+            <div>
+              <p className="text-xs font-medium text-amber-600">뱃지 획득!</p>
+              <p className="text-base font-bold text-gray-900">{earnedBadge.name}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="text-center space-y-1.5">
         <h2 className="text-3xl font-bold text-gray-900">
           안녕하세요, {user?.nickname ?? ""}님! 👋
@@ -467,19 +481,6 @@ export function Home() {
                     />
                   </div>
 
-                  {improvementFactors.length > 0 && (
-                    <div className="text-center space-y-2 pt-2">
-                      <p className="text-sm font-semibold text-gray-700">지금 하면 점수가 올라요</p>
-                      <div className="space-y-1 text-sm">
-                        {improvementFactors.slice(0, 3).map((f) => (
-                          <p key={f.category} className="text-gray-600">
-                            {f.category}하면{" "}
-                            <span className="font-bold text-emerald-600">+{f.score_delta}점</span>
-                          </p>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </CardContent>

@@ -70,6 +70,7 @@ class ChallengeLogResponse(BaseModel):
     days_remaining: int
     motivation_message: str
     expected_improvement: str
+    earned_badge: dict | None = None  # {"name": "첫 걸음", "emoji": "🎯"}
 
 
 class MaintenanceCheckinRequest(BaseModel):

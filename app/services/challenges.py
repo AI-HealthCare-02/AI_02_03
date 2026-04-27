@@ -631,9 +631,14 @@ class ChallengeService:
         motivation = _MOTIVATION_MESSAGES[completed_logs % len(_MOTIVATION_MESSAGES)]
         improvement = _IMPROVEMENT_MESSAGES.get(uc.challenge.type, "꾸준한 실천이 건강을 만들어요.")
 
-        from app.services.badges import BadgeService
+        from app.services.badges import BADGE_MAP, BadgeService
 
-        await BadgeService(self._session).evaluate_and_grant(user.id)
+        newly_granted = await BadgeService(self._session).evaluate_and_grant(user.id)
+        earned_badge = None
+        if newly_granted:
+            defn = BADGE_MAP.get(newly_granted[0])
+            if defn:
+                earned_badge = {"name": defn["name"], "emoji": defn["emoji"]}
 
         return ChallengeLogResponse(
             detail="기록이 저장됐습니다.",
@@ -641,4 +646,5 @@ class ChallengeService:
             days_remaining=days_remaining,
             motivation_message=motivation,
             expected_improvement=improvement,
+            earned_badge=earned_badge,
         )
