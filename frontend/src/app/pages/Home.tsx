@@ -320,30 +320,6 @@ export function Home() {
       Math.min(earnedBadges / 10, 1) * 100 * 0.1,
   );
 
-  const getHealthStatus = (score: number) => {
-    if (score >= 80)
-      return {
-        message: "아주 건강해요! 이대로 유지하세요",
-        emoji: "😊",
-      };
-    if (score >= 60)
-      return {
-        message: "양호해요! 조금만 더 노력해봐요",
-        emoji: "🙂",
-      };
-    if (score >= 40)
-      return {
-        message: "주의가 필요해요! 개선이 필요합니다",
-        emoji: "😐",
-      };
-    return {
-      message: "위험해요! 관심이 필요합니다",
-      emoji: "😥",
-    };
-  };
-
-  const healthStatus = getHealthStatus(healthScore);
-
   const todayAppointments = allAppointments.filter(
     (apt) => differenceInDays(parseISO(apt.date), today) === 0,
   );
@@ -437,7 +413,7 @@ export function Home() {
                 </div>
 
                 <div className="flex-shrink-0">
-                  <LiverCharacter healthScore={healthScore} rank={27} />
+                  <LiverCharacter healthScore={healthScore} />
                 </div>
 
                 <div className="w-full max-w-xs space-y-4">
