@@ -15,21 +15,19 @@ export function DeleteAccount() {
   const [password, setPassword] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
 
     if (!confirmed) {
-      alert("탈퇴 동의에 체크해주세요.");
+      setError("탈퇴 동의에 체크해주세요.");
       return;
     }
 
     if (!password) {
-      alert("비밀번호를 입력해주세요.");
-      return;
-    }
-
-    if (!window.confirm("정말로 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+      setError("비밀번호를 입력해주세요.");
       return;
     }
 
@@ -40,7 +38,7 @@ export function DeleteAccount() {
       navigate("/login");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      alert(msg ?? "회원 탈퇴에 실패했습니다.");
+      setError(msg ?? "회원 탈퇴에 실패했습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -115,6 +113,8 @@ export function DeleteAccount() {
                 위 내용을 모두 확인했으며, 회원 탈퇴에 동의합니다.
               </label>
             </div>
+
+            {error && <p className="text-sm text-red-500">{error}</p>}
 
             <div className="flex gap-3">
               <Button

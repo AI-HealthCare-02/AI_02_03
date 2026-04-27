@@ -61,6 +61,7 @@ export function HealthDataManagement() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // 음주 종류 서버값 → 프론트 값 매핑
   const drinkTypeToFront = (v: string | null) => {
@@ -216,10 +217,10 @@ export function HealthDataManagement() {
       }>("/api/v1/surveys/me", payload);
       const { new_score, new_grade, score_change } = res.data;
       const changeStr = score_change > 0 ? `+${score_change}` : String(score_change);
-      alert(`저장되었습니다.\n현재 점수: ${Math.round(new_score)}점 (${new_grade}) [${changeStr}점]`);
+      setSaveMessage({ type: "success", text: `저장되었습니다. 현재 점수: ${Math.round(new_score)}점 (${new_grade}) [${changeStr}점]` });
       setExpandedSection(null);
     } catch {
-      alert("저장 중 오류가 발생했습니다.");
+      setSaveMessage({ type: "error", text: "저장 중 오류가 발생했습니다." });
     }
   };
 
@@ -274,6 +275,12 @@ export function HealthDataManagement() {
         </h2>
         <p className="text-gray-600">건강 정보를 확인하고 수정하세요</p>
       </div>
+
+      {saveMessage && (
+        <p className={`text-sm px-4 py-3 rounded-lg border ${saveMessage.type === "success" ? "text-emerald-700 bg-emerald-50 border-emerald-200" : "text-red-600 bg-red-50 border-red-200"}`}>
+          {saveMessage.text}
+        </p>
+      )}
 
       {/* Basic Info Section */}
       <Card className="border-2 border-emerald-100">

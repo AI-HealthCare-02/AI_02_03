@@ -81,6 +81,7 @@ export function Challenges() {
   // 체중감량 챌린지 체중 입력
   const [weightInput, setWeightInput] = useState<string>("");
   const [weightDialogOpen, setWeightDialogOpen] = useState(false);
+  const [joinError, setJoinError] = useState("");
 
   interface SuggestedChallenge {
     id: number;
@@ -137,16 +138,16 @@ export function Challenges() {
   const handleJoinConfirm = async () => {
     if (!joinTarget) return;
     setJoining(joinTarget.id);
+    setJoinError("");
     try {
       await api.post(`/api/v1/challenges/${joinTarget.id}/join`);
       await fetchActiveChallenges();
+      setJoinTarget(null);
       setActiveTab("active");
-    } catch (e) {
-      console.error("참여 실패:", e);
-      alert("참여에 실패했습니다. 다시 시도해주세요.");
+    } catch {
+      setJoinError("참여에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setJoining(null);
-      setJoinTarget(null);
     }
   };
 
@@ -496,7 +497,7 @@ export function Challenges() {
       </Tabs>
 
       {/* 참여 확인 다이얼로그 */}
-      <Dialog open={!!joinTarget} onOpenChange={(o) => !o && setJoinTarget(null)}>
+      <Dialog open={!!joinTarget} onOpenChange={(o) => { if (!o) { setJoinTarget(null); setJoinError(""); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>챌린지를 시작하시겠습니까?</DialogTitle>
@@ -505,8 +506,9 @@ export function Challenges() {
               {joinTarget && ` (${joinTarget.duration} / ${joinTarget.difficulty})`}
             </DialogDescription>
           </DialogHeader>
+          {joinError && <p className="text-sm text-red-500 px-1">{joinError}</p>}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setJoinTarget(null)}>취소</Button>
+            <Button variant="outline" onClick={() => { setJoinTarget(null); setJoinError(""); }}>취소</Button>
             <Button
               className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
               onClick={handleJoinConfirm}

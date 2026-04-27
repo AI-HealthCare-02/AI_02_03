@@ -46,7 +46,6 @@ export function ChangePassword() {
         current_password: formData.currentPassword,
         new_password: formData.newPassword,
       });
-      alert("비밀번호가 변경되었습니다.");
       navigate("/mypage/account");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;

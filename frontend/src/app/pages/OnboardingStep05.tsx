@@ -16,8 +16,6 @@ export function OnboardingStep05() {
 
   const handleNext = () => {
     if (selected) {
-      // Store the diagnosis status if needed
-      console.log("Fatty liver diagnosis:", selected);
       navigate("/onboarding/step1");
     }
   };

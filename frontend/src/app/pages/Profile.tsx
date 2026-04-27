@@ -36,8 +36,6 @@ export function Profile() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock save
-    alert("프로필이 저장되었습니다!");
     navigate("/mypage");
   };
 
