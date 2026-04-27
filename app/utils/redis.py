@@ -18,6 +18,28 @@ def seconds_until_midnight() -> int:
     return max(int((midnight - now).total_seconds()), 1)
 
 
+def get_time_period() -> tuple[str, int]:
+    """현재 시간대와 해당 시간대 종료까지 남은 초 반환.
+    아침(05~11시), 점심(11~17시), 저녁(17~05시)
+    """
+    from datetime import timedelta
+
+    now = datetime.now()
+    hour = now.hour
+    if 5 <= hour < 11:
+        end = now.replace(hour=11, minute=0, second=0, microsecond=0)
+        return "morning", max(int((end - now).total_seconds()), 1)
+    if 11 <= hour < 17:
+        end = now.replace(hour=17, minute=0, second=0, microsecond=0)
+        return "afternoon", max(int((end - now).total_seconds()), 1)
+    # 저녁(17~05시) → 다음날 05시까지
+    if hour >= 17:
+        end = (now + timedelta(days=1)).replace(hour=5, minute=0, second=0, microsecond=0)
+    else:  # 0~5시
+        end = now.replace(hour=5, minute=0, second=0, microsecond=0)
+    return "evening", max(int((end - now).total_seconds()), 1)
+
+
 async def cache_get(key: str) -> dict | None:
     client = _client()
     try:

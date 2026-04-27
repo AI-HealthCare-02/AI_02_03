@@ -21,7 +21,7 @@ from app.models.users import User
 from app.repositories.challenge_repository import ChallengeLogRepository, UserChallengeRepository
 from app.repositories.health_survey_repository import HealthSurveyRepository
 from app.repositories.prediction_repository import PredictionRepository
-from app.utils.redis import cache_get, cache_set, seconds_until_midnight
+from app.utils.redis import cache_get, cache_set, get_time_period
 
 dashboard_router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -119,9 +119,10 @@ async def get_dashboard_message(
     user: Annotated[User, Depends(get_request_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
-    """홈 말풍선 + 맞춤 챌린지 추천 이유 (하루 1회 캐싱)"""
+    """홈 말풍선 (아침/점심/저녁 시간대별 캐싱)"""
     today = date.today().isoformat()
-    cache_key = f"msg:{user.id}:{today}"
+    period, ttl = get_time_period()
+    cache_key = f"msg:{user.id}:{today}:{period}"
 
     cached = await cache_get(cache_key)
     if cached:
@@ -178,9 +179,16 @@ async def get_dashboard_message(
     active_types = [r[0] for r in uc_result.all()]
     challenge_context = f"진행 중: {', '.join(active_types)}" if active_types else "진행 중인 챌린지 없음"
 
+    period_context = {
+        "morning": "아침입니다. 오늘 복약과 챌린지 계획을 세우도록 유도하세요.",
+        "afternoon": "점심입니다. 오전 챌린지를 점검하고 오후 참여를 독려하세요.",
+        "evening": "저녁입니다. 오늘 달성한 것을 언급하며 마무리를 유도하세요.",
+    }[period]
+
     client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
     prompt = f"""당신은 지방간 환자의 건강 관리를 돕는 적극적인 AI 코치입니다.
-아래 데이터를 바탕으로 오늘 당장 행동하고 싶게 만드는 짧은 메시지를 생성하세요.
+지금은 {period_context}
+아래 데이터를 바탕으로 지금 당장 행동하고 싶게 만드는 짧은 메시지를 생성하세요.
 
 - 건강 점수: {latest.score:.1f}점 ({latest.grade})
 - 오늘 복약 완료: {med_rate}
@@ -190,7 +198,6 @@ async def get_dashboard_message(
 규칙:
 - 막연한 응원("힘내세요", "잘할 수 있어요") 금지
 - 위 데이터 중 하나를 구체적으로 언급해 행동을 유도할 것
-- 오늘 실제로 할 수 있는 행동 한 가지를 제안할 것
 - 예시: "복약 아직 {med_rate}이에요, 지금 바로 챙겨보세요!", "오늘 챌린지 하나만 완료하면 연속 기록 달성!"
 
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
@@ -209,5 +216,5 @@ async def get_dashboard_message(
     except Exception:
         result = {"message": "오늘도 건강한 하루 보내세요!"}
 
-    await cache_set(cache_key, result, seconds_until_midnight())
+    await cache_set(cache_key, result, ttl)
     return Response(result, status_code=status.HTTP_200_OK)
