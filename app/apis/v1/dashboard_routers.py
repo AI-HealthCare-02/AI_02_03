@@ -15,6 +15,7 @@ from app.dtos.dashboard import DashboardResponse, LifestyleSummary, ScoreHistory
 from app.models.appointment import Appointment
 from app.models.challenges import Challenge, UserChallenge
 from app.models.medications import Medication, MedicationCompletion
+from app.models.health_surveys import HealthSurvey
 from app.models.predictions import Prediction
 from app.models.users import User
 from app.repositories.challenge_repository import ChallengeLogRepository, UserChallengeRepository
@@ -56,11 +57,23 @@ async def get_dashboard(
 
     latest = predictions[0]
 
-    # 유저별 최신 예측 ID 서브쿼리
-    latest_id_subq = select(func.max(Prediction.id)).group_by(Prediction.user_id).scalar_subquery()
-    total_res = await db.execute(
-        select(func.count()).where(Prediction.id.in_(latest_id_subq))
+    # 나이대 구간 (10년 단위)
+    age_group_min = (survey.age // 10) * 10
+    age_group_max = age_group_min + 9
+
+    # 같은 나이대 유저의 최신 예측 ID 서브쿼리
+    same_age_user_ids_subq = (
+        select(HealthSurvey.user_id)
+        .where(HealthSurvey.age >= age_group_min, HealthSurvey.age <= age_group_max)
+        .scalar_subquery()
     )
+    latest_id_subq = (
+        select(func.max(Prediction.id))
+        .where(Prediction.user_id.in_(same_age_user_ids_subq))
+        .group_by(Prediction.user_id)
+        .scalar_subquery()
+    )
+    total_res = await db.execute(select(func.count()).where(Prediction.id.in_(latest_id_subq)))
     total = total_res.scalar() or 1
     below_res = await db.execute(
         select(func.count()).where(
@@ -69,7 +82,9 @@ async def get_dashboard(
         )
     )
     below = below_res.scalar() or 0
-    score_percentile = max(1, min(99, 100 - round(below / total * 100)))
+    rank_pct = round(below / total * 100)  # 나보다 낮은 사람 비율
+    display_pct = max(1, min(99, 100 - rank_pct))
+    percentile_label = "상위" if rank_pct >= 50 else "하위"
 
     result = DashboardResponse(
         latest_score=round(latest.score, 1),
@@ -87,7 +102,8 @@ async def get_dashboard(
         ),
         streak_days=streak_days,
         weekly_rate=weekly_rate,
-        score_percentile=score_percentile,
+        score_percentile=display_pct,
+        score_percentile_label=percentile_label,
     )
 
     return Response(result.model_dump(mode="json"), status_code=status.HTTP_200_OK)
