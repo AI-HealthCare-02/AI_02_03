@@ -91,6 +91,25 @@ const TYPE_ICON: Record<string, React.ElementType> = {
   체중감량: Weight,
 };
 
+function getScoreColor(score: number): string {
+  const stops = [
+    { pos: 0,   r: 0xef, g: 0x44, b: 0x44 },
+    { pos: 33,  r: 0xf9, g: 0x73, b: 0x16 },
+    { pos: 66,  r: 0xea, g: 0xb3, b: 0x08 },
+    { pos: 100, r: 0x22, g: 0xc5, b: 0x5e },
+  ];
+  const s = Math.max(0, Math.min(100, score));
+  let lo = stops[0], hi = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (s >= stops[i].pos && s <= stops[i + 1].pos) { lo = stops[i]; hi = stops[i + 1]; break; }
+  }
+  const t = (hi.pos === lo.pos) ? 0 : (s - lo.pos) / (hi.pos - lo.pos);
+  const r = Math.round(lo.r + t * (hi.r - lo.r));
+  const g = Math.round(lo.g + t * (hi.g - lo.g));
+  const b = Math.round(lo.b + t * (hi.b - lo.b));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 function getTimePeriod(time: string) {
   const hour = parseInt(time.split(":")[0], 10);
   if (hour >= 5 && hour <= 10) return "아침";
@@ -434,7 +453,7 @@ export function Home() {
                 <div className="w-full max-w-xs space-y-4">
                   <div className="text-center">
                     <p className="text-sm text-gray-600">건강 점수</p>
-                    <p className="text-3xl font-bold text-emerald-600">
+                    <p className="text-3xl font-bold" style={{ color: getScoreColor(healthScore) }}>
                       {healthScore}점
                       {scorePercentile !== null && (
                         <span className="text-base font-medium text-gray-500 ml-2">({scorePercentile.ageGroup}대 {scorePercentile.label} {scorePercentile.value}%)</span>
