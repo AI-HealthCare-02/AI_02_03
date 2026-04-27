@@ -33,17 +33,6 @@ import {
 import { ko } from "date-fns/locale";
 
 export function Home() {
-  const [dietImage, setDietImage] = useState<File | null>(null);
-
-  const handleDietImageCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setDietImage(file);
-      // TODO: 여기에서 식단 분석 API 호출
-      console.log("식단 이미지 업로드:", file.name, file.size, file.type);
-    }
-  };
-
   const [todayHabits] = useState([
     {
       id: 1,
@@ -576,25 +565,13 @@ export function Home() {
 
           {/* 식단 기록 CTA 버튼 - 모바일에서만 표시 */}
           <div className="md:hidden">
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleDietImageCapture}
-              className="hidden"
-              id="diet-camera-input"
-            />
-            <label htmlFor="diet-camera-input">
-              <Button
-                asChild
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <Camera className="size-4" />
-                  식단 기록하기
-                </span>
-              </Button>
-            </label>
+            <Button
+              disabled
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 opacity-50 cursor-not-allowed"
+            >
+              <Camera className="size-4 mr-2" />
+              식단 기록하기 (준비 중)
+            </Button>
           </div>
 
           <Card className="border border-gray-200">

@@ -67,6 +67,7 @@ export function MedicationSection({ medications, onRefresh }: Props) {
   const [medicationNameInput, setMedicationNameInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [medicationToDelete, setMedicationToDelete] = useState<Medication | null>(null);
+  const [saveError, setSaveError] = useState("");
 
   const [newMedication, setNewMedication] = useState({
     name: "",
@@ -137,9 +138,10 @@ export function MedicationSection({ medications, onRefresh }: Props) {
     const trimmedName = newMedication.name.trim();
 
     if (!trimmedName || newMedication.times.length === 0) {
-      alert("약 이름과 복용 시간을 입력해주세요");
+      setSaveError("약 이름과 복용 시간을 입력해주세요");
       return;
     }
+    setSaveError("");
 
     await api.post("/api/v1/medications", {
       name: trimmedName,
@@ -348,6 +350,9 @@ export function MedicationSection({ medications, onRefresh }: Props) {
                   </div>
                 </div>
 
+                {saveError && (
+                  <p className="text-sm text-red-600 mt-2">{saveError}</p>
+                )}
                 <Button
                   className="w-full mt-4 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
                   onClick={handleSave}
