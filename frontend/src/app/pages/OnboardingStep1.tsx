@@ -344,9 +344,9 @@ export function OnboardingStep1() {
                     cm
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 flex items-center gap-1">
-                  <Info className="size-3" />
-                  배꼽 위치에서 측정한 허리둘레를 입력해주세요
+                <p className="text-xs text-gray-500 flex items-start gap-1">
+                  <Info className="size-3 mt-0.5 flex-shrink-0" />
+                  갈비뼈 아래 끝과 골반뼈 위 끝 사이 중간 (배꼽 바로 위)을 수평으로 측정해주세요
                 </p>
                 
                 {/* Unknown Waist Checkbox */}
