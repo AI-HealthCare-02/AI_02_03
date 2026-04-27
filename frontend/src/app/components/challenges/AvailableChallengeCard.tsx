@@ -3,9 +3,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
   Clock,
-  Users,
   CheckCircle2,
-  Sparkles,
 } from "lucide-react";
 import type { Challenge, Difficulty } from "../../types/challenges";
 
@@ -51,12 +49,6 @@ export function AvailableChallengeCard({
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {challenge.isRecommended && (
-            <Badge className="bg-amber-100 text-amber-900 border-amber-300 gap-1">
-              <Sparkles className="size-3" />
-              추천
-            </Badge>
-          )}
           <Badge variant="secondary" className={difficultyColors[challenge.difficulty]}>
             {challenge.difficulty}
           </Badge>
@@ -68,10 +60,6 @@ export function AvailableChallengeCard({
           <div className="flex items-center gap-1">
             <Clock className="size-4" />
             <span>{challenge.duration}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Users className="size-4" />
-            <span>{challenge.participants.toLocaleString()}명</span>
           </div>
         </div>
 

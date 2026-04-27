@@ -94,6 +94,7 @@ export function Challenges() {
     preview_badge: { name: string; description: string; emoji: string; condition: string | null } | null;
   }
   const [suggested, setSuggested] = useState<SuggestedChallenge[]>([]);
+  const [suggestedLoading, setSuggestedLoading] = useState(true);
   const [nextAppt, setNextAppt] = useState<{ hospital_name: string; d_day: number } | null>(null);
 
   const activeJoinedIds = new Set(activeChallenges.map((c) => c.challengeId));
@@ -134,7 +135,8 @@ export function Challenges() {
         setSuggested(r.data.suggested);
         setNextAppt(r.data.next_appointment);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setSuggestedLoading(false));
   }, []);
 
   const handleJoinConfirm = async () => {
@@ -293,61 +295,78 @@ export function Challenges() {
         </TabsContent>
 
         <TabsContent value="available" className="space-y-4">
-          {/* 막간 챌린지 추천 */}
-          {suggested.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="size-4 text-amber-500" />
-                <h3 className="font-bold text-gray-900">
-                  {nextAppt ? `진료 D-${nextAppt.d_day} 추천 챌린지` : "AI 추천 챌린지"}
-                </h3>
-                {nextAppt && (
-                  <Badge className="bg-amber-100 text-amber-700 text-xs">{nextAppt.hospital_name}</Badge>
-                )}
-              </div>
-              <div className="grid md:grid-cols-2 gap-3">
-                {suggested.map((c) => (
-                  <Card key={c.id} className="border-2 border-amber-200 bg-gradient-to-br from-amber-50/50 to-white">
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-bold text-gray-900">{c.name}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{c.duration_days}일 · {c.type}</p>
-                        </div>
-                        <Badge className="bg-emerald-100 text-emerald-700 flex-shrink-0">{c.duration_days}일</Badge>
-                      </div>
-                      <p className="text-sm text-amber-700 bg-amber-50 rounded-lg p-2">
-                        {c.reason}{c.score_delta ? ` · +${c.score_delta}점 가능` : ""}
-                      </p>
-                      {c.preview_badge && (
-                        <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-amber-100">
-                          <span className="text-xl">{c.preview_badge.emoji}</span>
-                          <div className="flex-1">
-                            <p className="text-xs font-bold text-gray-800">{c.preview_badge.name}</p>
-                            <p className="text-xs text-gray-500">{c.preview_badge.description}</p>
-                            {c.preview_badge.condition && (
-                              <p className="text-xs text-gray-400 mt-0.5">{c.preview_badge.condition}</p>
-                            )}
-                          </div>
-                          <Badge className="ml-auto bg-gray-100 text-gray-500 text-xs flex-shrink-0">완료 시 획득</Badge>
-                        </div>
-                      )}
-                      <Button
-                        size="sm"
-                        className="w-full bg-amber-500 hover:bg-amber-600 text-white"
-                        disabled={activeJoinedIds.has(c.id) || joining === c.id}
-                        onClick={() => setJoinTarget(toChallenge({ ...c, is_recommended: true, participant_count: 0, is_custom: false, required_logs: c.duration_days }))}
-
-                      >
-                        {activeJoinedIds.has(c.id) ? "참여 중" : "참여하기"}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              <hr className="border-gray-200" />
+          {/* AI 추천 챌린지 */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-4 text-amber-500" />
+              <h3 className="font-bold text-gray-900">
+                {nextAppt ? `진료 D-${nextAppt.d_day} 추천 챌린지` : "AI 추천 챌린지"}
+              </h3>
+              {nextAppt && (
+                <Badge className="bg-amber-100 text-amber-700 text-xs">{nextAppt.hospital_name}</Badge>
+              )}
             </div>
-          )}
+            <div className="grid md:grid-cols-2 gap-3">
+              {suggestedLoading ? (
+                <>
+                  {[0, 1].map((i) => (
+                    <Card key={i} className="border-2 border-amber-200">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse w-2/3" />
+                        <div className="h-3 bg-gray-100 rounded animate-pulse w-1/3" />
+                        <div className="h-10 bg-amber-50 rounded animate-pulse" />
+                        <div className="h-8 bg-gray-100 rounded animate-pulse" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </>
+              ) : suggested.length === 0 ? (
+                <div className="col-span-2 text-sm text-gray-400 text-center py-4">추천 챌린지가 없습니다</div>
+              ) : (
+                suggested.map((c) => {
+                  const joined = activeJoinedIds.has(c.id);
+                  return (
+                    <Card key={c.id} className={`border-2 ${joined ? "border-emerald-200 bg-emerald-50/30" : "border-amber-200 bg-gradient-to-br from-amber-50/50 to-white"}`}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-bold text-gray-900">{c.name}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{c.duration_days}일 · {c.type}</p>
+                          </div>
+                          <Badge className="bg-emerald-100 text-emerald-700 flex-shrink-0">{c.duration_days}일</Badge>
+                        </div>
+                        <p className="text-sm text-amber-700 bg-amber-50 rounded-lg p-2">
+                          {c.reason}{c.score_delta ? ` · +${c.score_delta}점 가능` : ""}
+                        </p>
+                        {c.preview_badge && (
+                          <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-amber-100">
+                            <span className="text-xl">{c.preview_badge.emoji}</span>
+                            <div className="flex-1">
+                              <p className="text-xs font-bold text-gray-800">{c.preview_badge.name}</p>
+                              <p className="text-xs text-gray-500">{c.preview_badge.description}</p>
+                              {c.preview_badge.condition && (
+                                <p className="text-xs text-gray-400 mt-0.5">{c.preview_badge.condition}</p>
+                              )}
+                            </div>
+                            <Badge className="ml-auto bg-gray-100 text-gray-500 text-xs flex-shrink-0">완료 시 획득</Badge>
+                          </div>
+                        )}
+                        <Button
+                          size="sm"
+                          className={`w-full ${joined ? "bg-emerald-500 hover:bg-emerald-600" : "bg-amber-500 hover:bg-amber-600"} text-white`}
+                          disabled={joined || joining === c.id}
+                          onClick={() => !joined && setJoinTarget(toChallenge({ ...c, is_recommended: true, participant_count: 0, is_custom: false, required_logs: c.duration_days }))}
+                        >
+                          {joined ? "✓ 진행 중" : "참여하기"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+            <hr className="border-gray-200" />
+          </div>
           {/* 카테고리 필터 */}
           <div className="flex gap-2 flex-wrap">
             {CATEGORIES.map((cat) => (

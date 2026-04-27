@@ -162,14 +162,15 @@ async def get_suggested_challenges(
     cache_key = f"suggested:{user.id}:{today}"
     cached = await cache_get(cache_key)
     if cached:
-        done_result = await db.execute(
+        # 완료된 챌린지만 제거 (진행중은 카드 유지 → 프론트에서 "진행 중" 표시)
+        completed_result = await db.execute(
             select(UserChallenge.challenge_id).where(
                 UserChallenge.user_id == user.id,
-                UserChallenge.status.in_(["진행중", "완료"]),
+                UserChallenge.status == "완료",
             )
         )
-        done_ids = {row[0] for row in done_result.all()}
-        cached["suggested"] = [s for s in cached.get("suggested", []) if s["id"] not in done_ids]
+        completed_ids = {row[0] for row in completed_result.all()}
+        cached["suggested"] = [s for s in cached.get("suggested", []) if s["id"] not in completed_ids]
         return Response(cached, status_code=status.HTTP_200_OK)
 
     now = datetime.now(UTC)
