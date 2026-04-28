@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -16,27 +17,27 @@ export function ChangePassword() {
   });
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (formData.newPassword !== formData.confirmPassword) {
-      alert("새 비밀번호가 일치하지 않습니다.");
+      toast.error("새 비밀번호가 일치하지 않습니다.");
       return;
     }
 
     if (formData.newPassword.length < 8) {
-      alert("비밀번호는 8자 이상이어야 합니다.");
+      toast.error("비밀번호는 8자 이상이어야 합니다.");
       return;
     }
 
     setIsLoading(true);
     try {
       await authService.updateUser({ password: formData.newPassword });
-      alert("비밀번호가 변경되었습니다.");
+      toast.success("비밀번호가 변경되었습니다.");
       navigate("/mypage/account");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      alert(msg ?? "비밀번호 변경에 실패했습니다.");
+      toast.error(msg ?? "비밀번호 변경에 실패했습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -96,7 +97,7 @@ export function ChangePassword() {
                 required
               />
               <p className="text-sm text-gray-500">
-                8자 이상, 영문/숫자/특수문자 조합을 권장합니다
+                8자 이상, 영문/숫자/특수문자 조합이어야 합니다.
               </p>
             </div>
 
