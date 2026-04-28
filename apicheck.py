@@ -60,6 +60,39 @@ def delete_dummy_data(email: str):
 results = []
 
 
+def safe_request(method, url, **kwargs):
+    """500 에러 및 서버 꺼짐 처리"""
+    try:
+        res = getattr(requests, method)(url, timeout=5, **kwargs)
+
+        # 500 에러 감지
+        if res.status_code >= 500:
+            print(f"\n🚨 서버 내부 오류 감지! ({res.status_code})")
+            print(f"   URL: {url}")
+            try:
+                print(f"   상세: {res.json()}")
+            except Exception:
+                print(f"   상세: {res.text[:200]}")
+
+        return res
+
+    except requests.exceptions.ConnectionError:
+        print(f"\n🔴 서버가 꺼져있습니다! 연결 실패")
+        print(f"   URL: {url}")
+        print(f"   → uvicorn app.main:app 으로 서버를 켜주세요!")
+        exit(1)
+
+    except requests.exceptions.Timeout:
+        print(f"\n⏱️ 서버 응답 시간 초과! (5초)")
+        print(f"   URL: {url}")
+        print(f"   → 서버가 느리거나 Redis 연결 문제일 수 있어요!")
+        exit(1)
+
+    except requests.exceptions.RequestException as e:
+        print(f"\n⚠️ 요청 오류: {e}")
+        exit(1)
+
+
 def run_test(label, response, expected_status):
     success = response.status_code == expected_status
     results.append(
@@ -100,6 +133,22 @@ def print_summary():
     else:
         print("🎉 모든 테스트 통과!")
     print("=" * 55)
+
+
+# ================================================================
+# 서버 상태 체크
+# ================================================================
+print("🔍 서버 상태 확인 중...")
+try:
+    requests.get(f"http://localhost:8000/docs", timeout=3)
+    print("✅ 서버 정상 작동 중!\n")
+except requests.exceptions.ConnectionError:
+    print("🔴 서버가 꺼져있습니다!")
+    print("   → uvicorn app.main:app 으로 서버를 켜주세요!")
+    exit(1)
+except requests.exceptions.Timeout:
+    print("⏱️ 서버 응답 시간 초과!")
+    exit(1)
 
 
 # ================================================================
@@ -149,41 +198,42 @@ print("\n테스트 실행 중...")
 # ================================================================
 
 # 🔐 AUTH
-res = requests.post(f"{BASE_URL}/auth/signup", json={"email": email, "password": password, "nickname": nickname})
+res = safe_request("post", f"{BASE_URL}/auth/signup", json={"email": email, "password": password, "nickname": nickname})
 run_test("회원가입", res, 201)
 
-res = requests.post(f"{BASE_URL}/auth/login", json={"email": email, "password": password})
+res = safe_request("post", f"{BASE_URL}/auth/login", json={"email": email, "password": password})
 run_test("로그인 성공", res, 200)
 token = res.json().get("access_token", "") if res.status_code == 200 else ""
 headers = {"Authorization": f"Bearer {token}"}
 
-res = requests.post(f"{BASE_URL}/auth/login", json={"email": email, "password": "WrongPassword!"})
+res = safe_request("post", f"{BASE_URL}/auth/login", json={"email": email, "password": "WrongPassword!"})
 run_test("로그인 실패 - 비밀번호 오류", res, 401)
 
-res = requests.get(f"{BASE_URL}/auth/check-email?email={email}")
+res = safe_request("get", f"{BASE_URL}/auth/check-email?email={email}")
 run_test("이메일 중복 확인 - 중복", res, 409)
 
-res = requests.get(f"{BASE_URL}/auth/check-nickname?nickname={nickname}")
+res = safe_request("get", f"{BASE_URL}/auth/check-nickname?nickname={nickname}")
 run_test("닉네임 중복 확인 - 중복", res, 409)
 
-res = requests.post(f"{BASE_URL}/auth/logout")
+res = safe_request("post", f"{BASE_URL}/auth/logout")
 run_test("로그아웃", res, 200)
 
-res = requests.get(f"{BASE_URL}/auth/token/refresh")
+res = safe_request("get", f"{BASE_URL}/auth/token/refresh")
 run_test("토큰 갱신 실패 - refresh_token 없음", res, 401)
 
 # 👤 USER
-res = requests.get(f"{BASE_URL}/users/me", headers=headers)
+res = safe_request("get", f"{BASE_URL}/users/me", headers=headers)
 run_test("내 정보 조회", res, 200)
 
-res = requests.get(f"{BASE_URL}/users/me")
+res = safe_request("get", f"{BASE_URL}/users/me")
 run_test("내 정보 조회 실패 - 토큰 없음", res, 401)
 
-res = requests.patch(f"{BASE_URL}/users/me", headers=headers, json={"nickname": new_nickname})
+res = safe_request("patch", f"{BASE_URL}/users/me", headers=headers, json={"nickname": new_nickname})
 run_test("유저 정보 수정", res, 200)
 
 # 📅 APPOINTMENT
-res = requests.post(
+res = safe_request(
+    "post",
     f"{BASE_URL}/appointments",
     headers=headers,
     json={"hospital_name": hospital_name, "visit_date": visit_date, "memo": memo},
@@ -191,31 +241,32 @@ res = requests.post(
 run_test("진료 예약 생성", res, 201)
 appointment_id = res.json().get("id") if res.status_code == 201 else None
 
-res = requests.get(f"{BASE_URL}/appointments/me", headers=headers)
+res = safe_request("get", f"{BASE_URL}/appointments/me", headers=headers)
 run_test("예약 목록 조회", res, 200)
 
-res = requests.delete(f"{BASE_URL}/appointments/99999", headers=headers)
+res = safe_request("delete", f"{BASE_URL}/appointments/99999", headers=headers)
 run_test("예약 삭제 실패 - 없는 예약", res, 404)
 
 if appointment_id:
-    res = requests.delete(f"{BASE_URL}/appointments/{appointment_id}", headers=headers)
+    res = safe_request("delete", f"{BASE_URL}/appointments/{appointment_id}", headers=headers)
     run_test("예약 삭제 성공", res, 200)
 
 # 🏆 BADGE
-res = requests.get(f"{BASE_URL}/badges/me", headers=headers)
+res = safe_request("get", f"{BASE_URL}/badges/me", headers=headers)
 run_test("내 뱃지 목록", res, 200)
 
-res = requests.get(f"{BASE_URL}/badges/me/count", headers=headers)
+res = safe_request("get", f"{BASE_URL}/badges/me/count", headers=headers)
 run_test("내 뱃지 개수", res, 200)
 
 # 🎯 CHALLENGE
-res = requests.get(f"{BASE_URL}/challenges", headers=headers)
+res = safe_request("get", f"{BASE_URL}/challenges", headers=headers)
 run_test("챌린지 목록", res, 200)
 
-res = requests.post(f"{BASE_URL}/challenges/99999/join", headers=headers)
+res = safe_request("post", f"{BASE_URL}/challenges/99999/join", headers=headers)
 run_test("챌린지 참여 실패 - 없는 챌린지", res, 404)
 
-res = requests.post(
+res = safe_request(
+    "post",
     f"{BASE_URL}/challenges/custom",
     headers=headers,
     json={
@@ -228,13 +279,14 @@ res = requests.post(
 run_test("커스텀 챌린지 생성", res, 201)
 
 # 📋 HEALTH LOG
-res = requests.get(f"{BASE_URL}/health-logs/me?year={log_year}&month={log_month}", headers=headers)
+res = safe_request("get", f"{BASE_URL}/health-logs/me?year={log_year}&month={log_month}", headers=headers)
 run_test("건강 로그 조회", res, 200)
 
-res = requests.get(f"{BASE_URL}/health-logs/me?year=2025&month=13", headers=headers)
+res = safe_request("get", f"{BASE_URL}/health-logs/me?year=2025&month=13", headers=headers)
 run_test("건강 로그 조회 실패 - 잘못된 month", res, 422)
 
-res = requests.post(
+res = safe_request(
+    "post",
     f"{BASE_URL}/health-logs",
     headers=headers,
     json={
@@ -248,7 +300,8 @@ res = requests.post(
 run_test("건강 로그 저장", res, 200)
 
 # 💊 MEDICATION
-res = requests.post(
+res = safe_request(
+    "post",
     f"{BASE_URL}/medications",
     headers=headers,
     json={"name": med_name, "dosage": med_dosage, "times": med_times.split(",")},
@@ -256,21 +309,22 @@ res = requests.post(
 run_test("복약 생성", res, 201)
 medication_id = res.json().get("id") if res.status_code == 201 else None
 
-res = requests.get(f"{BASE_URL}/medications/me", headers=headers)
+res = safe_request("get", f"{BASE_URL}/medications/me", headers=headers)
 run_test("복약 목록", res, 200)
 
 if medication_id:
-    res = requests.delete(f"{BASE_URL}/medications/{medication_id}", headers=headers)
+    res = safe_request("delete", f"{BASE_URL}/medications/{medication_id}", headers=headers)
     run_test("복약 삭제 성공", res, 200)
 
-res = requests.delete(f"{BASE_URL}/medications/99999", headers=headers)
+res = safe_request("delete", f"{BASE_URL}/medications/99999", headers=headers)
 run_test("복약 삭제 실패 - 없는 복약", res, 404)
 
 # 🔔 NOTIFICATION
-res = requests.get(f"{BASE_URL}/notifications/settings", headers=headers)
+res = safe_request("get", f"{BASE_URL}/notifications/settings", headers=headers)
 run_test("알림 설정 조회", res, 200)
 
-res = requests.put(
+res = safe_request(
+    "put",
     f"{BASE_URL}/notifications/settings",
     headers=headers,
     json={
@@ -281,7 +335,8 @@ res = requests.put(
 run_test("알림 설정 수정", res, 200)
 
 # 📊 SURVEY
-res = requests.post(
+res = safe_request(
+    "post",
     f"{BASE_URL}/surveys",
     headers=headers,
     json={
@@ -306,22 +361,22 @@ res = requests.post(
 )
 run_test("설문 생성", res, 201)
 
-res = requests.get(f"{BASE_URL}/surveys/me", headers=headers)
+res = safe_request("get", f"{BASE_URL}/surveys/me", headers=headers)
 run_test("설문 조회", res, 200)
 
 # 🤖 PREDICTION
-res = requests.post(f"{BASE_URL}/predictions", headers=headers)
+res = safe_request("post", f"{BASE_URL}/predictions", headers=headers)
 run_test("건강 예측 생성", res, 200)
 
-res = requests.get(f"{BASE_URL}/predictions/me", headers=headers)
+res = safe_request("get", f"{BASE_URL}/predictions/me", headers=headers)
 run_test("예측 목록 조회", res, 200)
 
 # 📈 ACTIVITY
-res = requests.get(f"{BASE_URL}/activity/me", headers=headers)
+res = safe_request("get", f"{BASE_URL}/activity/me", headers=headers)
 run_test("활동 조회", res, 200)
 
 # 🏠 DASHBOARD
-res = requests.get(f"{BASE_URL}/dashboard", headers=headers)
+res = safe_request("get", f"{BASE_URL}/dashboard", headers=headers)
 run_test("대시보드 조회", res, 200)
 
 # ================================================================
