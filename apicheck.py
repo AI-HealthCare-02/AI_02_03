@@ -77,15 +77,15 @@ def safe_request(method, url, **kwargs):
         return res
 
     except requests.exceptions.ConnectionError:
-        print(f"\n🔴 서버가 꺼져있습니다! 연결 실패")
+        print("\n🔴 서버가 꺼져있습니다! 연결 실패")
         print(f"   URL: {url}")
-        print(f"   → uvicorn app.main:app 으로 서버를 켜주세요!")
+        print("   → uvicorn app.main:app 으로 서버를 켜주세요!")
         exit(1)
 
     except requests.exceptions.Timeout:
-        print(f"\n⏱️ 서버 응답 시간 초과! (5초)")
+        print("\n⏱️ 서버 응답 시간 초과! (5초)")
         print(f"   URL: {url}")
-        print(f"   → 서버가 느리거나 Redis 연결 문제일 수 있어요!")
+        print("   → 서버가 느리거나 Redis 연결 문제일 수 있어요!")
         exit(1)
 
     except requests.exceptions.RequestException as e:
@@ -140,7 +140,7 @@ def print_summary():
 # ================================================================
 print("🔍 서버 상태 확인 중...")
 try:
-    requests.get(f"http://localhost:8000/docs", timeout=3)
+    requests.get("http://localhost:8000/docs", timeout=3)
     print("✅ 서버 정상 작동 중!\n")
 except requests.exceptions.ConnectionError:
     print("🔴 서버가 꺼져있습니다!")
