@@ -13,8 +13,6 @@ from app.db.databases import get_db
 from app.dependencies.security import get_request_user
 from app.dtos.auth import (
     ChangePasswordRequest,
-    EmailChangeVerifyRequest,
-    EmailVerificationRequest,
     LoginRequest,
     LoginResponse,
     ResetPasswordRequest,
@@ -180,26 +178,6 @@ async def change_password(
 ) -> Response:
     await auth_service.change_password(user, request.current_password, request.new_password)
     return Response(content={"detail": "비밀번호가 변경되었습니다."}, status_code=status.HTTP_200_OK)
-
-
-@auth_router.post("/send-email-verification", status_code=status.HTTP_200_OK)
-async def send_email_verification(
-    request: EmailVerificationRequest,
-    user: Annotated[User, Depends(get_request_user)],
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> Response:
-    await auth_service.send_email_change_code(user, str(request.new_email))
-    return Response(content={"detail": "인증 코드가 전송되었습니다."}, status_code=status.HTTP_200_OK)
-
-
-@auth_router.post("/verify-email-change", status_code=status.HTTP_200_OK)
-async def verify_email_change(
-    request: EmailChangeVerifyRequest,
-    user: Annotated[User, Depends(get_request_user)],
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> Response:
-    await auth_service.verify_email_change(user, str(request.new_email), request.code)
-    return Response(content={"detail": "이메일이 변경되었습니다."}, status_code=status.HTTP_200_OK)
 
 
 @auth_router.get("/check-email", status_code=status.HTTP_200_OK)

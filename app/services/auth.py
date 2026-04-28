@@ -10,7 +10,7 @@ from app.dtos.auth import LoginRequest, SignUpRequest
 from app.models.users import User
 from app.repositories.user_repository import UserRepository
 from app.services.jwt import JwtService
-from app.utils.email import send_email_verification_code, send_temp_password_email
+from app.utils.email import send_temp_password_email
 from app.utils.jwt.tokens import AccessToken, RefreshToken
 from app.utils.redis import cache_delete, cache_get, cache_set
 from app.utils.security import hash_password, verify_password
@@ -115,16 +115,3 @@ class AuthService:
         if not verify_password(current_password, user.hashed_password):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="현재 비밀번호가 올바르지 않습니다.")
         await self.user_repo.update_instance(user, {"hashed_password": hash_password(new_password)})
-
-    async def send_email_change_code(self, user: User, new_email: str) -> None:
-        await self.check_email_exists(new_email)
-        code = "".join(random.choices(string.digits, k=6))
-        await cache_set(f"email_change:{user.id}", {"new_email": new_email, "code": code}, ttl=600)
-        await send_email_verification_code(new_email, code)
-
-    async def verify_email_change(self, user: User, new_email: str, code: str) -> None:
-        cached = await cache_get(f"email_change:{user.id}")
-        if not cached or cached.get("code") != code or cached.get("new_email") != new_email:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="인증 코드가 올바르지 않거나 만료되었습니다.")
-        await self.user_repo.update_instance(user, {"email": new_email})
-        await cache_delete(f"email_change:{user.id}")
