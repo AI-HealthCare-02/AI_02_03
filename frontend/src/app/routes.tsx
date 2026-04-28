@@ -35,6 +35,7 @@ import { ChangePassword } from "./pages/ChangePassword";
 import { DeleteAccount } from "./pages/DeleteAccount";
 import { ActivityHistory } from "./pages/ActivityHistory";
 import { NotificationSettings } from "./pages/NotificationSettings";
+import { Settings } from "./pages/Settings";
 import { HealthDataManagement } from "./pages/HealthDataManagement";
 import { Profile } from "./pages/Profile";
 import { Signup } from "./pages/Signup";
@@ -69,6 +70,7 @@ export const router = createBrowserRouter([
       { path: "mypage/account/password", Component: ChangePassword },
       { path: "mypage/account/delete", Component: DeleteAccount },
       { path: "mypage/history", Component: ActivityHistory },
+      { path: "mypage/settings", Component: Settings },
       { path: "mypage/notifications", Component: NotificationSettings },
       { path: "mypage/survey", Component: HealthDataManagement },
       { path: "mypage/profile", Component: Profile },

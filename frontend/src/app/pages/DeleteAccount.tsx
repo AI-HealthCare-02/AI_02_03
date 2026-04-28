@@ -49,7 +49,7 @@ export function DeleteAccount() {
       {/* Back Button */}
       <Button
         variant="ghost"
-        onClick={() => navigate("/mypage/account")}
+        onClick={() => navigate("/mypage/settings")}
         className="gap-2"
       >
         <ArrowLeft className="size-4" />
@@ -120,7 +120,7 @@ export function DeleteAccount() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/mypage/account")}
+                onClick={() => navigate("/mypage/settings")}
                 className="flex-1 border-2"
               >
                 취소
