@@ -136,20 +136,20 @@ async def get_dashboard(
     )
     total_res = await db.execute(select(func.count()).where(Prediction.id.in_(latest_id_subq)))
     total = total_res.scalar() or 1
-    below_res = await db.execute(
+    above_res = await db.execute(
         select(func.count()).where(
             Prediction.id.in_(latest_id_subq),
-            Prediction.score < latest.score,
+            Prediction.score > latest.score,
         )
     )
-    below = below_res.scalar() or 0
+    above = above_res.scalar() or 0
     if total <= 1:
         display_pct = 50
         percentile_label = "상위"
     else:
-        rank_pct = round(below / total * 100)  # 나보다 낮은 사람 비율
-        display_pct = max(1, min(99, 100 - rank_pct))
-        percentile_label = "상위" if rank_pct >= 50 else "하위"
+        above_pct = round(above / total * 100)
+        display_pct = max(1, min(99, above_pct))
+        percentile_label = "상위"
 
     result = DashboardResponse(
         latest_score=round(latest.score, 1),
