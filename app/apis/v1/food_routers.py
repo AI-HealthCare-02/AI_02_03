@@ -39,6 +39,22 @@ def _calculate_rating(calories: int, fat: int, sugar: int) -> str:
         return "주의"
 
 
+@food_router.delete("/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_food_log(
+    log_id: int,
+    user: Annotated[User, Depends(get_request_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    result = await db.execute(
+        select(FoodLog).where(FoodLog.id == log_id, FoodLog.user_id == user.id)
+    )
+    log = result.scalar_one_or_none()
+    if log is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="기록을 찾을 수 없습니다")
+    await db.delete(log)
+    await db.commit()
+
+
 @food_router.get("/me", status_code=status.HTTP_200_OK)
 async def get_my_food_logs(
     user: Annotated[User, Depends(get_request_user)],

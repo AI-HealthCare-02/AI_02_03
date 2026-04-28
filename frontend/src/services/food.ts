@@ -11,4 +11,7 @@ export const foodService = {
 
   getMy: () =>
     api.get('/api/v1/food/me').then((res) => res.data),
+
+  delete: (id: number) =>
+    api.delete(`/api/v1/food/${id}`),
 }
