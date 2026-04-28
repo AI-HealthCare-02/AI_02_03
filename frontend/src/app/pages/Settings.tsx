@@ -94,16 +94,18 @@ export function Settings() {
             <CardDescription>앱 정보 및 공지사항</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer border border-gray-200">
-              <div className="flex items-center gap-3">
-                <FileText className="size-5 text-gray-600" />
-                <div>
-                  <p className="font-medium text-gray-900">공지사항</p>
-                  <p className="text-sm text-gray-500">서비스 공지 및 업데이트</p>
+            <Link to="/notices">
+              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer border border-gray-200">
+                <div className="flex items-center gap-3">
+                  <FileText className="size-5 text-gray-600" />
+                  <div>
+                    <p className="font-medium text-gray-900">공지사항</p>
+                    <p className="text-sm text-gray-500">서비스 공지 및 업데이트</p>
+                  </div>
                 </div>
+                <ChevronRight className="size-5 text-gray-400" />
               </div>
-              <ChevronRight className="size-5 text-gray-400" />
-            </div>
+            </Link>
 
             <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200">
               <div className="flex items-center gap-3">
@@ -133,19 +135,6 @@ export function Settings() {
                 <div>
                   <p className="font-medium text-gray-900">캐시 삭제</p>
                   <p className="text-sm text-gray-500">임시 데이터 삭제</p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm">
-                삭제
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200">
-              <div className="flex items-center gap-3">
-                <Trash2 className="size-5 text-gray-600" />
-                <div>
-                  <p className="font-medium text-gray-900">개인 정보 삭제</p>
-                  <p className="text-sm text-gray-500">모든 개인 데이터 삭제</p>
                 </div>
               </div>
               <Button variant="outline" size="sm">

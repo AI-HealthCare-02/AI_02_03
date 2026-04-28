@@ -48,6 +48,7 @@ import { Layout } from "./components/Layout";
 import { Terms } from "./pages/Terms";
 import { Privacy } from "./pages/Privacy";
 import { ResetPassword } from "./pages/ResetPassword";
+import { Notices } from "./pages/Notices";
 
 export const router = createBrowserRouter([
   {
@@ -70,6 +71,7 @@ export const router = createBrowserRouter([
       { path: "mypage/settings", Component: Settings },
       { path: "mypage/survey", Component: HealthDataManagement },
       { path: "mypage/profile", Component: Profile },
+      { path: "notices", Component: Notices },
     ],
   },
   {

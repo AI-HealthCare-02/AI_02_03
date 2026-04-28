@@ -46,7 +46,7 @@ export function ChangePassword() {
         new_password: formData.newPassword,
       });
       toast.success("비밀번호가 변경되었습니다.");
-      navigate("/mypage/account");
+      navigate("/mypage/settings");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       toast.error(msg ?? "비밀번호 변경에 실패했습니다.");
@@ -57,7 +57,7 @@ export function ChangePassword() {
 
   return (
     <div className="space-y-6 pb-8">
-      <Button variant="ghost" onClick={() => navigate("/mypage/account")} className="gap-2">
+      <Button variant="ghost" onClick={() => navigate("/mypage/settings")} className="gap-2">
         <ArrowLeft className="size-4" />
         뒤로 가기
       </Button>
@@ -123,7 +123,7 @@ export function ChangePassword() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/mypage/account")}
+                onClick={() => navigate("/mypage/settings")}
                 className="flex-1 border-2"
               >
                 취소
