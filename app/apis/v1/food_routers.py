@@ -45,9 +45,7 @@ async def delete_food_log(
     user: Annotated[User, Depends(get_request_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
-    result = await db.execute(
-        select(FoodLog).where(FoodLog.id == log_id, FoodLog.user_id == user.id)
-    )
+    result = await db.execute(select(FoodLog).where(FoodLog.id == log_id, FoodLog.user_id == user.id))
     log = result.scalar_one_or_none()
     if log is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="기록을 찾을 수 없습니다")
