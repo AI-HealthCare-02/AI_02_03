@@ -20,6 +20,7 @@ class NotificationSetting(Base):
     goal_notification: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # 새로 추가 필드
+    appointment_reminder: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     notification_time: Mapped[time | None] = mapped_column(Time, nullable=True)
     night_mode_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     streak_reminder: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

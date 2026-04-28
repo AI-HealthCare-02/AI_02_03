@@ -3,30 +3,39 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Label } from "../components/ui/label";
 import { Switch } from "../components/ui/switch";
 import { Button } from "../components/ui/button";
-import { Bell, Activity, Smartphone } from "lucide-react";
+import { Bell, Activity, Smartphone, Clock, Moon, Calendar } from "lucide-react";
 import api from "../../lib/api";
 
 interface NotificationSetting {
   challenge_notification: boolean;
+  appointment_reminder: boolean;
+  notification_time: string | null;
+  night_mode_enabled: boolean;
   streak_reminder: boolean;
-  challenge_fail_warning: boolean;
   meal_reminder: boolean;
+  challenge_fail_warning: boolean;
 }
 
 export function NotificationSettings() {
   const [challengeNotification, setChallengeNotification] = useState(true);
+  const [appointmentReminder, setAppointmentReminder] = useState(true);
+  const [notificationTime, setNotificationTime] = useState("09:00");
+  const [nightMode, setNightMode] = useState(false);
   const [streakReminder, setStreakReminder] = useState(true);
-  const [challengeFailWarning, setChallengeFailWarning] = useState(true);
   const [mealReminder, setMealReminder] = useState(false);
+  const [challengeFailWarning, setChallengeFailWarning] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api.get<NotificationSetting>("/api/v1/notifications/settings").then((res) => {
       const s = res.data;
       setChallengeNotification(s.challenge_notification);
+      setAppointmentReminder(s.appointment_reminder);
+      setNotificationTime(s.notification_time ?? "09:00");
+      setNightMode(s.night_mode_enabled);
       setStreakReminder(s.streak_reminder);
-      setChallengeFailWarning(s.challenge_fail_warning);
       setMealReminder(s.meal_reminder);
+      setChallengeFailWarning(s.challenge_fail_warning);
     });
   }, []);
 
@@ -35,9 +44,12 @@ export function NotificationSettings() {
     try {
       await api.put("/api/v1/notifications/settings", {
         challenge_notification: challengeNotification,
+        appointment_reminder: appointmentReminder,
+        notification_time: notificationTime,
+        night_mode_enabled: nightMode,
         streak_reminder: streakReminder,
-        challenge_fail_warning: challengeFailWarning,
         meal_reminder: mealReminder,
+        challenge_fail_warning: challengeFailWarning,
       });
     } finally {
       setSaving(false);
@@ -67,6 +79,47 @@ export function NotificationSettings() {
                 푸시 알림은 모바일 앱으로 이용할 때 활성화됩니다. 지금 설정해두면 앱 출시 후 자동으로 적용됩니다.
               </p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 알림 시간 */}
+      <Card className="border-2 border-gray-100">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Clock className="size-5 text-gray-600" />
+            알림 시간
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="notification-time" className="text-sm font-medium text-gray-700 mb-2 block">
+              알림 수신 시간
+            </Label>
+            <input
+              id="notification-time"
+              type="time"
+              value={notificationTime}
+              onChange={(e) => setNotificationTime(e.target.value)}
+              className="w-full h-12 px-4 border-2 border-gray-200 rounded-lg text-lg font-medium"
+            />
+          </div>
+          <div className="flex items-center justify-between py-3 border-t">
+            <div className="flex items-center gap-2">
+              <Moon className="size-4 text-indigo-600" />
+              <div>
+                <Label htmlFor="night-mode" className="text-sm font-medium text-gray-900 cursor-pointer">
+                  야간 알림 허용
+                </Label>
+                <p className="text-xs text-gray-500">22:00 ~ 07:00 시간대 알림 허용</p>
+              </div>
+            </div>
+            <Switch
+              id="night-mode"
+              checked={nightMode}
+              onCheckedChange={setNightMode}
+              className="data-[state=checked]:bg-indigo-600"
+            />
           </div>
         </CardContent>
       </Card>
@@ -127,15 +180,30 @@ export function NotificationSettings() {
         </CardContent>
       </Card>
 
-      {/* 기록 알림 */}
+      {/* 일정 & 기록 알림 */}
       <Card className="border-2 border-blue-100">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Bell className="size-5 text-blue-600" />
-            기록 알림
+            <Calendar className="size-5 text-blue-600" />
+            일정 & 기록 알림
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between py-3 border-b">
+            <div>
+              <Label htmlFor="appointment-reminder" className="text-sm font-medium text-gray-900 cursor-pointer">
+                병원 예약 알림
+              </Label>
+              <p className="text-xs text-gray-500 mt-0.5">예약된 병원 방문 D-day 알림</p>
+            </div>
+            <Switch
+              id="appointment-reminder"
+              checked={appointmentReminder}
+              onCheckedChange={setAppointmentReminder}
+              className="data-[state=checked]:bg-blue-600"
+            />
+          </div>
+
           <div className="flex items-center justify-between py-3">
             <div>
               <Label htmlFor="meal-reminder" className="text-sm font-medium text-gray-900 cursor-pointer">
