@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router";
-import { Activity, TrendingUp, Home, LogIn, UserPlus, User, LogOut, Settings } from "lucide-react";
+import { Activity, TrendingUp, Home, LogIn, UserPlus, User, LogOut, Settings, Calendar } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -67,7 +67,7 @@ export function Layout() {
               <Link
                 to="/"
                 className={`px-4 py-2 rounded-lg transition-all ${
-                  isActive("/") && !isActive("/challenges") && !isActive("/progress") && !isActive("/mypage")
+                  isActive("/") && !isActive("/challenges") && !isActive("/progress") && !isActive("/schedule") && !isActive("/mypage")
                     ? "bg-emerald-100 text-emerald-900"
                     : "text-gray-600 hover:bg-gray-100"
                 }`}
@@ -101,6 +101,19 @@ export function Layout() {
                 <div className="flex items-center gap-2">
                   <TrendingUp className="size-4" />
                   <span>내 진행도</span>
+                </div>
+              </Link>
+              <Link
+                to="/schedule"
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  isActive("/schedule")
+                    ? "bg-emerald-100 text-emerald-900"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Calendar className="size-4" />
+                  <span>일정관리</span>
                 </div>
               </Link>
               <Link
@@ -187,11 +200,11 @@ export function Layout() {
 
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-emerald-100 z-50">
-        <div className="grid grid-cols-4 gap-1 p-2">
+        <div className="grid grid-cols-5 gap-1 p-2">
           <Link
             to="/"
             className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
-              isActive("/") && !isActive("/challenges") && !isActive("/progress") && !isActive("/mypage")
+              isActive("/") && !isActive("/challenges") && !isActive("/progress") && !isActive("/schedule") && !isActive("/mypage")
                 ? "bg-emerald-100 text-emerald-900"
                 : "text-gray-600"
             }`}
@@ -220,6 +233,17 @@ export function Layout() {
           >
             <TrendingUp className="size-5" />
             <span className="text-xs">내 진행도</span>
+          </Link>
+          <Link
+            to="/schedule"
+            className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
+              isActive("/schedule")
+                ? "bg-emerald-100 text-emerald-900"
+                : "text-gray-600"
+            }`}
+          >
+            <Calendar className="size-5" />
+            <span className="text-xs">일정</span>
           </Link>
           <Link
             to="/mypage"
