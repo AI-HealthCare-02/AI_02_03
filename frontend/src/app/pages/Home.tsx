@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Link } from "react-router";
 import api from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
@@ -321,6 +322,11 @@ export function Home() {
   const handleDietImageCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("이미지 크기는 5MB 이하만 가능합니다.");
+      e.target.value = "";
+      return;
+    }
     setFoodResult(null);
     setFoodAnalyzing(true);
     try {
