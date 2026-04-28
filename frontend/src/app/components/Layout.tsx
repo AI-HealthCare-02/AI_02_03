@@ -107,7 +107,7 @@ export function Layout() {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/mypage/settings" className="flex items-center gap-2 cursor-pointer">
+                    <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
                       <Settings className="size-4" />
                       <span>설정</span>
                     </Link>

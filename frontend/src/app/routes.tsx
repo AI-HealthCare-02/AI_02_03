@@ -68,7 +68,7 @@ export const router = createBrowserRouter([
       { path: "mypage/account/password", Component: ChangePassword },
       { path: "mypage/account/delete", Component: DeleteAccount },
       { path: "mypage/notifications", Component: NotificationSettings },
-      { path: "mypage/settings", Component: Settings },
+      { path: "settings", Component: Settings },
       { path: "mypage/survey", Component: HealthDataManagement },
       { path: "mypage/profile", Component: Profile },
       { path: "notices", Component: Notices },

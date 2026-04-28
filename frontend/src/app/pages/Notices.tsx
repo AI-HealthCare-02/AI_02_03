@@ -33,7 +33,7 @@ export function Notices() {
   return (
     <div className="space-y-6 pb-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/mypage/settings")}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/settings")}>
           <ArrowLeft className="size-5" />
         </Button>
         <div>

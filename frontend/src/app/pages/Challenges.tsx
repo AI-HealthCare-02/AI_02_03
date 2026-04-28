@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type React from "react";
 import { Link } from "react-router";
 import api from "../../lib/api";
 import { Card, CardContent } from "../components/ui/card";
@@ -21,6 +22,7 @@ import {
   Loader2,
   Sparkles,
   PartyPopper,
+  Award,
 } from "lucide-react";
 import { ActiveChallengeCard } from "../components/challenges/ActiveChallengeCard";
 import { AvailableChallengeCard } from "../components/challenges/AvailableChallengeCard";
@@ -33,6 +35,16 @@ import {
   toChallenge,
   ucToChallenge,
 } from "../types/challenges";
+
+interface BadgeItem {
+  id: number;
+  name: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  earned: boolean;
+  tags: string[];
+  date?: string;
+}
 type CompleteState = "idle" | "loading" | "done";
 
 interface CompleteResult {
@@ -45,7 +57,7 @@ export function Challenges() {
   const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([]);
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
   const [completedChallenges, setCompletedChallenges] = useState<(Challenge & { completedAt?: string })[]>([]);
-  const [categoryFilter, setCategoryFilter] = useState<string>("전체");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [joining, setJoining] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("active");
 
@@ -80,17 +92,46 @@ export function Challenges() {
   const completedChallengeIds = new Set(completedChallenges.map((c) => c.challengeId));
   const suggestedIds = new Set(suggested.map((c) => c.id));
 
-  const CATEGORIES = ["전체", "운동", "식단", "식습관", "수면", "체중감량", "금주", "금연"];
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
+  };
 
-  const sortedAvailable = [...availableChallenges]
-    .filter((c) => !completedChallengeIds.has(c.id))
-    .filter((c) => !suggestedIds.has(c.id))
-    .filter((c) => categoryFilter === "전체" || c.category === categoryFilter)
-    .sort((a, b) => {
-      const aJoined = activeJoinedIds.has(a.id) ? 1 : 0;
-      const bJoined = activeJoinedIds.has(b.id) ? 1 : 0;
-      return aJoined - bJoined;
-    });
+  const allTags = Array.from(
+    new Set([
+      ...availableChallenges.map((c) => c.category),
+      ...activeChallenges.map((c) => c.category),
+      ...completedChallenges.map((c) => c.category),
+    ])
+  ).filter(Boolean).sort();
+
+  const filterChallenges = (list: Challenge[]) =>
+    selectedTags.length === 0 ? list : list.filter((c) => selectedTags.includes(c.category));
+
+  const filterBadges = (list: BadgeItem[]) =>
+    selectedTags.length === 0 ? list : list.filter((b) => b.tags.some((t) => selectedTags.includes(t)));
+
+  const sortedAvailable = filterChallenges(
+    [...availableChallenges]
+      .filter((c) => !completedChallengeIds.has(c.id))
+      .filter((c) => !suggestedIds.has(c.id))
+      .sort((a, b) => {
+        const aJoined = activeJoinedIds.has(a.id) ? 1 : 0;
+        const bJoined = activeJoinedIds.has(b.id) ? 1 : 0;
+        return aJoined - bJoined;
+      })
+  );
+
+  const earnedBadges: BadgeItem[] = completedChallenges.map((challenge) => ({
+    id: challenge.id,
+    name: challenge.title,
+    description: `${challenge.category} 챌린지 완료`,
+    icon: challenge.icon,
+    earned: true,
+    tags: [challenge.category],
+    date: challenge.completedAt ? challenge.completedAt.slice(0, 10) : undefined,
+  }));
+
+  const filteredBadges = filterBadges(earnedBadges);
 
   const fetchActiveChallenges = async () => {
     const r = await api.get<UserChallengeAPI[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } });
@@ -192,7 +233,7 @@ export function Challenges() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="active" className="gap-1 text-xs sm:text-sm">
             <Activity className="size-4" />
             진행 중
@@ -205,20 +246,56 @@ export function Challenges() {
             <CheckCircle2 className="size-4" />
             완료
           </TabsTrigger>
+          <TabsTrigger value="badges" className="gap-1 text-xs sm:text-sm">
+            <Award className="size-4" />
+            뱃지
+          </TabsTrigger>
         </TabsList>
+
+        {/* 태그 필터 */}
+        {allTags.length > 0 && (
+          <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-gray-700">태그 필터</p>
+              {selectedTags.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setSelectedTags([])} className="h-7 text-xs">
+                  초기화
+                </Button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {allTags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant={selectedTags.includes(tag) ? "default" : "outline"}
+                  className={`cursor-pointer transition-all ${
+                    selectedTags.includes(tag)
+                      ? "bg-emerald-500 hover:bg-emerald-600 text-white"
+                      : "hover:bg-gray-100"
+                  }`}
+                  onClick={() => toggleTag(tag)}
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
         <TabsContent value="active" className="space-y-4">
           <div className="flex justify-end">
             <AddCustomChallengeButton onCreated={fetchActiveChallenges} />
           </div>
-          {activeChallenges.length === 0 && (
+          {filterChallenges(activeChallenges).length === 0 && (
             <Card>
               <CardContent className="p-12 text-center">
-                <p className="text-gray-500">진행 중인 챌린지가 없습니다</p>
+                <p className="text-gray-500">
+                  {selectedTags.length > 0 ? "선택한 태그에 해당하는 진행 중인 챌린지가 없습니다" : "진행 중인 챌린지가 없습니다"}
+                </p>
               </CardContent>
             </Card>
           )}
-          {activeChallenges.map((challenge) => (
+          {filterChallenges(activeChallenges).map((challenge) => (
             <ActiveChallengeCard
               key={challenge.id}
               challenge={challenge}
@@ -301,7 +378,7 @@ export function Challenges() {
                           size="sm"
                           className={`w-full ${joined ? "bg-emerald-500 hover:bg-emerald-600" : "bg-amber-500 hover:bg-amber-600"} text-white`}
                           disabled={joined || joining === c.id}
-                          onClick={() => !joined && setJoinTarget(toChallenge({ ...c, is_recommended: true, participant_count: 0, is_custom: false, required_logs: c.duration_days }))}
+                          onClick={() => !joined && setJoinTarget(toChallenge({ ...c, is_recommended: true, participant_count: 0, is_custom: false, required_logs: c.duration_days } as ChallengeAPI))}
                         >
                           {joined ? "✓ 진행 중" : "참여하기"}
                         </Button>
@@ -313,26 +390,14 @@ export function Challenges() {
             </div>
             <hr className="border-gray-200" />
           </div>
-          {/* 카테고리 필터 */}
-          <div className="flex gap-2 flex-wrap">
-            {CATEGORIES.map((cat) => (
-              <Button
-                key={cat}
-                size="sm"
-                variant={categoryFilter === cat ? "default" : "outline"}
-                onClick={() => setCategoryFilter(cat)}
-                className={categoryFilter === cat ? "bg-emerald-600 hover:bg-emerald-700" : ""}
-              >
-                {cat}
-              </Button>
-            ))}
-          </div>
           <div className="grid md:grid-cols-2 gap-4">
             {sortedAvailable.length === 0 ? (
               <div className="col-span-2">
                 <Card>
                   <CardContent className="p-12 text-center">
-                    <p className="text-gray-500">해당 카테고리의 챌린지가 없습니다</p>
+                    <p className="text-gray-500">
+                      {selectedTags.length > 0 ? "선택한 태그에 해당하는 챌린지가 없습니다" : "참여 가능한 챌린지가 없습니다"}
+                    </p>
                   </CardContent>
                 </Card>
               </div>
@@ -351,17 +416,62 @@ export function Challenges() {
         </TabsContent>
 
         <TabsContent value="completed" className="space-y-4">
-          {completedChallenges.length === 0 ? (
+          {filterChallenges(completedChallenges).length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center">
-                <p className="text-gray-500">완료한 챌린지가 없습니다</p>
+                <p className="text-gray-500">
+                  {selectedTags.length > 0 ? "선택한 태그에 해당하는 완료한 챌린지가 없습니다" : "완료한 챌린지가 없습니다"}
+                </p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-3">
-              {completedChallenges.map((challenge) => (
+              {filterChallenges(completedChallenges).map((challenge) => (
                 <CompletedChallengeCard key={challenge.id} challenge={challenge} />
               ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="badges" className="space-y-4">
+          {filteredBadges.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <p className="text-gray-500">완료한 챌린지가 없어 표시할 뱃지가 없습니다</p>
+                <p className="text-sm text-gray-400 mt-2">챌린지를 완료하면 자동으로 반영됩니다</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {filteredBadges.map((badge) => {
+                const Icon = badge.icon;
+                return (
+                  <Card
+                    key={badge.id}
+                    className="border-2 border-amber-200 bg-gradient-to-br from-amber-50/60 to-white hover:shadow-md transition-shadow"
+                  >
+                    <CardContent className="p-4 space-y-3 text-center">
+                      <div className="size-14 rounded-full flex items-center justify-center mx-auto bg-amber-100">
+                        <Icon className="size-7 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm text-gray-900">{badge.name}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{badge.description}</p>
+                      </div>
+                      {badge.date && (
+                        <p className="text-xs text-amber-600">{badge.date} 획득</p>
+                      )}
+                      <div className="flex flex-wrap gap-1 justify-center">
+                        {badge.tags.map((tag) => (
+                          <Badge key={tag} variant="outline" className="text-xs bg-gray-50 text-gray-500 border-gray-200 px-1.5">
+                            #{tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>
