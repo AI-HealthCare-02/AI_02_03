@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router";
-import { Activity, TrendingUp, Home, LogIn, UserPlus, User, LogOut, Settings, Calendar, Utensils } from "lucide-react";
+import { Activity, Home, LogOut, Settings, Utensils, Calendar, ClipboardList, Menu } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -18,9 +18,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import { useState } from "react";
 import { useAuthStore } from "../../store/authStore";
+
+const NAV_ITEMS = [
+  { to: "/", label: "홈", icon: Home, exact: true },
+  { to: "/challenges", label: "챌린지", icon: Activity },
+  { to: "/diet", label: "식단", icon: Utensils },
+  { to: "/schedule", label: "일정관리", icon: Calendar },
+  { to: "/health-record", label: "건강기록", icon: ClipboardList },
+];
 
 export function Layout() {
   const location = useLocation();
@@ -33,11 +40,9 @@ export function Layout() {
 
   const userName = user?.nickname ?? "";
 
-  const isActive = (path: string) => {
-    if (path === "/") {
-      return location.pathname === "/";
-    }
-    return location.pathname.startsWith(path);
+  const isActive = (to: string, exact?: boolean) => {
+    if (exact) return location.pathname === "/";
+    return location.pathname.startsWith(to);
   };
 
   const handleLogout = async () => {
@@ -61,133 +66,65 @@ export function Layout() {
                 <p className="text-xs text-gray-600">하루하루 기록하는 나의 간 건강 리포트</p>
               </div>
             </Link>
-            
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-2">
-              <Link
-                to="/"
-                className={`px-4 py-2 rounded-lg transition-all ${
-                  isActive("/") && !isActive("/challenges") && !isActive("/diet") && !isActive("/progress") && !isActive("/schedule") && !isActive("/mypage")
-                    ? "bg-emerald-100 text-emerald-900"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Home className="size-4" />
-                  <span>홈</span>
-                </div>
-              </Link>
-              <Link
-                to="/challenges"
-                className={`px-4 py-2 rounded-lg transition-all ${
-                  isActive("/challenges")
-                    ? "bg-emerald-100 text-emerald-900"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Activity className="size-4" />
-                  <span>챌린지</span>
-                </div>
-              </Link>
-              <Link
-                to="/diet"
-                className={`px-4 py-2 rounded-lg transition-all ${
-                  isActive("/diet")
-                    ? "bg-emerald-100 text-emerald-900"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Utensils className="size-4" />
-                  <span>식단</span>
-                </div>
-              </Link>
-              <Link
-                to="/schedule"
-                className={`px-4 py-2 rounded-lg transition-all ${
-                  isActive("/schedule")
-                    ? "bg-emerald-100 text-emerald-900"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Calendar className="size-4" />
-                  <span>일정관리</span>
-                </div>
-              </Link>
-              <Link
-                to="/progress"
-                className={`px-4 py-2 rounded-lg transition-all ${
-                  isActive("/progress")
-                    ? "bg-emerald-100 text-emerald-900"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="size-4" />
-                  <span>건강 기록</span>
-                </div>
-              </Link>
 
-              <div className="ml-4 flex items-center gap-2 pl-4 border-l border-gray-200">
-                {isLoggedIn ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="rounded-full p-0 h-8 w-8">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
-                            {userName.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <div className="px-2 py-1.5">
-                        <p className="text-sm font-medium">{userName}</p>
-                        <p className="text-xs text-gray-500">간(肝)편한 하루 사용자</p>
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-1">
+              {NAV_ITEMS.map(({ to, label, icon: Icon, exact }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className={`px-3 py-2 rounded-lg transition-all text-sm font-medium ${
+                    isActive(to, exact)
+                      ? "bg-emerald-100 text-emerald-900"
+                      : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Icon className="size-4" />
+                    <span>{label}</span>
+                  </div>
+                </Link>
+              ))}
+
+              {/* 햄버거 메뉴 */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="ml-1">
+                    <Menu className="size-5 text-gray-600" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem asChild>
+                    <Link to="/mypage/profile" className="flex items-center gap-2 cursor-pointer">
+                      <div className="size-7 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                        {userName.charAt(0)}
                       </div>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link to="/mypage" className="flex items-center gap-2 cursor-pointer">
-                          <User className="size-4" />
-                          <span>마이페이지</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="flex items-center gap-2">
-                        <Settings className="size-4" />
-                        <span>설정</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="flex items-center gap-2"
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          setShowLogoutDialog(true);
-                        }}
-                      >
-                        <LogOut className="size-4" />
-                        <span>로그아웃</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <>
-                    <Link to="/login">
-                      <Button variant="ghost" size="sm" className="gap-2">
-                        <LogIn className="size-4" />
-                        로그인
-                      </Button>
+                      <div>
+                        <p className="text-sm font-medium">{userName}</p>
+                        <p className="text-xs text-gray-500">프로필 수정</p>
+                      </div>
                     </Link>
-                    <Link to="/signup">
-                      <Button size="sm" className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700">
-                        <UserPlus className="size-4" />
-                        회원가입
-                      </Button>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/mypage/settings" className="flex items-center gap-2 cursor-pointer">
+                      <Settings className="size-4" />
+                      <span>설정</span>
                     </Link>
-                  </>
-                )}
-              </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="flex items-center gap-2 text-red-600 focus:text-red-600"
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setShowLogoutDialog(true);
+                    }}
+                  >
+                    <LogOut className="size-4" />
+                    <span>로그아웃</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </nav>
           </div>
         </div>
@@ -201,64 +138,21 @@ export function Layout() {
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-emerald-100 z-50">
         <div className="grid grid-cols-5 gap-1 p-2">
-          <Link
-            to="/"
-            className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
-              isActive("/") && !isActive("/challenges") && !isActive("/diet") && !isActive("/progress") && !isActive("/schedule") && !isActive("/mypage")
-                ? "bg-emerald-100 text-emerald-900"
-                : "text-gray-600"
-            }`}
-          >
-            <Home className="size-5" />
-            <span className="text-xs">홈</span>
-          </Link>
-          <Link
-            to="/challenges"
-            className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
-              isActive("/challenges")
-                ? "bg-emerald-100 text-emerald-900"
-                : "text-gray-600"
-            }`}
-          >
-            <Activity className="size-5" />
-            <span className="text-xs">챌린지</span>
-          </Link>
-          <Link
-            to="/diet"
-            className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
-              isActive("/diet")
-                ? "bg-emerald-100 text-emerald-900"
-                : "text-gray-600"
-            }`}
-          >
-            <Utensils className="size-5" />
-            <span className="text-xs">식단</span>
-          </Link>
-          <Link
-            to="/schedule"
-            className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
-              isActive("/schedule")
-                ? "bg-emerald-100 text-emerald-900"
-                : "text-gray-600"
-            }`}
-          >
-            <Calendar className="size-5" />
-            <span className="text-xs">일정관리</span>
-          </Link>
-          <Link
-            to="/progress"
-            className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
-              isActive("/progress")
-                ? "bg-emerald-100 text-emerald-900"
-                : "text-gray-600"
-            }`}
-          >
-            <TrendingUp className="size-5" />
-            <span className="text-xs">건강기록</span>
-          </Link>
+          {NAV_ITEMS.map(({ to, label, icon: Icon, exact }) => (
+            <Link
+              key={to}
+              to={to}
+              className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
+                isActive(to, exact) ? "bg-emerald-100 text-emerald-900" : "text-gray-600"
+              }`}
+            >
+              <Icon className="size-5" />
+              <span className="text-xs">{label}</span>
+            </Link>
+          ))}
         </div>
       </nav>
-      
+
       {/* Spacer for mobile navigation */}
       <div className="md:hidden h-20"></div>
 
@@ -273,7 +167,7 @@ export function Layout() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleLogout}
               className="bg-gray-200 text-gray-900 hover:bg-gray-300"
             >

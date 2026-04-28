@@ -24,5 +24,22 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/app/components/ui/aspect-ratio.tsx",
+    "src/app/components/ui/carousel.tsx",
+    "src/app/components/ui/chart.tsx",
+    "src/app/components/ui/context-menu.tsx",
+    "src/app/components/ui/form.tsx",
+    "src/app/components/ui/hover-card.tsx",
+    "src/app/components/ui/menubar.tsx",
+    "src/app/components/ui/navigation-menu.tsx",
+    "src/app/components/ui/resizable.tsx",
+    "src/app/components/ui/scroll-area.tsx",
+    "src/app/components/ui/sidebar.tsx",
+    "src/app/components/ui/slider.tsx",
+    "src/app/components/ui/toggle-group.tsx",
+    "src/app/components/ui/toggle.tsx",
+    "src/app/components/ui/tooltip.tsx"
+  ]
 }

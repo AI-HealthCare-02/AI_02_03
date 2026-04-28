@@ -24,7 +24,7 @@ export function Profile() {
       await authService.updateUser({ nickname: nickname.trim() });
       await fetchMe();
       toast.success("프로필이 저장되었습니다.");
-      navigate("/mypage");
+      navigate("/mypage/settings");
     } catch {
       toast.error("저장에 실패했습니다. 다시 시도해주세요.");
     } finally {
@@ -35,7 +35,7 @@ export function Profile() {
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-8">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/mypage")}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/mypage/settings")}>
           <ArrowLeft className="size-5" />
         </Button>
         <div>
@@ -85,7 +85,7 @@ export function Profile() {
             type="button"
             variant="outline"
             className="flex-1"
-            onClick={() => navigate("/mypage")}
+            onClick={() => navigate("/mypage/settings")}
           >
             취소
           </Button>
