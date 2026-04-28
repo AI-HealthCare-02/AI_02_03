@@ -28,7 +28,7 @@ export function Profile() {
       await authService.updateUser({ nickname: nickname.trim() });
       await fetchMe();
       alert("프로필이 저장되었습니다!");
-      navigate("/mypage");
+      navigate("/mypage/settings");
     } catch {
       alert("저장에 실패했습니다. 다시 시도해주세요.");
     } finally {
@@ -63,7 +63,7 @@ export function Profile() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate("/mypage")}
+          onClick={() => navigate("/mypage/settings")}
         >
           <ArrowLeft className="size-5" />
         </Button>
@@ -177,7 +177,7 @@ export function Profile() {
             type="button"
             variant="outline"
             className="flex-1"
-            onClick={() => navigate("/mypage")}
+            onClick={() => navigate("/mypage/settings")}
           >
             취소
           </Button>

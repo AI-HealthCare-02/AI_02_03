@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import type React from "react";
 import { Link } from "react-router";
 import api from "../../lib/api";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import {
   Dialog,
@@ -13,17 +13,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
-import { Badge } from "../components/ui/badge";
 import {
   Activity,
-  Utensils,
   BookOpen,
   Trophy,
   CheckCircle2,
   Loader2,
-  Upload,
   Sparkles,
   PartyPopper,
+  Award,
 } from "lucide-react";
 import { ActiveChallengeCard } from "../components/challenges/ActiveChallengeCard";
 import { AvailableChallengeCard } from "../components/challenges/AvailableChallengeCard";
@@ -35,22 +33,10 @@ import {
   type UserChallengeAPI,
   toChallenge,
   ucToChallenge,
+  typeIcon,
 } from "../types/challenges";
-import { foodService } from "../../services/food";
 
-type DietAnalysisState = "idle" | "loading" | "result" | "error";
 type CompleteState = "idle" | "loading" | "done";
-
-interface DietResult {
-  food_name: string;
-  calories: number;
-  fat: number;
-  sugar: number;
-  liver_impact: string;
-  recommendation: string;
-  rating: string;
-  image_url: string;
-}
 
 interface CompleteResult {
   score_before: number;
@@ -58,15 +44,21 @@ interface CompleteResult {
   new_grade: string;
 }
 
+interface BadgeItem {
+  id: number;
+  name: string;
+  description: string;
+  icon: React.ElementType;
+  earned: boolean;
+  tags: string[];
+  date?: string;
+}
+
 export function Challenges() {
-  const [dietState, setDietState] = useState<DietAnalysisState>("idle");
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [dietResult, setDietResult] = useState<DietResult | null>(null);
   const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([]);
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
   const [completedChallenges, setCompletedChallenges] = useState<(Challenge & { completedAt?: string })[]>([]);
-  const [categoryFilter, setCategoryFilter] = useState<string>("전체");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [joining, setJoining] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("active");
 
@@ -97,16 +89,43 @@ export function Challenges() {
   const activeJoinedIds = new Set(activeChallenges.map((c) => c.challengeId));
   const completedChallengeIds = new Set(completedChallenges.map((c) => c.challengeId));
 
-  const CATEGORIES = ["전체", "운동", "식단", "식습관", "수면", "체중감량", "금주", "금연"];
+  // Tag filter helpers
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
 
-  const sortedAvailable = [...availableChallenges]
-    .filter((c) => !completedChallengeIds.has(c.id))
-    .filter((c) => categoryFilter === "전체" || c.category === categoryFilter)
-    .sort((a, b) => {
-      const aJoined = activeJoinedIds.has(a.id) ? 1 : 0;
-      const bJoined = activeJoinedIds.has(b.id) ? 1 : 0;
-      return aJoined - bJoined;
-    });
+  // All tags derived from available + active + completed challenge categories
+  const allTags = Array.from(
+    new Set([
+      ...availableChallenges.map((c) => c.category),
+      ...activeChallenges.map((c) => c.category),
+      ...completedChallenges.map((c) => c.category),
+    ])
+  )
+    .filter(Boolean)
+    .sort();
+
+  const filterChallenges = (list: Challenge[]) => {
+    if (selectedTags.length === 0) return list;
+    return list.filter((c) => selectedTags.includes(c.category));
+  };
+
+  const filterBadges = (list: BadgeItem[]) => {
+    if (selectedTags.length === 0) return list;
+    return list.filter((b) => b.tags.some((t) => selectedTags.includes(t)));
+  };
+
+  const sortedAvailable = filterChallenges(
+    [...availableChallenges]
+      .filter((c) => !completedChallengeIds.has(c.id))
+      .sort((a, b) => {
+        const aJoined = activeJoinedIds.has(a.id) ? 1 : 0;
+        const bJoined = activeJoinedIds.has(b.id) ? 1 : 0;
+        return aJoined - bJoined;
+      })
+  );
 
   const fetchActiveChallenges = async () => {
     const r = await api.get<UserChallengeAPI[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } });
@@ -187,34 +206,18 @@ export function Challenges() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setUploadedFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setUploadedImage(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
+  // 뱃지 API가 명세에 없어서, 완료 챌린지 응답을 기반으로만 생성
+  const earnedBadges: BadgeItem[] = completedChallenges.map((challenge) => ({
+    id: challenge.id,
+    name: challenge.title,
+    description: `${challenge.category} 챌린지 완료`,
+    icon: challenge.icon,
+    earned: true,
+    tags: [challenge.category],
+    date: challenge.completedAt ? challenge.completedAt.slice(0, 10) : undefined,
+  }));
 
-  const handleAnalyze = async () => {
-    if (!uploadedFile) return;
-    setDietState("loading");
-    try {
-      const result = await foodService.analyze(uploadedFile);
-      setDietResult(result);
-      setDietState("result");
-    } catch {
-      setDietState("error");
-    }
-  };
-
-  const handleResetDiet = () => {
-    setDietState("idle");
-    setUploadedImage(null);
-    setUploadedFile(null);
-    setDietResult(null);
-  };
+  const filteredBadges = filterBadges(earnedBadges);
 
   return (
     <div className="space-y-6 pb-8">
@@ -245,24 +248,63 @@ export function Challenges() {
             <CheckCircle2 className="size-4" />
             완료
           </TabsTrigger>
-          <TabsTrigger value="diet" className="gap-1 text-xs sm:text-sm">
-            <Utensils className="size-4" />
-            식단
+          <TabsTrigger value="badges" className="gap-1 text-xs sm:text-sm">
+            <Award className="size-4" />
+            뱃지
           </TabsTrigger>
         </TabsList>
+
+        {/* 태그 필터 */}
+        {allTags.length > 0 && (
+          <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-gray-700">태그 필터</p>
+              {selectedTags.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedTags([])}
+                  className="h-7 text-xs"
+                >
+                  초기화
+                </Button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {allTags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant={selectedTags.includes(tag) ? "default" : "outline"}
+                  className={`cursor-pointer transition-all ${
+                    selectedTags.includes(tag)
+                      ? "bg-emerald-500 hover:bg-emerald-600 text-white"
+                      : "hover:bg-gray-100"
+                  }`}
+                  onClick={() => toggleTag(tag)}
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
         <TabsContent value="active" className="space-y-4">
           <div className="flex justify-end">
             <AddCustomChallengeButton onCreated={fetchActiveChallenges} />
           </div>
-          {activeChallenges.length === 0 && (
+          {filterChallenges(activeChallenges).length === 0 && (
             <Card>
               <CardContent className="p-12 text-center">
-                <p className="text-gray-500">진행 중인 챌린지가 없습니다</p>
+                <p className="text-gray-500">
+                  {selectedTags.length > 0
+                    ? "선택한 태그에 해당하는 진행 중인 챌린지가 없습니다"
+                    : "진행 중인 챌린지가 없습니다"}
+                </p>
               </CardContent>
             </Card>
           )}
-          {activeChallenges.map((challenge) => (
+          {filterChallenges(activeChallenges).map((challenge) => (
             <ActiveChallengeCard
               key={challenge.id}
               challenge={challenge}
@@ -323,7 +365,17 @@ export function Challenges() {
                         size="sm"
                         className="w-full bg-amber-500 hover:bg-amber-600 text-white"
                         disabled={activeJoinedIds.has(c.id) || joining === c.id}
-                        onClick={() => setJoinTarget({ id: c.id, challengeId: c.id, title: c.name, description: c.description, category: c.type, duration: `${c.duration_days}일`, difficulty: "초급", participants: 0 })}
+                        onClick={() => setJoinTarget({
+                          id: c.id,
+                          challengeId: c.id,
+                          title: c.name,
+                          description: c.description,
+                          icon: typeIcon(c.type),
+                          category: c.type,
+                          duration: `${c.duration_days}일`,
+                          difficulty: "초급",
+                          participants: 0,
+                        })}
                       >
                         {activeJoinedIds.has(c.id) ? "참여 중" : "참여하기"}
                       </Button>
@@ -334,26 +386,16 @@ export function Challenges() {
               <hr className="border-gray-200" />
             </div>
           )}
-          {/* 카테고리 필터 */}
-          <div className="flex gap-2 flex-wrap">
-            {CATEGORIES.map((cat) => (
-              <Button
-                key={cat}
-                size="sm"
-                variant={categoryFilter === cat ? "default" : "outline"}
-                onClick={() => setCategoryFilter(cat)}
-                className={categoryFilter === cat ? "bg-emerald-600 hover:bg-emerald-700" : ""}
-              >
-                {cat}
-              </Button>
-            ))}
-          </div>
           <div className="grid md:grid-cols-2 gap-4">
             {sortedAvailable.length === 0 ? (
               <div className="col-span-2">
                 <Card>
                   <CardContent className="p-12 text-center">
-                    <p className="text-gray-500">해당 카테고리의 챌린지가 없습니다</p>
+                    <p className="text-gray-500">
+                      {selectedTags.length > 0
+                        ? "선택한 태그에 해당하는 챌린지가 없습니다"
+                        : "참여 가능한 챌린지가 없습니다"}
+                    </p>
                   </CardContent>
                 </Card>
               </div>
@@ -372,118 +414,82 @@ export function Challenges() {
         </TabsContent>
 
         <TabsContent value="completed" className="space-y-4">
-          {completedChallenges.length === 0 ? (
+          {filterChallenges(completedChallenges).length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center">
-                <p className="text-gray-500">완료한 챌린지가 없습니다</p>
+                <p className="text-gray-500">
+                  {selectedTags.length > 0
+                    ? "선택한 태그에 해당하는 완료한 챌린지가 없습니다"
+                    : "완료한 챌린지가 없습니다"}
+                </p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-3">
-              {completedChallenges.map((challenge) => (
+              {filterChallenges(completedChallenges).map((challenge) => (
                 <CompletedChallengeCard key={challenge.id} challenge={challenge} />
               ))}
             </div>
           )}
         </TabsContent>
 
-        <TabsContent value="diet" className="space-y-4">
-          {dietState === "idle" && (
-            <Card className="border-2 border-dashed border-gray-300">
-              <CardContent className="p-8">
-                <div className="text-center space-y-4">
-                  <div className="size-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
-                    <Upload className="size-10 text-emerald-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">식단 사진을 업로드하세요</h3>
-                    <p className="text-sm text-gray-600">사진 첨부 또는 드래그</p>
-                  </div>
-                  <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" id="diet-upload" />
-                  <label htmlFor="diet-upload">
-                    <Button asChild className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700">
-                      <span>사진 선택</span>
-                    </Button>
-                  </label>
-                  {uploadedImage && (
-                    <div className="mt-4">
-                      <img src={uploadedImage} alt="Uploaded" className="w-full max-w-sm mx-auto rounded-lg" />
-                      <Button onClick={handleAnalyze} className="mt-4 w-full max-w-sm bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700">
-                        분석하기
-                      </Button>
-                    </div>
-                  )}
-                </div>
+        <TabsContent value="badges" className="space-y-4">
+          {filteredBadges.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <p className="text-gray-500">완료한 챌린지가 없어 표시할 뱃지가 없습니다</p>
+                <p className="text-sm text-gray-400 mt-2">챌린지를 완료하면 자동으로 반영됩니다</p>
               </CardContent>
             </Card>
-          )}
-          {dietState === "loading" && (
-            <Card className="border-2 border-emerald-200">
-              <CardContent className="p-8 text-center space-y-4">
-                <Loader2 className="size-16 text-emerald-600 animate-spin mx-auto" />
-                <h3 className="text-lg font-bold text-gray-900">식단을 분석중입니다...</h3>
-                <p className="text-sm text-gray-600">잠시만 기다려주세요</p>
-              </CardContent>
-            </Card>
-          )}
-          {dietState === "result" && dietResult && (
-            <Card className="border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white">
-              <CardContent className="p-6 space-y-4">
-                {uploadedImage && <img src={uploadedImage} alt="Analyzed" className="w-full rounded-lg" />}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                      <Sparkles className="size-5 text-emerald-600" />
-                      분석 결과
-                    </h3>
-                    <Badge className={
-                      dietResult.rating === "훌륭함" ? "bg-emerald-100 text-emerald-700" :
-                      dietResult.rating === "좋음" ? "bg-blue-100 text-blue-700" :
-                      dietResult.rating === "보통" ? "bg-yellow-100 text-yellow-700" :
-                      "bg-red-100 text-red-700"
-                    }>{dietResult.rating}</Badge>
-                  </div>
-                  <div className="p-4 bg-white rounded-lg border border-emerald-200">
-                    <p className="text-sm text-gray-600 mb-1">음식</p>
-                    <p className="font-bold text-gray-900">{dietResult.food_name}</p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="p-3 bg-white rounded-lg border border-gray-200 text-center">
-                      <p className="text-xs text-gray-600 mb-1">칼로리</p>
-                      <p className="font-bold text-gray-900">{dietResult.calories} kcal</p>
-                    </div>
-                    <div className="p-3 bg-white rounded-lg border border-gray-200 text-center">
-                      <p className="text-xs text-gray-600 mb-1">지방</p>
-                      <p className="font-bold text-gray-900">{dietResult.fat}g</p>
-                    </div>
-                    <div className="p-3 bg-white rounded-lg border border-gray-200 text-center">
-                      <p className="text-xs text-gray-600 mb-1">당</p>
-                      <p className="font-bold text-gray-900">{dietResult.sugar}g</p>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                    <p className="text-sm font-bold text-emerald-900 mb-1">✨ 지방간 영향</p>
-                    <p className="text-sm text-gray-700">{dietResult.liver_impact}</p>
-                  </div>
-                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm font-bold text-blue-900 mb-1">💡 건강 조언</p>
-                    <p className="text-sm text-gray-700">{dietResult.recommendation}</p>
-                  </div>
-                </div>
-                <Button onClick={handleResetDiet} variant="outline" className="w-full">
-                  다시 분석하기
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-          {dietState === "error" && (
-            <Card className="border-2 border-red-200 bg-red-50">
-              <CardContent className="p-8 text-center space-y-4">
-                <p className="text-red-600 font-medium">분석 중 오류가 발생했습니다</p>
-                <p className="text-sm text-gray-600">이미지를 다시 업로드하거나 잠시 후 시도해주세요</p>
-                <Button onClick={handleResetDiet} variant="outline">다시 시도하기</Button>
-              </CardContent>
-            </Card>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {filteredBadges.map((badge) => {
+                const Icon = badge.icon;
+                return (
+                  <Card
+                    key={badge.id}
+                    className={`text-center transition-shadow ${
+                      badge.earned
+                        ? "border-2 border-amber-200 bg-gradient-to-br from-amber-50/60 to-white hover:shadow-md"
+                        : "border border-gray-200 opacity-50 grayscale"
+                    }`}
+                  >
+                    <CardContent className="p-4 space-y-3">
+                      <div
+                        className={`size-14 rounded-full flex items-center justify-center mx-auto ${
+                          badge.earned ? "bg-amber-100" : "bg-gray-100"
+                        }`}
+                      >
+                        <Icon className={`size-7 ${badge.earned ? "text-amber-600" : "text-gray-400"}`} />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm text-gray-900">{badge.name}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{badge.description}</p>
+                      </div>
+                      {badge.earned && badge.date && (
+                        <p className="text-xs text-amber-600">{badge.date} 획득</p>
+                      )}
+                      {!badge.earned && (
+                        <Badge variant="outline" className="text-xs text-gray-400 border-gray-300">
+                          미획득
+                        </Badge>
+                      )}
+                      <div className="flex flex-wrap gap-1 justify-center">
+                        {badge.tags.map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="outline"
+                            className="text-xs bg-gray-50 text-gray-500 border-gray-200 px-1.5"
+                          >
+                            #{tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           )}
         </TabsContent>
       </Tabs>

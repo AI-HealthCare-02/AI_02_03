@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { Card, CardContent } from "../components/ui/card";
 import { ChevronRight, LogOut } from "lucide-react";
 import api from "../../lib/api";
+import { useAuthStore } from "../../store/authStore";
 
 interface UserInfo {
   id: number;
@@ -15,6 +16,7 @@ interface UserInfo {
 export function AccountManagement() {
   const navigate = useNavigate();
   const [user, setUser] = useState<UserInfo | null>(null);
+  const { logout } = useAuthStore();
 
   useEffect(() => {
     api.get<UserInfo>("/api/v1/users/me").then((res) => setUser(res.data));
@@ -27,9 +29,7 @@ export function AccountManagement() {
   };
 
   const handleLogout = async () => {
-    await api.post("/api/v1/auth/logout");
-    localStorage.removeItem("access_token");
-    sessionStorage.removeItem("access_token");
+    await logout();
     navigate("/login");
   };
 
