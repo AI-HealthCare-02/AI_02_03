@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -19,52 +20,61 @@ export function Profile() {
   const [newEmail, setNewEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [isCodeSent, setIsCodeSent] = useState(false);
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!nickname.trim()) return;
     setIsSaving(true);
     try {
       await authService.updateUser({ nickname: nickname.trim() });
       await fetchMe();
-      alert("프로필이 저장되었습니다!");
+      toast.success("프로필이 저장되었습니다.");
       navigate("/mypage");
     } catch {
-      alert("저장에 실패했습니다. 다시 시도해주세요.");
+      toast.error("저장에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleSendVerificationCode = () => {
-    // TODO: API 연동 필요
-    console.log("인증 코드 전송:", newEmail);
-    setIsCodeSent(true);
-    alert("인증 코드가 전송되었습니다!");
+  const handleSendVerificationCode = async () => {
+    setIsSendingCode(true);
+    try {
+      await authService.sendEmailVerification(newEmail);
+      setIsCodeSent(true);
+      toast.success("인증 코드가 전송되었습니다.");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(msg ?? "인증 코드 전송에 실패했습니다.");
+    } finally {
+      setIsSendingCode(false);
+    }
   };
 
-  const handleVerifyCode = () => {
-    // TODO: API 연동 필요
-    if (verificationCode === "123456") {
-      alert("이메일이 변경되었습니다!");
+  const handleVerifyCode = async () => {
+    setIsVerifying(true);
+    try {
+      await authService.verifyEmailChange(newEmail, verificationCode);
+      await fetchMe();
+      toast.success("이메일이 변경되었습니다.");
       setIsChangingEmail(false);
       setNewEmail("");
       setVerificationCode("");
       setIsCodeSent(false);
-    } else {
-      alert("인증 코드가 일치하지 않습니다.");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(msg ?? "인증 코드가 일치하지 않습니다.");
+    } finally {
+      setIsVerifying(false);
     }
   };
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-8">
-      {/* Header */}
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/mypage")}
-        >
+        <Button variant="ghost" size="icon" onClick={() => navigate("/mypage")}>
           <ArrowLeft className="size-5" />
         </Button>
         <div>
@@ -74,7 +84,6 @@ export function Profile() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Information */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -93,6 +102,7 @@ export function Profile() {
                 placeholder="닉네임을 입력하세요"
               />
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">이메일</Label>
               <div className="flex gap-2">
@@ -109,14 +119,18 @@ export function Profile() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsChangingEmail(!isChangingEmail)}
+                  onClick={() => {
+                    setIsChangingEmail(!isChangingEmail);
+                    setNewEmail("");
+                    setVerificationCode("");
+                    setIsCodeSent(false);
+                  }}
                 >
                   이메일 변경
                 </Button>
               </div>
             </div>
 
-            {/* Email Change Section */}
             {isChangingEmail && (
               <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
                 <div className="space-y-2">
@@ -133,9 +147,9 @@ export function Profile() {
                     <Button
                       type="button"
                       onClick={handleSendVerificationCode}
-                      disabled={!newEmail || isCodeSent}
+                      disabled={!newEmail || isCodeSent || isSendingCode}
                     >
-                      인증 코드 전송
+                      {isSendingCode ? "전송 중..." : "인증 코드 전송"}
                     </Button>
                   </div>
                 </div>
@@ -148,21 +162,21 @@ export function Profile() {
                         id="verificationCode"
                         value={verificationCode}
                         onChange={(e) => setVerificationCode(e.target.value)}
-                        placeholder="인증 코드를 입력하세요"
+                        placeholder="인증 코드 6자리를 입력하세요"
                         maxLength={6}
                       />
                       <Button
                         type="button"
                         onClick={handleVerifyCode}
-                        disabled={!verificationCode}
+                        disabled={verificationCode.length !== 6 || isVerifying}
                         className="bg-emerald-500 hover:bg-emerald-600"
                       >
                         <Check className="size-4 mr-1" />
-                        확인
+                        {isVerifying ? "확인 중..." : "확인"}
                       </Button>
                     </div>
                     <p className="text-xs text-gray-600">
-                      입력하신 이메일로 인증 코드가 전송되었습니다.
+                      입력하신 이메일로 인증 코드가 전송되었습니다. 10분 내에 입력해주세요.
                     </p>
                   </div>
                 )}
@@ -171,7 +185,6 @@ export function Profile() {
           </CardContent>
         </Card>
 
-        {/* Action Buttons */}
         <div className="flex gap-3">
           <Button
             type="button"

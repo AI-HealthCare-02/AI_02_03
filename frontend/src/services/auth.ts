@@ -35,4 +35,10 @@ export const authService = {
 
   deleteUser: () =>
     api.delete('/api/v1/users/me').then((res) => res.data),
+
+  sendEmailVerification: (newEmail: string) =>
+    api.post('/api/v1/auth/send-email-verification', { new_email: newEmail }),
+
+  verifyEmailChange: (newEmail: string, code: string) =>
+    api.post('/api/v1/auth/verify-email-change', { new_email: newEmail, code }),
 }

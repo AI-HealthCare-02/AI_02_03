@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { ArrowLeft } from "lucide-react";
-import { authService } from "../../services/auth";
+import api from "../../lib/api";
 
 export function ChangePassword() {
   const navigate = useNavigate();
@@ -17,6 +17,16 @@ export function ChangePassword() {
   });
   const [isLoading, setIsLoading] = useState(false);
 
+  const getPasswordHint = (pw: string): string => {
+    if (!pw) return "";
+    if (pw.length < 8) return "8자 이상 입력해주세요.";
+    if (!/[a-zA-Z]/.test(pw)) return "영문자를 포함해주세요.";
+    if (!/[0-9]/.test(pw)) return "숫자를 포함해주세요.";
+    if (!/[^a-zA-Z0-9]/.test(pw)) return "특수문자를 포함해주세요.";
+    return "";
+  };
+  const passwordHint = getPasswordHint(formData.newPassword);
+
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -24,15 +34,17 @@ export function ChangePassword() {
       toast.error("새 비밀번호가 일치하지 않습니다.");
       return;
     }
-
-    if (formData.newPassword.length < 8) {
-      toast.error("비밀번호는 8자 이상이어야 합니다.");
+    if (passwordHint) {
+      toast.error(passwordHint);
       return;
     }
 
     setIsLoading(true);
     try {
-      await authService.updateUser({ password: formData.newPassword });
+      await api.post("/api/v1/auth/change-password", {
+        current_password: formData.currentPassword,
+        new_password: formData.newPassword,
+      });
       toast.success("비밀번호가 변경되었습니다.");
       navigate("/mypage/account");
     } catch (err: unknown) {
@@ -45,23 +57,16 @@ export function ChangePassword() {
 
   return (
     <div className="space-y-6 pb-8">
-      {/* Back Button */}
-      <Button
-        variant="ghost"
-        onClick={() => navigate("/mypage/account")}
-        className="gap-2"
-      >
+      <Button variant="ghost" onClick={() => navigate("/mypage/account")} className="gap-2">
         <ArrowLeft className="size-4" />
         뒤로 가기
       </Button>
 
-      {/* Page Header */}
       <div className="space-y-1">
         <h2 className="text-3xl font-bold text-gray-900">비밀번호 변경</h2>
         <p className="text-gray-600">새로운 비밀번호를 입력하세요</p>
       </div>
 
-      {/* Form Card */}
       <Card className="border-2 border-emerald-100">
         <CardHeader>
           <CardTitle>비밀번호 변경</CardTitle>
@@ -74,9 +79,7 @@ export function ChangePassword() {
                 id="current-password"
                 type="password"
                 value={formData.currentPassword}
-                onChange={(e) =>
-                  setFormData({ ...formData, currentPassword: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
                 placeholder="현재 비밀번호를 입력하세요"
                 className="border-2"
                 required
@@ -89,16 +92,18 @@ export function ChangePassword() {
                 id="new-password"
                 type="password"
                 value={formData.newPassword}
-                onChange={(e) =>
-                  setFormData({ ...formData, newPassword: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
                 placeholder="새 비밀번호를 입력하세요"
                 className="border-2"
                 required
               />
-              <p className="text-sm text-gray-500">
-                8자 이상, 영문/숫자/특수문자 조합이어야 합니다.
-              </p>
+              {passwordHint ? (
+                <p className="text-xs text-red-500">{passwordHint}</p>
+              ) : formData.newPassword ? (
+                <p className="text-xs text-emerald-600">사용 가능한 비밀번호입니다.</p>
+              ) : (
+                <p className="text-xs text-gray-500">8자 이상, 영문+숫자+특수문자 포함</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -107,9 +112,7 @@ export function ChangePassword() {
                 id="confirm-password"
                 type="password"
                 value={formData.confirmPassword}
-                onChange={(e) =>
-                  setFormData({ ...formData, confirmPassword: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 placeholder="새 비밀번호를 다시 입력하세요"
                 className="border-2"
                 required

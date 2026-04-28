@@ -30,3 +30,12 @@ class ResetPasswordRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: Annotated[str, Field(min_length=8)]
     new_password: Annotated[str, Field(min_length=8), AfterValidator(validate_password)]
+
+
+class EmailVerificationRequest(BaseModel):
+    new_email: Annotated[EmailStr, Field(max_length=40)]
+
+
+class EmailChangeVerifyRequest(BaseModel):
+    new_email: Annotated[EmailStr, Field(max_length=40)]
+    code: Annotated[str, Field(min_length=6, max_length=6)]
