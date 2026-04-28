@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate, Navigate } from "react-router";
-import { Activity, TrendingUp, Home, LogIn, UserPlus, User, LogOut, Settings, Calendar } from "lucide-react";
+import { Activity, TrendingUp, Home, LogIn, UserPlus, User, LogOut, Settings, Calendar, Utensils } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -67,7 +67,7 @@ export function Layout() {
               <Link
                 to="/"
                 className={`px-4 py-2 rounded-lg transition-all ${
-                  isActive("/") && !isActive("/challenges") && !isActive("/progress") && !isActive("/schedule") && !isActive("/mypage")
+                  isActive("/") && !isActive("/challenges") && !isActive("/diet") && !isActive("/progress") && !isActive("/schedule") && !isActive("/mypage")
                     ? "bg-emerald-100 text-emerald-900"
                     : "text-gray-600 hover:bg-gray-100"
                 }`}
@@ -91,16 +91,16 @@ export function Layout() {
                 </div>
               </Link>
               <Link
-                to="/progress"
+                to="/diet"
                 className={`px-4 py-2 rounded-lg transition-all ${
-                  isActive("/progress")
+                  isActive("/diet")
                     ? "bg-emerald-100 text-emerald-900"
                     : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="size-4" />
-                  <span>내 진행도</span>
+                  <Utensils className="size-4" />
+                  <span>식단</span>
                 </div>
               </Link>
               <Link
@@ -117,16 +117,16 @@ export function Layout() {
                 </div>
               </Link>
               <Link
-                to="/mypage"
+                to="/progress"
                 className={`px-4 py-2 rounded-lg transition-all ${
-                  isActive("/mypage")
+                  isActive("/progress")
                     ? "bg-emerald-100 text-emerald-900"
                     : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <User className="size-4" />
-                  <span>마이 페이지</span>
+                  <TrendingUp className="size-4" />
+                  <span>건강 기록</span>
                 </div>
               </Link>
 
@@ -204,7 +204,7 @@ export function Layout() {
           <Link
             to="/"
             className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
-              isActive("/") && !isActive("/challenges") && !isActive("/progress") && !isActive("/schedule") && !isActive("/mypage")
+              isActive("/") && !isActive("/challenges") && !isActive("/diet") && !isActive("/progress") && !isActive("/schedule") && !isActive("/mypage")
                 ? "bg-emerald-100 text-emerald-900"
                 : "text-gray-600"
             }`}
@@ -224,15 +224,15 @@ export function Layout() {
             <span className="text-xs">챌린지</span>
           </Link>
           <Link
-            to="/progress"
+            to="/diet"
             className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
-              isActive("/progress")
+              isActive("/diet")
                 ? "bg-emerald-100 text-emerald-900"
                 : "text-gray-600"
             }`}
           >
-            <TrendingUp className="size-5" />
-            <span className="text-xs">내 진행도</span>
+            <Utensils className="size-5" />
+            <span className="text-xs">식단</span>
           </Link>
           <Link
             to="/schedule"
@@ -243,18 +243,18 @@ export function Layout() {
             }`}
           >
             <Calendar className="size-5" />
-            <span className="text-xs">일정</span>
+            <span className="text-xs">일정관리</span>
           </Link>
           <Link
-            to="/mypage"
+            to="/progress"
             className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
-              isActive("/mypage")
+              isActive("/progress")
                 ? "bg-emerald-100 text-emerald-900"
                 : "text-gray-600"
             }`}
           >
-            <User className="size-5" />
-            <span className="text-xs">마이페이지</span>
+            <TrendingUp className="size-5" />
+            <span className="text-xs">건강기록</span>
           </Link>
         </div>
       </nav>

@@ -23,6 +23,7 @@ async function requireAuth() {
   return null;
 }
 import { Challenges } from "./pages/Challenges";
+import { Diet } from "./pages/Diet";
 import { Education } from "./pages/Education";
 import { Progress } from "./pages/Progress";
 import { Schedule } from "./pages/Schedule";
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: Home },
       { path: "challenges", Component: Challenges },
+      { path: "diet", Component: Diet },
       { path: "education", Component: Education },
       { path: "progress", Component: Progress },
       { path: "schedule", Component: Schedule },
