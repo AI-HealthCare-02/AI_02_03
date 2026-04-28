@@ -429,7 +429,7 @@ export function Challenges() {
             </Card>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {badges.map((badge) => (
+              {[...badges].sort((a, b) => Number(b.earned) - Number(a.earned)).map((badge) => (
                 <Card
                   key={badge.key}
                   className={`transition-shadow ${
