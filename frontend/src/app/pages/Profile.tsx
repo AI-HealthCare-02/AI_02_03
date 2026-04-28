@@ -4,8 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Switch } from "../components/ui/switch";
-import { ArrowLeft, User, Mail, Lock, Bell, Save } from "lucide-react";
+import { ArrowLeft, User, Mail, Lock, Save } from "lucide-react";
 import api from "../../lib/api";
 
 export function Profile() {
@@ -27,12 +26,6 @@ export function Profile() {
       }));
     });
   }, []);
-
-  const [notifications, setNotifications] = useState({
-    challenge: true,
-    schedule: true,
-    badge: false,
-  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,55 +128,6 @@ export function Profile() {
                 value={formData.confirmPassword}
                 onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                 placeholder="새 비밀번호 확인"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Notification Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="size-5 text-emerald-600" />
-              알림 설정
-            </CardTitle>
-            <CardDescription>받고 싶은 알림을 선택하세요</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-lg border">
-              <div>
-                <p className="font-medium text-gray-900">챌린지 알림</p>
-                <p className="text-sm text-gray-600">챌린지 시작 및 완료 알림</p>
-              </div>
-              <Switch
-                checked={notifications.challenge}
-                onCheckedChange={(checked) =>
-                  setNotifications(prev => ({ ...prev, challenge: checked }))
-                }
-              />
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg border">
-              <div>
-                <p className="font-medium text-gray-900">일정 알림</p>
-                <p className="text-sm text-gray-600">병원 방문 및 복약 알림</p>
-              </div>
-              <Switch
-                checked={notifications.schedule}
-                onCheckedChange={(checked) =>
-                  setNotifications(prev => ({ ...prev, schedule: checked }))
-                }
-              />
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg border">
-              <div>
-                <p className="font-medium text-gray-900">뱃지 알림</p>
-                <p className="text-sm text-gray-600">새로운 뱃지 획득 알림</p>
-              </div>
-              <Switch
-                checked={notifications.badge}
-                onCheckedChange={(checked) =>
-                  setNotifications(prev => ({ ...prev, badge: checked }))
-                }
               />
             </div>
           </CardContent>

@@ -3,75 +3,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Label } from "../components/ui/label";
 import { Switch } from "../components/ui/switch";
 import { Button } from "../components/ui/button";
-import {
-  Bell,
-  Clock,
-  Activity,
-  Heart,
-  FileText,
-  AlertTriangle,
-  Moon,
-} from "lucide-react";
+import { Bell, Activity, Smartphone } from "lucide-react";
 import api from "../../lib/api";
 
 interface NotificationSetting {
-  id: number;
-  user_id: number;
-  push_enabled: boolean;
-  appointment_reminder: boolean;
-  challenge_reminder: boolean;
-  weekly_report: boolean;
-  notification_time: string;
-  night_mode_enabled: boolean;
-  daily_action_reminder: boolean;
+  challenge_notification: boolean;
   streak_reminder: boolean;
-  risk_change_alert: boolean;
-  goal_achievement_alert: boolean;
-  meal_reminder: boolean;
-  water_reminder: boolean;
-  alcohol_warning: boolean;
-  immediate_risk_alert: boolean;
   challenge_fail_warning: boolean;
-  updated_at: string;
+  meal_reminder: boolean;
 }
 
 export function NotificationSettings() {
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [appointmentReminder, setAppointmentReminder] = useState(true);
-  const [challengeReminder, setChallengeReminder] = useState(true);
-  const [weeklyReport, setWeeklyReport] = useState(true);
-  const [notificationTime, setNotificationTime] = useState("09:00");
-  const [nightMode, setNightMode] = useState(false);
-  const [dailyAction, setDailyAction] = useState(true);
+  const [challengeNotification, setChallengeNotification] = useState(true);
   const [streakReminder, setStreakReminder] = useState(true);
-  const [riskChange, setRiskChange] = useState(true);
-  const [goalAchievement, setGoalAchievement] = useState(true);
-  const [mealReminder, setMealReminder] = useState(false);
-  const [waterReminder, setWaterReminder] = useState(false);
-  const [alcoholWarning, setAlcoholWarning] = useState(true);
-  const [immediateRiskAlert, setImmediateRiskAlert] = useState(true);
   const [challengeFailWarning, setChallengeFailWarning] = useState(true);
-
+  const [mealReminder, setMealReminder] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api.get<NotificationSetting>("/api/v1/notifications/settings").then((res) => {
       const s = res.data;
-      setPushEnabled(s.push_enabled);
-      setAppointmentReminder(s.appointment_reminder);
-      setChallengeReminder(s.challenge_reminder);
-      setWeeklyReport(s.weekly_report);
-      setNotificationTime(s.notification_time);
-      setNightMode(s.night_mode_enabled);
-      setDailyAction(s.daily_action_reminder);
+      setChallengeNotification(s.challenge_notification);
       setStreakReminder(s.streak_reminder);
-      setRiskChange(s.risk_change_alert);
-      setGoalAchievement(s.goal_achievement_alert);
-      setMealReminder(s.meal_reminder);
-      setWaterReminder(s.water_reminder);
-      setAlcoholWarning(s.alcohol_warning);
-      setImmediateRiskAlert(s.immediate_risk_alert);
       setChallengeFailWarning(s.challenge_fail_warning);
+      setMealReminder(s.meal_reminder);
     });
   }, []);
 
@@ -79,21 +34,10 @@ export function NotificationSettings() {
     setSaving(true);
     try {
       await api.put("/api/v1/notifications/settings", {
-        push_enabled: pushEnabled,
-        appointment_reminder: appointmentReminder,
-        challenge_reminder: challengeReminder,
-        weekly_report: weeklyReport,
-        notification_time: notificationTime,
-        night_mode_enabled: nightMode,
-        daily_action_reminder: dailyAction,
+        challenge_notification: challengeNotification,
         streak_reminder: streakReminder,
-        risk_change_alert: riskChange,
-        goal_achievement_alert: goalAchievement,
-        meal_reminder: mealReminder,
-        water_reminder: waterReminder,
-        alcohol_warning: alcoholWarning,
-        immediate_risk_alert: immediateRiskAlert,
         challenge_fail_warning: challengeFailWarning,
+        meal_reminder: mealReminder,
       });
     } finally {
       setSaving(false);
@@ -107,276 +51,109 @@ export function NotificationSettings() {
           <Bell className="size-8 text-emerald-600" />
           알림 설정
         </h2>
-        <p className="text-gray-600">알림 수신 방식을 설정하세요</p>
+        <p className="text-gray-600">앱 설치 후 활성화되는 알림을 미리 설정하세요</p>
       </div>
 
-      {/* 1. 전체 알림 */}
-      <Card className="border-2 border-emerald-100">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                <Bell className="size-5 text-emerald-600" />
-              </div>
-              <div>
-                <Label htmlFor="all-notifications" className="text-base font-bold text-gray-900 cursor-pointer">
-                  전체 알림 받기
-                </Label>
-                <p className="text-sm text-gray-500">모든 알림을 활성화합니다</p>
-              </div>
+      {/* 앱 전용 안내 배너 */}
+      <Card className="border-2 border-blue-200 bg-blue-50/50">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <div className="size-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <Smartphone className="size-5 text-blue-600" />
             </div>
-            <Switch
-              id="all-notifications"
-              checked={pushEnabled}
-              onCheckedChange={setPushEnabled}
-              className="data-[state=checked]:bg-emerald-600"
-            />
+            <div>
+              <p className="font-semibold text-blue-900">앱 설치 후 이용 가능</p>
+              <p className="text-sm text-blue-700 mt-0.5">
+                푸시 알림은 모바일 앱으로 이용할 때 활성화됩니다. 지금 설정해두면 앱 출시 후 자동으로 적용됩니다.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 2. 알림 시간 */}
-      <Card className="border-2 border-blue-100">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Clock className="size-5 text-blue-600" />
-            알림 시간
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="notification-time" className="text-sm font-medium text-gray-700 mb-2 block">
-              알림 수신 시간
-            </Label>
-            <input
-              id="notification-time"
-              type="time"
-              value={notificationTime}
-              onChange={(e) => setNotificationTime(e.target.value)}
-              disabled={!pushEnabled}
-              className="w-full h-12 px-4 border-2 border-gray-200 rounded-lg text-lg font-medium disabled:bg-gray-100 disabled:text-gray-400"
-            />
-          </div>
-
-          <div className="flex items-center justify-between py-3 border-t">
-            <div className="flex items-center gap-2">
-              <Moon className="size-4 text-indigo-600" />
-              <Label htmlFor="night-mode" className="text-sm font-medium text-gray-900 cursor-pointer">
-                야간 알림 허용 (22:00 ~ 07:00)
-              </Label>
-            </div>
-            <Switch
-              id="night-mode"
-              checked={nightMode}
-              onCheckedChange={setNightMode}
-              disabled={!pushEnabled}
-              className="data-[state=checked]:bg-indigo-600"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 3. 생활습관 알림 */}
+      {/* 챌린지 알림 */}
       <Card className="border-2 border-emerald-100">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Activity className="size-5 text-emerald-600" />
-            생활습관 알림
+            챌린지 알림
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between py-3 border-b">
-            <Label htmlFor="daily-action" className="text-sm font-medium text-gray-900 cursor-pointer">
-              오늘의 행동 알림
-            </Label>
+            <div>
+              <Label htmlFor="challenge-notification" className="text-sm font-medium text-gray-900 cursor-pointer">
+                챌린지 수행 알림
+              </Label>
+              <p className="text-xs text-gray-500 mt-0.5">오늘 챌린지를 아직 기록하지 않았을 때 알림</p>
+            </div>
             <Switch
-              id="daily-action"
-              checked={dailyAction}
-              onCheckedChange={setDailyAction}
-              disabled={!pushEnabled}
+              id="challenge-notification"
+              checked={challengeNotification}
+              onCheckedChange={setChallengeNotification}
               className="data-[state=checked]:bg-emerald-600"
             />
           </div>
 
           <div className="flex items-center justify-between py-3 border-b">
-            <Label htmlFor="challenge-reminder" className="text-sm font-medium text-gray-900 cursor-pointer">
-              챌린지 수행 알림
-            </Label>
-            <Switch
-              id="challenge-reminder"
-              checked={challengeReminder}
-              onCheckedChange={setChallengeReminder}
-              disabled={!pushEnabled}
-              className="data-[state=checked]:bg-emerald-600"
-            />
-          </div>
-
-          <div className="flex items-center justify-between py-3">
-            <Label htmlFor="streak-reminder" className="text-sm font-medium text-gray-900 cursor-pointer">
-              스트릭 유지 알림
-            </Label>
+            <div>
+              <Label htmlFor="streak-reminder" className="text-sm font-medium text-gray-900 cursor-pointer">
+                스트릭 유지 알림
+              </Label>
+              <p className="text-xs text-gray-500 mt-0.5">연속 참여가 끊길 것 같을 때 알림</p>
+            </div>
             <Switch
               id="streak-reminder"
               checked={streakReminder}
               onCheckedChange={setStreakReminder}
-              disabled={!pushEnabled}
+              className="data-[state=checked]:bg-emerald-600"
+            />
+          </div>
+
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <Label htmlFor="challenge-fail-warning" className="text-sm font-medium text-gray-900 cursor-pointer">
+                챌린지 실패 직전 알림
+              </Label>
+              <p className="text-xs text-gray-500 mt-0.5">기간 내 완료가 어려울 것 같을 때 경고</p>
+            </div>
+            <Switch
+              id="challenge-fail-warning"
+              checked={challengeFailWarning}
+              onCheckedChange={setChallengeFailWarning}
               className="data-[state=checked]:bg-emerald-600"
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* 4. 건강 알림 */}
-      <Card className="border-2 border-purple-100">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Heart className="size-5 text-purple-600" />
-            건강 알림
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between py-3 border-b">
-            <Label htmlFor="risk-change" className="text-sm font-medium text-gray-900 cursor-pointer">
-              위험도 변화 알림
-            </Label>
-            <Switch
-              id="risk-change"
-              checked={riskChange}
-              onCheckedChange={setRiskChange}
-              disabled={!pushEnabled}
-              className="data-[state=checked]:bg-purple-600"
-            />
-          </div>
-
-          <div className="flex items-center justify-between py-3 border-b">
-            <Label htmlFor="weekly-report" className="text-sm font-medium text-gray-900 cursor-pointer">
-              주간 리포트 알림
-            </Label>
-            <Switch
-              id="weekly-report"
-              checked={weeklyReport}
-              onCheckedChange={setWeeklyReport}
-              disabled={!pushEnabled}
-              className="data-[state=checked]:bg-purple-600"
-            />
-          </div>
-
-          <div className="flex items-center justify-between py-3">
-            <Label htmlFor="goal-achievement" className="text-sm font-medium text-gray-900 cursor-pointer">
-              목표 달성 알림
-            </Label>
-            <Switch
-              id="goal-achievement"
-              checked={goalAchievement}
-              onCheckedChange={setGoalAchievement}
-              disabled={!pushEnabled}
-              className="data-[state=checked]:bg-purple-600"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 5. 기록 알림 */}
+      {/* 기록 알림 */}
       <Card className="border-2 border-blue-100">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="size-5 text-blue-600" />
+            <Bell className="size-5 text-blue-600" />
             기록 알림
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between py-3 border-b">
-            <Label htmlFor="meal-reminder" className="text-sm font-medium text-gray-900 cursor-pointer">
-              식단 기록 알림
-            </Label>
+        <CardContent>
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <Label htmlFor="meal-reminder" className="text-sm font-medium text-gray-900 cursor-pointer">
+                식단 기록 알림
+              </Label>
+              <p className="text-xs text-gray-500 mt-0.5">식단 분석을 아직 하지 않았을 때 알림</p>
+            </div>
             <Switch
               id="meal-reminder"
               checked={mealReminder}
               onCheckedChange={setMealReminder}
-              disabled={!pushEnabled}
-              className="data-[state=checked]:bg-blue-600"
-            />
-          </div>
-
-          <div className="flex items-center justify-between py-3">
-            <Label htmlFor="water-reminder" className="text-sm font-medium text-gray-900 cursor-pointer">
-              물 섭취 알림
-            </Label>
-            <Switch
-              id="water-reminder"
-              checked={waterReminder}
-              onCheckedChange={setWaterReminder}
-              disabled={!pushEnabled}
               className="data-[state=checked]:bg-blue-600"
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* 6. 핵심 알림 */}
-      <Card className="border-2 border-red-200 bg-red-50/30">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="size-5 text-red-600" />
-            <div>
-              <CardTitle className="text-lg text-red-900">핵심 알림</CardTitle>
-              <p className="text-sm text-red-700 mt-1">중요한 건강 알림입니다</p>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between py-3 border-b border-red-200">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="size-4 text-red-600" />
-              <Label htmlFor="alcohol-warning" className="text-sm font-bold text-red-900 cursor-pointer">
-                음주 경고 알림
-              </Label>
-            </div>
-            <Switch
-              id="alcohol-warning"
-              checked={alcoholWarning}
-              onCheckedChange={setAlcoholWarning}
-              disabled={!pushEnabled}
-              className="data-[state=checked]:bg-red-600"
-            />
-          </div>
-
-          <div className="flex items-center justify-between py-3 border-b border-red-200">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="size-4 text-red-600" />
-              <Label htmlFor="immediate-risk" className="text-sm font-bold text-red-900 cursor-pointer">
-                위험도 상승 시 즉시 알림
-              </Label>
-            </div>
-            <Switch
-              id="immediate-risk"
-              checked={immediateRiskAlert}
-              onCheckedChange={setImmediateRiskAlert}
-              disabled={!pushEnabled}
-              className="data-[state=checked]:bg-red-600"
-            />
-          </div>
-
-          <div className="flex items-center justify-between py-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="size-4 text-red-600" />
-              <Label htmlFor="challenge-fail" className="text-sm font-bold text-red-900 cursor-pointer">
-                챌린지 실패 직전 알림
-              </Label>
-            </div>
-            <Switch
-              id="challenge-fail"
-              checked={challengeFailWarning}
-              onCheckedChange={setChallengeFailWarning}
-              disabled={!pushEnabled}
-              className="data-[state=checked]:bg-red-600"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Save Button */}
-      <div className="sticky bottom-4 pt-4">
+      <div className="sticky bottom-4 pt-2">
         <Button
           onClick={handleSave}
           disabled={saving}
