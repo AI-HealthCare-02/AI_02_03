@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { RouterProvider } from "react-router";
+import { Toaster } from "./components/ui/sonner";
 import { router } from "./routes";
 import { useAuthStore } from "../store/authStore";
 
@@ -17,5 +18,10 @@ export default function App() {
     }
   }, [fetchMe]);
 
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <RouterProvider router={router} />
+      <Toaster />
+    </>
+  );
 }
