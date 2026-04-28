@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import type React from "react";
 import { Link } from "react-router";
 import api from "../../lib/api";
 import { Card, CardContent } from "../components/ui/card";
@@ -37,13 +36,12 @@ import {
 } from "../types/challenges";
 
 interface BadgeItem {
-  id: number;
+  key: string;
   name: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
+  emoji: string;
   earned: boolean;
-  tags: string[];
-  date?: string;
+  earned_at?: string | null;
 }
 type CompleteState = "idle" | "loading" | "done";
 
@@ -107,8 +105,7 @@ export function Challenges() {
   const filterChallenges = (list: Challenge[]) =>
     selectedTags.length === 0 ? list : list.filter((c) => selectedTags.includes(c.category));
 
-  const filterBadges = (list: BadgeItem[]) =>
-    selectedTags.length === 0 ? list : list.filter((b) => b.tags.some((t) => selectedTags.includes(t)));
+  const [badges, setBadges] = useState<BadgeItem[]>([]);
 
   const sortedAvailable = filterChallenges(
     [...availableChallenges]
@@ -120,18 +117,6 @@ export function Challenges() {
         return aJoined - bJoined;
       })
   );
-
-  const earnedBadges: BadgeItem[] = completedChallenges.map((challenge) => ({
-    id: challenge.id,
-    name: challenge.title,
-    description: `${challenge.category} 챌린지 완료`,
-    icon: challenge.icon,
-    earned: true,
-    tags: [challenge.category],
-    date: challenge.completedAt ? challenge.completedAt.slice(0, 10) : undefined,
-  }));
-
-  const filteredBadges = filterBadges(earnedBadges);
 
   const fetchActiveChallenges = async () => {
     const r = await api.get<UserChallengeAPI[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } });
@@ -157,6 +142,7 @@ export function Challenges() {
       })
       .catch(() => {})
       .finally(() => setSuggestedLoading(false));
+    api.get<BadgeItem[]>("/api/v1/badges/me").then((r) => setBadges(r.data)).catch(() => {});
   }, []);
 
   const handleJoinConfirm = async () => {
@@ -434,44 +420,43 @@ export function Challenges() {
         </TabsContent>
 
         <TabsContent value="badges" className="space-y-4">
-          {filteredBadges.length === 0 ? (
+          {badges.length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center">
-                <p className="text-gray-500">완료한 챌린지가 없어 표시할 뱃지가 없습니다</p>
-                <p className="text-sm text-gray-400 mt-2">챌린지를 완료하면 자동으로 반영됩니다</p>
+                <p className="text-gray-500">아직 획득한 뱃지가 없습니다</p>
+                <p className="text-sm text-gray-400 mt-2">챌린지를 완료하면 뱃지를 획득할 수 있습니다</p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {filteredBadges.map((badge) => {
-                const Icon = badge.icon;
-                return (
-                  <Card
-                    key={badge.id}
-                    className="border-2 border-amber-200 bg-gradient-to-br from-amber-50/60 to-white hover:shadow-md transition-shadow"
-                  >
-                    <CardContent className="p-4 space-y-3 text-center">
-                      <div className="size-14 rounded-full flex items-center justify-center mx-auto bg-amber-100">
-                        <Icon className="size-7 text-amber-600" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-sm text-gray-900">{badge.name}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{badge.description}</p>
-                      </div>
-                      {badge.date && (
-                        <p className="text-xs text-amber-600">{badge.date} 획득</p>
-                      )}
-                      <div className="flex flex-wrap gap-1 justify-center">
-                        {badge.tags.map((tag) => (
-                          <Badge key={tag} variant="outline" className="text-xs bg-gray-50 text-gray-500 border-gray-200 px-1.5">
-                            #{tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+              {badges.map((badge) => (
+                <Card
+                  key={badge.key}
+                  className={`transition-shadow ${
+                    badge.earned
+                      ? "border-2 border-amber-200 bg-gradient-to-br from-amber-50/60 to-white hover:shadow-md"
+                      : "border border-gray-200 opacity-50 grayscale"
+                  }`}
+                >
+                  <CardContent className="p-4 space-y-2 text-center">
+                    <div className={`size-14 rounded-full flex items-center justify-center mx-auto text-3xl ${badge.earned ? "bg-amber-100" : "bg-gray-100"}`}>
+                      {badge.emoji}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm text-gray-900">{badge.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{badge.description}</p>
+                    </div>
+                    {badge.earned && badge.earned_at && (
+                      <p className="text-xs text-amber-600">
+                        {badge.earned_at.slice(0, 10)} 획득
+                      </p>
+                    )}
+                    {!badge.earned && (
+                      <Badge variant="outline" className="text-xs text-gray-400 border-gray-300">미획득</Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </TabsContent>
