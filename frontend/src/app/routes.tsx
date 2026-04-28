@@ -19,18 +19,18 @@ async function requireAuth() {
 }
 import { Challenges } from "./pages/Challenges";
 import { Education } from "./pages/Education";
-import { Progress } from "./pages/Progress";
 import { Schedule } from "./pages/Schedule";
-import { MyPage } from "./pages/MyPage";
 import { AccountManagement } from "./pages/AccountManagement";
 import { MyInfo } from "./pages/MyInfo";
 import { ChangeNickname } from "./pages/ChangeNickname";
 import { ChangePassword } from "./pages/ChangePassword";
 import { DeleteAccount } from "./pages/DeleteAccount";
-import { ActivityHistory } from "./pages/ActivityHistory";
 import { NotificationSettings } from "./pages/NotificationSettings";
 import { HealthDataManagement } from "./pages/HealthDataManagement";
 import { Profile } from "./pages/Profile";
+import { Diet } from "./pages/Diet";
+import { HealthRecord } from "./pages/HealthRecord";
+import { Settings } from "./pages/Settings";
 import { Signup } from "./pages/Signup";
 import { Login } from "./pages/Login";
 import { SocialCallback } from "./pages/SocialCallback";
@@ -50,18 +50,18 @@ export const router = createBrowserRouter([
       { index: true, Component: Home },
       { path: "challenges", Component: Challenges },
       { path: "education", Component: Education },
-      { path: "progress", Component: Progress },
       { path: "schedule", Component: Schedule },
-      { path: "mypage", Component: MyPage },
       { path: "mypage/account", Component: AccountManagement },
       { path: "mypage/account/info", Component: MyInfo },
       { path: "mypage/account/nickname", Component: ChangeNickname },
       { path: "mypage/account/password", Component: ChangePassword },
       { path: "mypage/account/delete", Component: DeleteAccount },
-      { path: "mypage/history", Component: ActivityHistory },
       { path: "mypage/notifications", Component: NotificationSettings },
       { path: "mypage/survey", Component: HealthDataManagement },
       { path: "mypage/profile", Component: Profile },
+      { path: "mypage/settings", Component: Settings },
+      { path: "diet", Component: Diet },
+      { path: "health-record", Component: HealthRecord },
     ],
   },
   {
