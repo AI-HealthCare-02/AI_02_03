@@ -143,6 +143,7 @@ export function Home() {
   const [measureSubmitting, setMeasureSubmitting] = useState(false);
   const [currentSurvey, setCurrentSurvey] = useState<{ weight: number; waist: number } | null>(null);
   const [completeResult, setCompleteResult] = useState<{ score_before: number; new_score: number; new_grade: string } | null>(null);
+  const [pendingBadge, setPendingBadge] = useState<{ name: string; emoji: string } | null>(null);
 
   const [improvementFactors, setImprovementFactors] = useState<ImprovementFactor[]>([]);
 
@@ -301,7 +302,7 @@ export function Home() {
       );
       setCompleteResult(res.data);
       if (res.data.earned_badge) {
-        showBadgeToast(res.data.earned_badge);
+        setPendingBadge(res.data.earned_badge);
       }
       await fetchChallenges();
     } catch { /* 오류 무시 */ } finally {
@@ -927,7 +928,13 @@ export function Home() {
                   : "점수 변동 없음"}
               </p>
             )}
-            <Button className="w-full bg-gradient-to-r from-emerald-500 to-teal-600" onClick={() => setCompleteResult(null)}>
+            <Button className="w-full bg-gradient-to-r from-emerald-500 to-teal-600" onClick={() => {
+              setCompleteResult(null);
+              if (pendingBadge) {
+                showBadgeToast(pendingBadge);
+                setPendingBadge(null);
+              }
+            }}>
               확인
             </Button>
           </div>
