@@ -41,14 +41,10 @@ def _exercise_penalty(weekly_count: int) -> int:
         return -10
 
 
-def _smoking_penalty(current_smoking: str, smoking_history: str) -> int:
-    """흡연 패널티 (최대 -15)
-    counterfactual: 모델에서 흡연여부 효과 0 → 패널티로 처리
-    """
+def _smoking_penalty(current_smoking: str) -> int:
+    """흡연 패널티 — 현재 흡연자만 감점, 과거 흡연 이력은 패널티 없음"""
     if current_smoking == "흡연":
         return -15
-    if smoking_history not in ("없음", "비흡연"):  # 과거 흡연
-        return -5
     return 0
 
 

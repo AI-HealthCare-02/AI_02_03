@@ -626,7 +626,7 @@ class ChallengeService:
                 }
             ),
             "운동": lambda: _exercise_penalty(survey.weekly_exercise_count),
-            "금연": lambda: _smoking_penalty(survey.current_smoking, survey.smoking),
+            "금연": lambda: _smoking_penalty(survey.current_smoking),
             "수면": lambda: _sleep_penalty(survey.sleep_hours, survey.sleep_disorder),
         }
 
