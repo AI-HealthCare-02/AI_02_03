@@ -257,8 +257,8 @@ export function Challenges() {
           </TabsTrigger>
         </TabsList>
 
-        {/* 태그 필터 */}
-        {allTags.length > 0 && (
+        {/* 태그 필터 (뱃지 탭 제외) */}
+        {allTags.length > 0 && activeTab !== "badges" && (
           <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-gray-700">태그 필터</p>
