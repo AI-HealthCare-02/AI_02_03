@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Link } from "react-router";
 import api from "../../lib/api";
 import { Card, CardContent } from "../components/ui/card";
@@ -200,6 +201,17 @@ export function Challenges() {
       await fetchActiveChallenges();
       await fetchCompletedChallenges();
       api.get<BadgeItem[]>("/api/v1/badges/me").then((r) => setBadges(r.data)).catch(() => {});
+      if (r.data.earned_badge) {
+        toast.custom(() => (
+          <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl shadow-lg px-5 py-3 flex items-center gap-3">
+            <span className="text-3xl">{r.data.earned_badge!.emoji}</span>
+            <div>
+              <p className="text-xs font-semibold text-amber-600 tracking-wide">🏅 뱃지 획득!</p>
+              <p className="text-sm font-bold text-gray-900">{r.data.earned_badge!.name}</p>
+            </div>
+          </div>
+        ), { duration: 4000, position: "top-center" });
+      }
     } catch {
       setCompleteState("idle");
       setCompleteTarget(null);

@@ -145,7 +145,18 @@ export function Home() {
   const [completeResult, setCompleteResult] = useState<{ score_before: number; new_score: number; new_grade: string } | null>(null);
 
   const [improvementFactors, setImprovementFactors] = useState<ImprovementFactor[]>([]);
-  const [earnedBadge, setEarnedBadge] = useState<{ name: string; emoji: string } | null>(null);
+
+  const showBadgeToast = (badge: { name: string; emoji: string }) => {
+    toast.custom(() => (
+      <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl shadow-lg px-5 py-3 flex items-center gap-3">
+        <span className="text-3xl">{badge.emoji}</span>
+        <div>
+          <p className="text-xs font-semibold text-amber-600 tracking-wide">🏅 뱃지 획득!</p>
+          <p className="text-sm font-bold text-gray-900">{badge.name}</p>
+        </div>
+      </div>
+    ), { duration: 4000, position: "top-center" });
+  };
 
   const [foodAnalyzing, setFoodAnalyzing] = useState(false);
   const [foodResult, setFoodResult] = useState<FoodAnalysisResult | null>(null);
@@ -270,8 +281,7 @@ export function Home() {
         { is_completed: true },
       );
       if (res.data.earned_badge) {
-        setEarnedBadge(res.data.earned_badge);
-        setTimeout(() => setEarnedBadge(null), 4000);
+        showBadgeToast(res.data.earned_badge);
       }
       await fetchChallenges();
     } catch { /* 이미 오늘 기록함 */ } finally {
@@ -286,10 +296,13 @@ export function Home() {
       const body: Record<string, number> = {};
       if (measureWeight) body.weight = Number(measureWeight);
       if (measureWaist) body.waist = Number(measureWaist);
-      const res = await api.patch<{ score_before: number; new_score: number; new_grade: string }>(
+      const res = await api.patch<{ score_before: number; new_score: number; new_grade: string; earned_badge?: { name: string; emoji: string } | null }>(
         `/api/v1/user-challenges/${finalCompleteTarget.user_challenge_id}/complete`, body
       );
       setCompleteResult(res.data);
+      if (res.data.earned_badge) {
+        showBadgeToast(res.data.earned_badge);
+      }
       await fetchChallenges();
     } catch { /* 오류 무시 */ } finally {
       setFinalCompleteTarget(null);
@@ -454,20 +467,7 @@ export function Home() {
         </div>
       )}
 
-      {/* 뱃지 획득 토스트 */}
-      {earnedBadge && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl shadow-lg px-6 py-4 flex items-center gap-3">
-            <span className="text-3xl">{earnedBadge.emoji}</span>
-            <div>
-              <p className="text-xs font-medium text-amber-600">뱃지 획득!</p>
-              <p className="text-base font-bold text-gray-900">{earnedBadge.name}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="text-center space-y-1.5">
+<div className="text-center space-y-1.5">
         <h2 className="text-3xl font-bold text-gray-900">
           안녕하세요, {user?.nickname ?? ""}님! 👋
         </h2>
