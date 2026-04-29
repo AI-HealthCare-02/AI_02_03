@@ -595,6 +595,11 @@ class ChallengeService:
             rollback_ratio = _get_rollback_ratio(consecutive)
             await self._rollback_survey(uc.user_id, uc.survey_snapshot, consecutive)
             await self.uc_repo.update(uc, {"is_maintenance": False, "survey_snapshot": None})
+
+            latest = await self.prediction_repo.get_latest_by_user_id(uc.user_id)
+            rolled_back_survey = await self.survey_repo.get_by_user_id(uc.user_id)
+            await self._run_and_save_prediction(uc.user_id, rolled_back_survey, latest.score if latest else 0.0, latest)
+
             rollback_pct = int(rollback_ratio * 100)
             detail = (
                 f"{challenge_type} 유지 모드가 종료되었습니다. "
@@ -666,6 +671,9 @@ class ChallengeService:
             consecutive = await self.log_repo.get_consecutive_days(uc.id)
             await self._rollback_survey(uc.user_id, uc.survey_snapshot, consecutive)
             await self.uc_repo.update(uc, {"is_maintenance": False, "survey_snapshot": None})
+            latest = await self.prediction_repo.get_latest_by_user_id(uc.user_id)
+            rolled_back_survey = await self.survey_repo.get_by_user_id(uc.user_id)
+            await self._run_and_save_prediction(uc.user_id, rolled_back_survey, latest.score if latest else 0.0, latest)
         return len(stale)
 
     async def add_log(self, user: User, user_challenge_id: int, is_completed: bool) -> ChallengeLogResponse:
