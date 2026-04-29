@@ -57,11 +57,9 @@ def _exercise_penalty(weekly_count: int) -> int:
     return -10
 
 
-def _smoking_penalty(current_smoking: str, smoking_history: str) -> int:
+def _smoking_penalty(current_smoking: str) -> int:
     if current_smoking == "흡연":
         return -15
-    if smoking_history not in ("없음", "비흡연", "흡연경험없음"):
-        return -5
     return 0
 
 
@@ -100,7 +98,7 @@ _IMPROVEMENT_BUNDLES = [
         "challenge_type": "금연",
         "penalty_based": True,
         "condition": lambda row, p: p.get("현재흡연여부") == "흡연",
-        "penalty_fn": lambda row, p: _smoking_penalty(p.get("현재흡연여부", "안함"), row.get("흡연여부", "없음")),
+        "penalty_fn": lambda row, p: _smoking_penalty(p.get("현재흡연여부", "안함")),
     },
     {
         "category": "수면",

@@ -259,6 +259,13 @@ class ChallengeService:
                     "수면장애여부": updated_survey.sleep_disorder,
                     "식습관자가평가": updated_survey.diet_eval,
                     "간질환진단여부": "없음",
+                    # penalty 컬럼 — ML 모델에서 제외되나 improvement_factors 계산에 필요
+                    "음주여부": updated_survey.drinking,
+                    "1회음주량": updated_survey.drink_amount,
+                    "주당음주빈도": updated_survey.weekly_drink_freq,
+                    "월폭음빈도": updated_survey.monthly_binge_freq,
+                    "현재흡연여부": updated_survey.current_smoking,
+                    "평균수면시간": updated_survey.sleep_hours,
                 }
                 result = celery_app.send_task("predict_fatty_liver", args=[input_data]).get(timeout=30)
                 new_score = float(result["score"])
@@ -542,7 +549,7 @@ class ChallengeService:
         penalties = {
             "금주": _alcohol_penalty(alcohol_data),
             "운동": _exercise_penalty(survey.weekly_exercise_count),
-            "금연": _smoking_penalty(survey.current_smoking, survey.smoking),
+            "금연": _smoking_penalty(survey.current_smoking),
             "수면": _sleep_penalty(survey.sleep_hours, survey.sleep_disorder),
         }
 
