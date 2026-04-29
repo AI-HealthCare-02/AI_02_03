@@ -73,7 +73,6 @@ def _calc_recovery_rate(consecutive_days: int) -> float:
     return 0.0
 
 
-
 class ChallengeService:
     def __init__(self, session: AsyncSession):
         self._session = session
@@ -295,6 +294,7 @@ class ChallengeService:
             if survey.drinking == "음주안함":
                 updates["drinking"] = "음주함"
             from app.services.health_surveys import _calc_monthly_binge
+
             updates["monthly_binge_freq"] = _calc_monthly_binge(new_amount, new_freq)
 
         # 금연: 설문값 변경 없음 (비흡연자가 다시 흡연자가 될 가능성은 낮음)
@@ -387,15 +387,25 @@ class ChallengeService:
             try:
                 waist = survey.waist if survey.waist > 0 else _estimate_waist(survey.gender, survey.bmi)
                 input_data = {
-                    "나이": survey.age, "성별": survey.gender, "키": survey.height,
-                    "몸무게": survey.weight, "BMI": survey.bmi, "허리둘레": waist,
-                    "주당운동횟수": survey.weekly_exercise_count, "흡연여부": survey.smoking,
-                    "당뇨진단여부": survey.diabetes, "고혈압진단여부": survey.hypertension,
-                    "수면장애여부": survey.sleep_disorder, "식습관자가평가": survey.diet_eval,
+                    "나이": survey.age,
+                    "성별": survey.gender,
+                    "키": survey.height,
+                    "몸무게": survey.weight,
+                    "BMI": survey.bmi,
+                    "허리둘레": waist,
+                    "주당운동횟수": survey.weekly_exercise_count,
+                    "흡연여부": survey.smoking,
+                    "당뇨진단여부": survey.diabetes,
+                    "고혈압진단여부": survey.hypertension,
+                    "수면장애여부": survey.sleep_disorder,
+                    "식습관자가평가": survey.diet_eval,
                     "간질환진단여부": "없음",
-                    "음주여부": survey.drinking, "1회음주량": survey.drink_amount,
-                    "주당음주빈도": survey.weekly_drink_freq, "월폭음빈도": survey.monthly_binge_freq,
-                    "현재흡연여부": survey.current_smoking, "평균수면시간": survey.sleep_hours,
+                    "음주여부": survey.drinking,
+                    "1회음주량": survey.drink_amount,
+                    "주당음주빈도": survey.weekly_drink_freq,
+                    "월폭음빈도": survey.monthly_binge_freq,
+                    "현재흡연여부": survey.current_smoking,
+                    "평균수면시간": survey.sleep_hours,
                 }
                 result = celery_app.send_task("predict_fatty_liver", args=[input_data]).get(timeout=30)
                 new_score = float(result["score"])
@@ -406,10 +416,15 @@ class ChallengeService:
             new_score = await self._apply_all_penalties(user_id, survey, new_score)
 
         new_grade = _grade(int(new_score))
-        await self.prediction_repo.create({
-            "user_id": user_id, "score": new_score, "grade": new_grade,
-            "character_state": new_character_state, "improvement_factors": new_improvement_factors,
-        })
+        await self.prediction_repo.create(
+            {
+                "user_id": user_id,
+                "score": new_score,
+                "grade": new_grade,
+                "character_state": new_character_state,
+                "improvement_factors": new_improvement_factors,
+            }
+        )
         return new_score, new_grade
 
     async def _update_weight(
