@@ -224,7 +224,7 @@ class ChallengeService:
                 else None
             )
             survey_changes = await self._apply_survey_update(uc, survey, input_weight)
-            if pre_snapshot and survey_changes:
+            if pre_snapshot:
                 await self.uc_repo.update(uc, {"survey_snapshot": pre_snapshot})
 
         # 체중/허리 명시적 입력값 적용 (모든 챌린지 공통)
