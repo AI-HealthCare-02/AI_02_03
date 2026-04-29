@@ -182,7 +182,7 @@ class ChallengeService:
         return result
 
     async def complete_challenge(
-        self, user: User, user_challenge_id: int, input_weight: float | None = None
+        self, user: User, user_challenge_id: int, input_weight: float | None = None, input_waist: float | None = None
     ) -> ChallengeCompleteResponse:
         uc = await self.uc_repo.get_by_id_and_user(user_challenge_id, user.id)
         if not uc:
@@ -227,63 +227,15 @@ class ChallengeService:
             if pre_snapshot and survey_changes:
                 await self.uc_repo.update(uc, {"survey_snapshot": pre_snapshot})
 
+        # 체중/허리 명시적 입력값 적용 (모든 챌린지 공통)
+        if input_weight is not None or input_waist is not None:
+            current = await self.survey_repo.get_by_user_id(user.id)
+            if current:
+                await self._apply_body_measurements(current, input_weight, input_waist)
+
         # 새 점수 계산 및 예측 저장
-        from celery import current_app as celery_app
-
-        from app.services.health_surveys import _calc_grade as _grade
-        from app.services.health_surveys import _estimate_waist
-
         updated_survey = await self.survey_repo.get_by_user_id(user.id)
-        new_score = float(score_before)
-        new_improvement_factors = latest.improvement_factors if latest else []
-        new_character_state = latest.character_state if latest else "normal"
-
-        if updated_survey:
-            try:
-                waist = (
-                    updated_survey.waist
-                    if updated_survey.waist > 0
-                    else _estimate_waist(updated_survey.gender, updated_survey.bmi)
-                )
-                input_data = {
-                    "나이": updated_survey.age,
-                    "성별": updated_survey.gender,
-                    "키": updated_survey.height,
-                    "몸무게": updated_survey.weight,
-                    "BMI": updated_survey.bmi,
-                    "허리둘레": waist,
-                    "주당운동횟수": updated_survey.weekly_exercise_count,
-                    "흡연여부": updated_survey.smoking,
-                    "당뇨진단여부": updated_survey.diabetes,
-                    "고혈압진단여부": updated_survey.hypertension,
-                    "수면장애여부": updated_survey.sleep_disorder,
-                    "식습관자가평가": updated_survey.diet_eval,
-                    "간질환진단여부": "없음",
-                    # penalty 컬럼 — ML 모델에서 제외되나 improvement_factors 계산에 필요
-                    "음주여부": updated_survey.drinking,
-                    "1회음주량": updated_survey.drink_amount,
-                    "주당음주빈도": updated_survey.weekly_drink_freq,
-                    "월폭음빈도": updated_survey.monthly_binge_freq,
-                    "현재흡연여부": updated_survey.current_smoking,
-                    "평균수면시간": updated_survey.sleep_hours,
-                }
-                result = celery_app.send_task("predict_fatty_liver", args=[input_data]).get(timeout=30)
-                new_score = float(result["score"])
-                new_improvement_factors = result.get("improvement_factors", new_improvement_factors)
-                new_character_state = result.get("stage_label", new_character_state)
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).error("챌린지 완료 예측 실패: %s", repr(e))
-            new_score = await self._apply_all_penalties(user.id, updated_survey, new_score)
-
-        new_grade = _grade(int(new_score))
-        await self.prediction_repo.create({
-            "user_id": user.id,
-            "score": new_score,
-            "grade": new_grade,
-            "character_state": new_character_state,
-            "improvement_factors": new_improvement_factors,
-        })
+        new_score, new_grade = await self._run_and_save_prediction(user.id, updated_survey, score_before, latest)
 
         from app.services.badges import BadgeService
 
@@ -441,6 +393,62 @@ class ChallengeService:
         new_score, new_eval = _calc_diet(qs)
         await self.survey_repo.update(survey, {field: new_val, "diet_score": new_score, "diet_eval": new_eval})
         return {"field": field, "before": before_val, "after": new_val}
+
+    async def _apply_body_measurements(self, survey, input_weight: float | None, input_waist: float | None) -> None:
+        updates: dict = {}
+        if input_weight is not None:
+            new_weight = round(max(input_weight, 30.0), 1)
+            h = survey.height / 100
+            new_bmi = round(new_weight / (h**2), 1)
+            updates["weight"] = new_weight
+            updates["bmi"] = new_bmi
+            if input_waist is None and survey.bmi > 0:
+                updates["waist"] = round(survey.waist * (new_bmi / survey.bmi), 1)
+        if input_waist is not None:
+            updates["waist"] = round(max(input_waist, 40.0), 1)
+        if updates:
+            await self.survey_repo.update(survey, updates)
+
+    async def _run_and_save_prediction(self, user_id: int, survey, score_before: float, latest) -> tuple[float, str]:
+        import logging
+
+        from celery import current_app as celery_app
+
+        from app.services.health_surveys import _calc_grade as _grade
+        from app.services.health_surveys import _estimate_waist
+
+        new_score = float(score_before)
+        new_improvement_factors = latest.improvement_factors if latest else []
+        new_character_state = latest.character_state if latest else "normal"
+
+        if survey:
+            try:
+                waist = survey.waist if survey.waist > 0 else _estimate_waist(survey.gender, survey.bmi)
+                input_data = {
+                    "나이": survey.age, "성별": survey.gender, "키": survey.height,
+                    "몸무게": survey.weight, "BMI": survey.bmi, "허리둘레": waist,
+                    "주당운동횟수": survey.weekly_exercise_count, "흡연여부": survey.smoking,
+                    "당뇨진단여부": survey.diabetes, "고혈압진단여부": survey.hypertension,
+                    "수면장애여부": survey.sleep_disorder, "식습관자가평가": survey.diet_eval,
+                    "간질환진단여부": "없음",
+                    "음주여부": survey.drinking, "1회음주량": survey.drink_amount,
+                    "주당음주빈도": survey.weekly_drink_freq, "월폭음빈도": survey.monthly_binge_freq,
+                    "현재흡연여부": survey.current_smoking, "평균수면시간": survey.sleep_hours,
+                }
+                result = celery_app.send_task("predict_fatty_liver", args=[input_data]).get(timeout=30)
+                new_score = float(result["score"])
+                new_improvement_factors = result.get("improvement_factors", new_improvement_factors)
+                new_character_state = result.get("stage_label", new_character_state)
+            except Exception as e:
+                logging.getLogger(__name__).error("챌린지 완료 예측 실패: %s", repr(e))
+            new_score = await self._apply_all_penalties(user_id, survey, new_score)
+
+        new_grade = _grade(int(new_score))
+        await self.prediction_repo.create({
+            "user_id": user_id, "score": new_score, "grade": new_grade,
+            "character_state": new_character_state, "improvement_factors": new_improvement_factors,
+        })
+        return new_score, new_grade
 
     async def _update_weight(
         self, uc, survey, prev_cum: int, new_cum: int, crossed: list[int], input_weight: float | None = None

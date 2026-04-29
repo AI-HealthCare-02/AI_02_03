@@ -67,9 +67,11 @@ export function Challenges() {
   const [completeState, setCompleteState] = useState<CompleteState>("idle");
   const [completeResult, setCompleteResult] = useState<CompleteResult | null>(null);
   const [completeTarget, setCompleteTarget] = useState<Challenge | null>(null);
-  // 체중감량 챌린지 체중 입력
-  const [weightInput, setWeightInput] = useState<string>("");
-  const [weightDialogOpen, setWeightDialogOpen] = useState(false);
+  // 완료 시 체중/허리 입력 (모든 챌린지 공통)
+  const [measureDialogOpen, setMeasureDialogOpen] = useState(false);
+  const [measureWeight, setMeasureWeight] = useState<string>("");
+  const [measureWaist, setMeasureWaist] = useState<string>("");
+  const [currentSurvey, setCurrentSurvey] = useState<{ weight: number; waist: number } | null>(null);
   const [joinError, setJoinError] = useState("");
 
   interface SuggestedChallenge {
@@ -143,6 +145,9 @@ export function Challenges() {
       .catch(() => {})
       .finally(() => setSuggestedLoading(false));
     api.get<BadgeItem[]>("/api/v1/badges/me").then((r) => setBadges(r.data)).catch(() => {});
+    api.get<{ weight: number; waist: number }>("/api/v1/surveys/me")
+      .then((r) => setCurrentSurvey(r.data))
+      .catch(() => {});
   }, []);
 
   const handleJoinConfirm = async () => {
@@ -173,21 +178,19 @@ export function Challenges() {
     }
   };
 
-  const handleCompleteChallenge = async (challenge: Challenge) => {
-    if (challenge.category === "체중감량") {
-      setCompleteTarget(challenge);
-      setWeightInput("");
-      setWeightDialogOpen(true);
-      return;
-    }
-    await submitComplete(challenge, undefined);
+  const handleCompleteChallenge = (challenge: Challenge) => {
+    setCompleteTarget(challenge);
+    setMeasureWeight(currentSurvey ? String(currentSurvey.weight) : "");
+    setMeasureWaist(currentSurvey ? String(currentSurvey.waist) : "");
+    setMeasureDialogOpen(true);
   };
 
-  const submitComplete = async (challenge: Challenge, weight: number | undefined) => {
-    setCompleteTarget(challenge);
+  const submitComplete = async (challenge: Challenge, weight: number | null, waist: number | null) => {
     setCompleteState("loading");
     try {
-      const body = weight !== undefined ? { weight } : {};
+      const body: Record<string, number> = {};
+      if (weight !== null) body.weight = weight;
+      if (waist !== null) body.waist = waist;
       const r = await api.patch<CompleteResult>(`/api/v1/user-challenges/${challenge.id}/complete`, body);
       setCompleteResult(r.data);
       setCompleteState("done");
@@ -503,37 +506,54 @@ export function Challenges() {
         </DialogContent>
       </Dialog>
 
-      {/* 체중 입력 다이얼로그 */}
-      <Dialog open={weightDialogOpen} onOpenChange={(o) => { if (!o) { setWeightDialogOpen(false); setCompleteTarget(null); } }}>
+      {/* 체중/허리 입력 다이얼로그 (모든 챌린지 공통) */}
+      <Dialog open={measureDialogOpen} onOpenChange={(o) => { if (!o) { setMeasureDialogOpen(false); setCompleteTarget(null); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>현재 체중을 입력해주세요</DialogTitle>
-            <DialogDescription>챌린지 완료 후 실제 체중을 기록하면 건강 점수에 반영됩니다.</DialogDescription>
+            <DialogTitle>현재 신체 정보를 확인해주세요</DialogTitle>
+            <DialogDescription>변화가 없으면 그대로 확인을 누르시면 됩니다.</DialogDescription>
           </DialogHeader>
-          <div className="flex items-center gap-2 py-2">
-            <input
-              type="number"
-              step="0.1"
-              min="30"
-              max="300"
-              value={weightInput}
-              onChange={(e) => setWeightInput(e.target.value)}
-              placeholder="예: 72.5"
-              className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-            <span className="text-sm text-gray-500">kg</span>
+          <div className="space-y-3 py-2">
+            <div className="flex items-center gap-2">
+              <label className="w-16 text-sm text-gray-600 shrink-0">체중</label>
+              <input
+                type="number"
+                step="0.1"
+                min="30"
+                max="300"
+                value={measureWeight}
+                onChange={(e) => setMeasureWeight(e.target.value)}
+                className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <span className="text-sm text-gray-500 w-6">kg</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="w-16 text-sm text-gray-600 shrink-0">허리둘레</label>
+              <input
+                type="number"
+                step="0.1"
+                min="40"
+                max="200"
+                value={measureWaist}
+                onChange={(e) => setMeasureWaist(e.target.value)}
+                className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <span className="text-sm text-gray-500 w-6">cm</span>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setWeightDialogOpen(false); setCompleteTarget(null); }}>취소</Button>
+            <Button variant="outline" onClick={() => { setMeasureDialogOpen(false); setCompleteTarget(null); }}>취소</Button>
             <Button
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              disabled={!weightInput || Number(weightInput) < 30}
               onClick={() => {
-                setWeightDialogOpen(false);
-                if (completeTarget) submitComplete(completeTarget, Number(weightInput));
+                setMeasureDialogOpen(false);
+                if (!completeTarget) return;
+                const w = measureWeight ? Number(measureWeight) : null;
+                const wa = measureWaist ? Number(measureWaist) : null;
+                submitComplete(completeTarget, w, wa);
               }}
             >
-              완료하기
+              확인
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -49,7 +49,8 @@ class UserChallengeResponse(BaseModel):
 
 
 class ChallengeCompleteRequest(BaseModel):
-    weight: float | None = None  # 체중감량 챌린지 완료 시 현재 체중 (kg)
+    weight: float | None = None
+    waist: float | None = None
 
 
 class ChallengeCompleteResponse(BaseModel):

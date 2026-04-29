@@ -137,7 +137,8 @@ async def complete_challenge(
     body: ChallengeCompleteRequest | None = None,
 ) -> Response:
     weight = body.weight if body else None
-    result = await service.complete_challenge(user, user_challenge_id, weight)
+    waist = body.waist if body else None
+    result = await service.complete_challenge(user, user_challenge_id, weight, waist)
     return Response(result.model_dump(), status_code=status.HTTP_200_OK)
 
 
