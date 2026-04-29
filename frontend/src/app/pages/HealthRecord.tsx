@@ -72,6 +72,7 @@ export function HealthRecord() {
   const [records, setRecords] = useState<HealthRecord[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [timeRange, setTimeRange] = useState<"week" | "month">("week");
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -112,7 +113,7 @@ export function HealthRecord() {
     });
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
 
@@ -162,6 +163,21 @@ export function HealthRecord() {
       alert("저장에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const res = await api.get("/api/v1/activity/report?format=pdf", { responseType: "blob" });
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "health_report.pdf";
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -647,9 +663,9 @@ export function HealthRecord() {
             달력
           </Button>
         </div>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={handleDownload} disabled={downloading}>
           <Download className="size-4 mr-2" />
-          레포트 다운로드
+          {downloading ? "다운로드 중..." : "레포트 다운로드"}
         </Button>
       </div>
 
