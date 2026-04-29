@@ -61,7 +61,7 @@ export function Challenges() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [joining, setJoining] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("active");
-  const [pendingBadge, setPendingBadge] = useState<{ name: string; emoji: string } | null>(null);
+  const [, setPendingBadge] = useState<{ name: string; emoji: string } | null>(null);
 
   // 참여 확인 다이얼로그
   const [joinTarget, setJoinTarget] = useState<Challenge | null>(null);
@@ -649,20 +649,22 @@ export function Challenges() {
               <Button
                 className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
                 onClick={() => {
+                  const badge = completeResult?.earned_badge ?? null;
                   setCompleteState("idle");
                   setCompleteResult(null);
                   setCompleteTarget(null);
-                  if (pendingBadge) {
-                    toast.custom(() => (
-                      <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl shadow-lg px-5 py-3 flex items-center gap-3">
-                        <span className="text-3xl">{pendingBadge.emoji}</span>
+                  setPendingBadge(null);
+                  if (badge) {
+                    toast(
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl">{badge.emoji}</span>
                         <div>
                           <p className="text-xs font-semibold text-amber-600 tracking-wide">🏅 뱃지 획득!</p>
-                          <p className="text-sm font-bold text-gray-900">{pendingBadge.name}</p>
+                          <p className="text-sm font-bold text-gray-900">{badge.name}</p>
                         </div>
-                      </div>
-                    ), { duration: 4000, position: "top-center" });
-                    setPendingBadge(null);
+                      </div>,
+                      { duration: 4000 }
+                    );
                   }
                 }}
               >

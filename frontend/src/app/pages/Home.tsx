@@ -148,15 +148,16 @@ export function Home() {
   const [improvementFactors, setImprovementFactors] = useState<ImprovementFactor[]>([]);
 
   const showBadgeToast = (badge: { name: string; emoji: string }) => {
-    toast.custom(() => (
-      <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl shadow-lg px-5 py-3 flex items-center gap-3">
+    toast(
+      <div className="flex items-center gap-3">
         <span className="text-3xl">{badge.emoji}</span>
         <div>
           <p className="text-xs font-semibold text-amber-600 tracking-wide">🏅 뱃지 획득!</p>
           <p className="text-sm font-bold text-gray-900">{badge.name}</p>
         </div>
-      </div>
-    ), { duration: 4000, position: "top-center" });
+      </div>,
+      { duration: 4000 }
+    );
   };
 
   const [foodAnalyzing, setFoodAnalyzing] = useState(false);
