@@ -59,6 +59,7 @@ class ChallengeCompleteResponse(BaseModel):
     new_score: float
     new_grade: str
     survey_changes: dict | None = None
+    earned_badge: dict | None = None
 
 
 class ChallengeLogRequest(BaseModel):
