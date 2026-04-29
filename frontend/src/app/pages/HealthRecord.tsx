@@ -236,9 +236,15 @@ export function HealthRecord() {
     latestPrediction && prevPrediction
       ? Math.round(latestPrediction.score - prevPrediction.score)
       : null;
-  const scoreByDate = new Map(
-    predictions.map((p) => [new Date(p.created_at).toISOString().split("T")[0], p.score])
-  );
+
+  const scoreChartData = [...predictions].reverse().map((p, i) => {
+    const d = new Date(p.created_at);
+    return {
+      id: `pred-${i}`,
+      date: `${d.getMonth() + 1}/${d.getDate()}`,
+      score: Math.round(p.score),
+    };
+  });
 
   const handlePrev = () => {
     if (timeRange === "week") {
@@ -296,7 +302,6 @@ export function HealthRecord() {
           weight: record?.weight,
           sleep: record?.sleepHours,
           alcohol: record?.alcoholUnits,
-          score: scoreByDate.get(dateStr),
         };
       });
     }
@@ -315,7 +320,6 @@ export function HealthRecord() {
         weight: record?.weight,
         sleep: record?.sleepHours,
         alcohol: record?.alcoholUnits,
-        score: scoreByDate.get(dateStr),
       };
     });
   };
@@ -580,35 +584,41 @@ export function HealthRecord() {
                 : `이전 대비 ${healthScoreDiff > 0 ? "+" : ""}${healthScoreDiff}점`}
             </p>
           </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={chartData} margin={{ left: 0, right: 10, top: 5, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#9ca3af" width={40} />
-              <Tooltip contentStyle={{ backgroundColor: "white", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
-              <Line
-                type="linear"
-                dataKey="score"
-                stroke="#10b981"
-                strokeWidth={2}
-                dot={(props: any) => {
-                  const { cx, cy, payload } = props;
-                  return (
-                    <circle
-                      key={`score-${payload.id}`}
-                      cx={cx}
-                      cy={cy}
-                      r={payload.isToday ? 6 : 4}
-                      fill={payload.isToday ? "#ef4444" : "#10b981"}
-                      stroke="white"
-                      strokeWidth={2}
-                    />
-                  );
-                }}
-                connectNulls={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {scoreChartData.length <= 1 ? (
+            <div className="flex items-center justify-center h-[200px] text-sm text-gray-400">
+              {scoreChartData.length === 0 ? "예측 기록이 없습니다" : "예측 기록이 1개입니다. 챌린지를 완료하면 점수 변화를 확인할 수 있습니다."}
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={scoreChartData} margin={{ left: 0, right: 10, top: 5, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#9ca3af" width={40} />
+                <Tooltip contentStyle={{ backgroundColor: "white", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
+                <Line
+                  type="linear"
+                  dataKey="score"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  dot={(props: any) => {
+                    const { cx, cy, payload } = props;
+                    return (
+                      <circle
+                        key={`score-${payload.id}`}
+                        cx={cx}
+                        cy={cy}
+                        r={4}
+                        fill="#10b981"
+                        stroke="white"
+                        strokeWidth={2}
+                      />
+                    );
+                  }}
+                  connectNulls
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 

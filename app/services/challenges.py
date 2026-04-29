@@ -1,4 +1,3 @@
-import asyncio
 from datetime import date, datetime, timedelta
 
 from fastapi import HTTPException, status
@@ -236,7 +235,6 @@ class ChallengeService:
 
         updated_survey = await self.survey_repo.get_by_user_id(user.id)
         new_score = float(score_before)
-        new_grade = _grade(int(new_score))
         new_improvement_factors = latest.improvement_factors if latest else []
         new_character_state = latest.character_state if latest else "normal"
 
@@ -262,15 +260,14 @@ class ChallengeService:
                     "식습관자가평가": updated_survey.diet_eval,
                     "간질환진단여부": "없음",
                 }
-                result = await asyncio.to_thread(
-                    lambda: celery_app.send_task("predict_fatty_liver", args=[input_data]).get(timeout=30)
-                )
+                result = celery_app.send_task("predict_fatty_liver", args=[input_data]).get(timeout=30)
                 new_score = float(result["score"])
-                new_score = await self._apply_all_penalties(user.id, updated_survey, new_score)
                 new_improvement_factors = result.get("improvement_factors", new_improvement_factors)
                 new_character_state = result.get("stage_label", new_character_state)
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error("챌린지 완료 예측 실패: %s", repr(e))
+            new_score = await self._apply_all_penalties(user.id, updated_survey, new_score)
 
         new_grade = _grade(int(new_score))
         await self.prediction_repo.create({
@@ -550,9 +547,9 @@ class ChallengeService:
         }
 
         total_penalty = sum(penalties.values())
-        total_recovery = sum(
-            await self._calc_penalty_recovery(user_id, ctype, penalty) for ctype, penalty in penalties.items()
-        )
+        total_recovery = 0
+        for ctype, penalty in penalties.items():
+            total_recovery += await self._calc_penalty_recovery(user_id, ctype, penalty)
 
         return min(100.0, max(10.0, base_score + total_penalty + total_recovery))
 

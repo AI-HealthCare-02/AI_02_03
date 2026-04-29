@@ -32,14 +32,14 @@ def _alcohol_penalty(p: dict) -> int:
     if p.get("음주여부") == "음주안함":
         return 0
     penalty = 0
-    weekly = p.get("1회음주량", 0) * p.get("주당음주빈도", 0)
+    weekly = (p.get("1회음주량") or 0) * (p.get("주당음주빈도") or 0)
     if weekly >= 14:
         penalty -= 15
     elif weekly >= 7:
         penalty -= 8
     elif weekly >= 3.5:
         penalty -= 3
-    binge = p.get("월폭음빈도", 0)
+    binge = p.get("월폭음빈도") or 0
     if binge >= 4:
         penalty -= 5
     elif binge >= 2:
@@ -85,15 +85,15 @@ _IMPROVEMENT_BUNDLES = [
         "category": "금주",
         "challenge_type": "금주",
         "penalty_based": True,
-        "condition": lambda row, p: p.get("음주여부") != "음주안함",
+        "condition": lambda row, p: p.get("음주여부") not in (None, "음주안함"),
         "penalty_fn": lambda row, p: _alcohol_penalty(p),
     },
     {
         "category": "운동",
         "challenge_type": "운동",
         "penalty_based": True,
-        "condition": lambda row, p: row.get("주당운동횟수", 0) < 5,
-        "penalty_fn": lambda row, p: _exercise_penalty(int(row.get("주당운동횟수", 0))),
+        "condition": lambda row, p: (row.get("주당운동횟수") or 0) < 5,
+        "penalty_fn": lambda row, p: _exercise_penalty(int(row.get("주당운동횟수") or 0)),
     },
     {
         "category": "금연",
@@ -106,8 +106,8 @@ _IMPROVEMENT_BUNDLES = [
         "category": "수면",
         "challenge_type": "수면",
         "penalty_based": True,
-        "condition": lambda row, p: p.get("평균수면시간", 8) < 7 or row.get("수면장애여부") == "있음",
-        "penalty_fn": lambda row, p: _sleep_penalty(p.get("평균수면시간", 8), row.get("수면장애여부", "없음")),
+        "condition": lambda row, p: (p.get("평균수면시간") or 8) < 7 or row.get("수면장애여부") == "있음",
+        "penalty_fn": lambda row, p: _sleep_penalty(p.get("평균수면시간") or 8, row.get("수면장애여부") or "없음"),
     },
     {
         "category": "식습관",
