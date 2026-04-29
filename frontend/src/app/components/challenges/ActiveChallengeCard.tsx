@@ -7,7 +7,6 @@ import {
   Trophy,
   CheckCircle2,
   Clock,
-  Users,
   X,
 } from "lucide-react";
 import type { Challenge } from "../../types/challenges";
@@ -76,10 +75,6 @@ export function ActiveChallengeCard({
           <div className="flex items-center gap-1">
             <Clock className="size-4" />
             <span>{challenge.duration}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Users className="size-4" />
-            <span>{challenge.participants.toLocaleString()}명 참여</span>
           </div>
           <Badge variant="outline">{challenge.difficulty}</Badge>
         </div>

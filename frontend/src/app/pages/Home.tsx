@@ -37,6 +37,7 @@ import {
   X,
   Bell,
   Weight,
+  Trophy,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -69,6 +70,7 @@ interface UserChallenge {
   status: string;
   today_completed: boolean;
   is_maintenance: boolean;
+  progress: number;
 }
 
 interface FoodAnalysisResult {
@@ -134,6 +136,12 @@ export function Home() {
   const [completeTarget, setCompleteTarget] = useState<UserChallenge | null>(null);
   const [maintenanceQueue, setMaintenanceQueue] = useState<UserChallenge[]>([]);
   const [maintenanceSubmitting, setMaintenanceSubmitting] = useState(false);
+  // 챌린지 최종 완료 (측정값 입력)
+  const [finalCompleteTarget, setFinalCompleteTarget] = useState<UserChallenge | null>(null);
+  const [measureWeight, setMeasureWeight] = useState<string>("");
+  const [measureWaist, setMeasureWaist] = useState<string>("");
+  const [measureSubmitting, setMeasureSubmitting] = useState(false);
+  const [currentSurvey, setCurrentSurvey] = useState<{ weight: number; waist: number } | null>(null);
 
   const [improvementFactors, setImprovementFactors] = useState<ImprovementFactor[]>([]);
   const [earnedBadge, setEarnedBadge] = useState<{ name: string; emoji: string } | null>(null);
@@ -174,6 +182,7 @@ export function Home() {
       .then((r) => setAiMessage(r.data)).catch(() => {});
 
     fetchChallenges();
+    api.get<{ weight: number; waist: number }>("/api/v1/surveys/me").then((r) => setCurrentSurvey(r.data)).catch(() => {});
 
     api.get<Appointment[]>("/api/v1/appointments/me")
       .then((r) => setAllAppointments(r.data)).catch(() => {});
@@ -266,6 +275,21 @@ export function Home() {
       await fetchChallenges();
     } catch { /* 이미 오늘 기록함 */ } finally {
       setCompleteTarget(null);
+    }
+  };
+
+  const handleFinalComplete = async () => {
+    if (!finalCompleteTarget) return;
+    setMeasureSubmitting(true);
+    try {
+      const body: Record<string, number> = {};
+      if (measureWeight) body.weight = Number(measureWeight);
+      if (measureWaist) body.waist = Number(measureWaist);
+      await api.patch(`/api/v1/user-challenges/${finalCompleteTarget.user_challenge_id}/complete`, body);
+      await fetchChallenges();
+    } catch { /* 오류 무시 */ } finally {
+      setFinalCompleteTarget(null);
+      setMeasureSubmitting(false);
     }
   };
 
@@ -598,29 +622,51 @@ export function Home() {
               {totalChallenges === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-4">진행 중인 챌린지가 없습니다.</p>
               ) : (
-                activeChallenges.map((challenge) => {
+                [...activeChallenges].sort((a, b) => (b.progress >= 100 ? 1 : 0) - (a.progress >= 100 ? 1 : 0)).map((challenge) => {
                   const Icon = TYPE_ICON[challenge.type] ?? Activity;
+                  const canComplete = challenge.progress >= 100;
                   return (
-                    <button
-                      key={challenge.user_challenge_id}
-                      onClick={() => !challenge.today_completed && setCompleteTarget(challenge)}
-                      disabled={challenge.today_completed}
-                      className={`w-full flex items-center gap-2.5 py-2.5 px-3 rounded-lg border transition-all text-left ${
-                        challenge.today_completed
-                          ? "bg-emerald-50 border-emerald-200 cursor-default"
-                          : "bg-gray-50 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 cursor-pointer"
-                      }`}
-                    >
-                      <div className={`size-8 rounded-lg flex items-center justify-center flex-shrink-0 ${challenge.today_completed ? "bg-emerald-100" : "bg-gray-200"}`}>
-                        <Icon className={`size-4 ${challenge.today_completed ? "text-emerald-600" : "text-gray-500"}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium ${challenge.today_completed ? "text-gray-900" : "text-gray-700"}`}>
-                          {challenge.challenge_name}
-                        </p>
-                      </div>
-                      <CheckCircle2 className={`size-5 flex-shrink-0 ${challenge.today_completed ? "text-emerald-600" : "text-gray-300"}`} />
-                    </button>
+                    <div key={challenge.user_challenge_id}>
+                      {canComplete ? (
+                        <button
+                          onClick={() => {
+                            setFinalCompleteTarget(challenge);
+                            setMeasureWeight(currentSurvey ? String(currentSurvey.weight) : "");
+                            setMeasureWaist(currentSurvey ? String(currentSurvey.waist) : "");
+                          }}
+                          className="w-full flex items-center gap-2.5 py-2.5 px-3 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 transition-all text-left cursor-pointer"
+                        >
+                          <div className="size-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-amber-100">
+                            <Icon className="size-4 text-amber-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900">{challenge.challenge_name}</p>
+                            <p className="text-xs text-amber-600 font-medium">완료 가능 · 탭하여 완료하기</p>
+                          </div>
+                          <Trophy className="size-5 flex-shrink-0 text-amber-500" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => !challenge.today_completed && setCompleteTarget(challenge)}
+                          disabled={challenge.today_completed}
+                          className={`w-full flex items-center gap-2.5 py-2.5 px-3 rounded-lg border transition-all text-left ${
+                            challenge.today_completed
+                              ? "bg-emerald-50 border-emerald-200 cursor-default"
+                              : "bg-gray-50 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 cursor-pointer"
+                          }`}
+                        >
+                          <div className={`size-8 rounded-lg flex items-center justify-center flex-shrink-0 ${challenge.today_completed ? "bg-emerald-100" : "bg-gray-200"}`}>
+                            <Icon className={`size-4 ${challenge.today_completed ? "text-emerald-600" : "text-gray-500"}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium ${challenge.today_completed ? "text-gray-900" : "text-gray-700"}`}>
+                              {challenge.challenge_name}
+                            </p>
+                          </div>
+                          <CheckCircle2 className={`size-5 flex-shrink-0 ${challenge.today_completed ? "text-emerald-600" : "text-gray-300"}`} />
+                        </button>
+                      )}
+                    </div>
                   );
                 })
               )}
@@ -800,6 +846,49 @@ export function Home() {
             >
               <CheckCircle2 className="size-4 mr-2" />
               완료했어요!
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 챌린지 최종 완료 다이얼로그 (체중/허리 입력) */}
+      <Dialog open={!!finalCompleteTarget} onOpenChange={(o) => !o && setFinalCompleteTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>🎉 챌린지 완료!</DialogTitle>
+            <DialogDescription>현재 신체 정보를 확인해주세요. 변화가 없으면 그대로 확인을 누르세요.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="flex items-center gap-2">
+              <label className="w-16 text-sm text-gray-600 shrink-0">체중</label>
+              <input
+                type="number" step="0.1" min="30" max="300"
+                value={measureWeight}
+                onChange={(e) => setMeasureWeight(e.target.value)}
+                className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+              <span className="text-sm text-gray-500 w-6">kg</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="w-16 text-sm text-gray-600 shrink-0">허리둘레</label>
+              <input
+                type="number" step="0.1" min="40" max="200"
+                value={measureWaist}
+                onChange={(e) => setMeasureWaist(e.target.value)}
+                className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+              <span className="text-sm text-gray-500 w-6">cm</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFinalCompleteTarget(null)}>취소</Button>
+            <Button
+              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+              onClick={handleFinalComplete}
+              disabled={measureSubmitting}
+            >
+              <Trophy className="size-4 mr-2" />
+              {measureSubmitting ? "처리 중..." : "완료하기"}
             </Button>
           </DialogFooter>
         </DialogContent>

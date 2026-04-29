@@ -284,7 +284,7 @@ export function Challenges() {
               </CardContent>
             </Card>
           )}
-          {filterChallenges(activeChallenges).map((challenge) => (
+          {filterChallenges([...activeChallenges].sort((a, b) => ((b.progress ?? 0) >= 100 ? 1 : 0) - ((a.progress ?? 0) >= 100 ? 1 : 0))).map((challenge) => (
             <ActiveChallengeCard
               key={challenge.id}
               challenge={challenge}
