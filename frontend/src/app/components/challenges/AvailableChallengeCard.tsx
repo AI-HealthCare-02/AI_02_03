@@ -27,14 +27,9 @@ export function AvailableChallengeCard({
     고급: "bg-red-100 text-red-900 border-red-200",
   };
 
-  const cardBg = alreadyJoined
-    ? "bg-gray-50 border-gray-200 opacity-60"
-    : challenge.isRecommended
-    ? "border-2 border-amber-300 bg-amber-50/30"
-    : "";
-
-  const iconBg = alreadyJoined ? "bg-gray-200" : challenge.isRecommended ? "bg-amber-100" : "bg-blue-100";
-  const iconColor = alreadyJoined ? "text-gray-400" : challenge.isRecommended ? "text-amber-600" : "text-blue-600";
+  const cardBg = alreadyJoined ? "bg-gray-50 border-gray-200 opacity-60" : "";
+  const iconBg = alreadyJoined ? "bg-gray-200" : "bg-blue-100";
+  const iconColor = alreadyJoined ? "text-gray-400" : "text-blue-600";
 
   return (
     <Card className={`transition-shadow ${alreadyJoined ? "hover:shadow-none" : "hover:shadow-lg"} ${cardBg}`}>
