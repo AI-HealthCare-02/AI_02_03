@@ -38,6 +38,7 @@ import {
   Bell,
   Weight,
   Trophy,
+  Target,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -84,6 +85,22 @@ interface FoodAnalysisResult {
   image_url: string;
 }
 
+interface SuggestedChallenge {
+  id: number;
+  type: string;
+  name: string;
+  description: string;
+  duration_days: number;
+  reason: string;
+  score_delta: number | null;
+  preview_badge: {
+    name: string;
+    description: string;
+    emoji: string;
+    condition: string | null;
+  } | null;
+}
+
 const TYPE_ICON: Record<string, React.ElementType> = {
   운동: Dumbbell,
   식단: Utensils,
@@ -96,25 +113,35 @@ const TYPE_ICON: Record<string, React.ElementType> = {
 
 function getScoreColor(score: number): string {
   const stops = [
-    { pos: 0,   r: 0xef, g: 0x44, b: 0x44 },
-    { pos: 33,  r: 0xf9, g: 0x73, b: 0x16 },
-    { pos: 66,  r: 0xea, g: 0xb3, b: 0x08 },
+    { pos: 0, r: 0xef, g: 0x44, b: 0x44 },
+    { pos: 33, r: 0xf9, g: 0x73, b: 0x16 },
+    { pos: 66, r: 0xea, g: 0xb3, b: 0x08 },
     { pos: 100, r: 0x22, g: 0xc5, b: 0x5e },
   ];
+
   const s = Math.max(0, Math.min(100, score));
-  let lo = stops[0], hi = stops[stops.length - 1];
+  let lo = stops[0];
+  let hi = stops[stops.length - 1];
+
   for (let i = 0; i < stops.length - 1; i++) {
-    if (s >= stops[i].pos && s <= stops[i + 1].pos) { lo = stops[i]; hi = stops[i + 1]; break; }
+    if (s >= stops[i].pos && s <= stops[i + 1].pos) {
+      lo = stops[i];
+      hi = stops[i + 1];
+      break;
+    }
   }
-  const t = (hi.pos === lo.pos) ? 0 : (s - lo.pos) / (hi.pos - lo.pos);
+
+  const t = hi.pos === lo.pos ? 0 : (s - lo.pos) / (hi.pos - lo.pos);
   const r = Math.round(lo.r + t * (hi.r - lo.r));
   const g = Math.round(lo.g + t * (hi.g - lo.g));
   const b = Math.round(lo.b + t * (hi.b - lo.b));
+
   return `rgb(${r}, ${g}, ${b})`;
 }
 
 function getTimePeriod(time: string) {
   const hour = parseInt(time.split(":")[0], 10);
+
   if (hour >= 5 && hour <= 10) return "아침";
   if (hour >= 11 && hour <= 15) return "점심";
   if (hour >= 16 && hour <= 20) return "저녁";
@@ -125,30 +152,56 @@ export function Home() {
   const { user } = useAuthStore();
 
   const [healthScore, setHealthScore] = useState(0);
-  const [scorePercentile, setScorePercentile] = useState<{ value: number; label: string; ageGroup: number } | null>(null);
+  const [scorePercentile, setScorePercentile] = useState<{
+    value: number;
+    label: string;
+    ageGroup: number;
+  } | null>(null);
   const [streakDays, setStreakDays] = useState(0);
 
-  const [greetingMessage, setGreetingMessage] = useState("오늘도 간편이와 함께해요");
+  const [greetingMessage, setGreetingMessage] =
+    useState("오늘도 간편이와 함께해요");
 
   const [aiMessage, setAiMessage] = useState<{ message: string } | null>(null);
   const [activeChallenges, setActiveChallenges] = useState<UserChallenge[]>([]);
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [earnedBadgeCount, setEarnedBadgeCount] = useState(0);
+  const [appointmentView, setAppointmentView] = useState<"week" | "month">(
+    "week"
+  );
+  const [suggestedChallenges, setSuggestedChallenges] = useState<
+    SuggestedChallenge[]
+  >([]);
 
-  const [completeTarget, setCompleteTarget] = useState<UserChallenge | null>(null);
+  const [completeTarget, setCompleteTarget] = useState<UserChallenge | null>(
+    null
+  );
   const [maintenanceQueue, setMaintenanceQueue] = useState<UserChallenge[]>([]);
   const [maintenanceSubmitting, setMaintenanceSubmitting] = useState(false);
-  // 챌린지 최종 완료 (측정값 입력)
-  const [finalCompleteTarget, setFinalCompleteTarget] = useState<UserChallenge | null>(null);
+
+  const [finalCompleteTarget, setFinalCompleteTarget] =
+    useState<UserChallenge | null>(null);
   const [measureWeight, setMeasureWeight] = useState<string>("");
   const [measureWaist, setMeasureWaist] = useState<string>("");
   const [measureSubmitting, setMeasureSubmitting] = useState(false);
-  const [currentSurvey, setCurrentSurvey] = useState<{ weight: number; waist: number } | null>(null);
-  const [completeResult, setCompleteResult] = useState<{ score_before: number; new_score: number; new_grade: string } | null>(null);
+  const [currentSurvey, setCurrentSurvey] = useState<{
+    weight: number;
+    waist: number;
+  } | null>(null);
+  const [completeResult, setCompleteResult] = useState<{
+    score_before: number;
+    new_score: number;
+    new_grade: string;
+  } | null>(null);
 
-  const [improvementFactors, setImprovementFactors] = useState<ImprovementFactor[]>([]);
-  const [earnedBadge, setEarnedBadge] = useState<{ name: string; emoji: string } | null>(null);
+  const [improvementFactors, setImprovementFactors] = useState<
+    ImprovementFactor[]
+  >([]);
+  const [earnedBadge, setEarnedBadge] = useState<{
+    name: string;
+    emoji: string;
+  } | null>(null);
 
   const [foodAnalyzing, setFoodAnalyzing] = useState(false);
   const [foodResult, setFoodResult] = useState<FoodAnalysisResult | null>(null);
@@ -161,109 +214,197 @@ export function Home() {
   const enqueueMaintenance = (challenges: UserChallenge[]) => {
     const today = new Date().toDateString();
     const shownKey = `maintenance_shown_${today}`;
+
     if (localStorage.getItem(shownKey)) return;
+
     const pending = challenges.filter((c) => c.is_maintenance);
     if (pending.length > 0) setMaintenanceQueue(pending);
   };
 
   const fetchChallenges = () =>
-    api.get<UserChallenge[]>("/api/v1/user-challenges/me", { params: { status: "진행중" } })
-      .then((r) => { setActiveChallenges(r.data); enqueueMaintenance(r.data); })
+    api
+      .get<UserChallenge[]>("/api/v1/user-challenges/me", {
+        params: { status: "진행중" },
+      })
+      .then((r) => {
+        setActiveChallenges(r.data);
+        enqueueMaintenance(r.data);
+      })
       .catch(() => {});
 
   useEffect(() => {
     const today = format(new Date(), "yyyy-MM-dd");
 
-    api.get<{ latest_score: number; streak_days: number; improvement_factors: ImprovementFactor[]; score_percentile: number; score_percentile_label: string; age_group: number }>("/api/v1/dashboard")
+    api
+      .get<{
+        latest_score: number;
+        streak_days: number;
+        improvement_factors: ImprovementFactor[];
+        score_percentile: number;
+        score_percentile_label: string;
+        age_group: number;
+      }>("/api/v1/dashboard")
       .then((r) => {
         setHealthScore(Math.round(r.data.latest_score));
-        setScorePercentile(r.data.score_percentile != null ? { value: r.data.score_percentile, label: r.data.score_percentile_label, ageGroup: r.data.age_group } : null);
+        setScorePercentile(
+          r.data.score_percentile != null
+            ? {
+                value: r.data.score_percentile,
+                label: r.data.score_percentile_label,
+                ageGroup: r.data.age_group,
+              }
+            : null
+        );
         setStreakDays(r.data.streak_days);
         setImprovementFactors(r.data.improvement_factors || []);
-      }).catch(() => {});
+      })
+      .catch(() => {});
 
-    api.get<{ message: string }>("/api/v1/dashboard/message")
-      .then((r) => setAiMessage(r.data)).catch(() => {});
+    api
+      .get<{ message: string }>("/api/v1/dashboard/message")
+      .then((r) => setAiMessage(r.data))
+      .catch(() => {});
 
-    api.get<{ message: string }>("/api/v1/dashboard/greeting")
+    api
+      .get<{ message: string }>("/api/v1/dashboard/greeting")
       .then((r) => setGreetingMessage(r.data.message))
       .catch(() => {});
 
-    fetchChallenges();
-    api.get<{ weight: number; waist: number }>("/api/v1/surveys/me").then((r) => setCurrentSurvey(r.data)).catch(() => {});
+    api
+      .get<{ suggested: SuggestedChallenge[] }>("/api/v1/challenges/suggested")
+      .then((r) => setSuggestedChallenges((r.data.suggested || []).slice(0, 3)))
+      .catch(() => {});
 
-    api.get<Appointment[]>("/api/v1/appointments/me")
-      .then((r) => setAllAppointments(r.data)).catch(() => {});
+    fetchChallenges();
+
+    api
+      .get<{ weight: number; waist: number }>("/api/v1/surveys/me")
+      .then((r) => setCurrentSurvey(r.data))
+      .catch(() => {});
+
+    api
+      .get<Appointment[]>("/api/v1/appointments/me")
+      .then((r) => setAllAppointments(r.data))
+      .catch(() => {});
 
     Promise.all([
-      api.get<{ id: number; name: string; dosage: string; times: string[] }[]>("/api/v1/medications/me"),
-      api.get<{ date: string; completions: { [idx: string]: boolean } }>(`/api/v1/medications/me/completions?date=${today}`),
-    ]).then(([medsRes, compRes]) => {
-      const completions = compRes.data.completions;
-      setMedications(medsRes.data.map((m) => ({
-        id: m.id,
-        name: m.name,
-        dosage: m.dosage,
-        times: m.times,
-        completedToday: m.times.map((_, idx) => completions[idx] ?? false),
-      })));
-    }).catch(() => {});
+      api.get<{ id: number; name: string; dosage: string; times: string[] }[]>(
+        "/api/v1/medications/me"
+      ),
+      api.get<{ date: string; completions: { [idx: string]: boolean } }>(
+        `/api/v1/medications/me/completions?date=${today}`
+      ),
+    ])
+      .then(([medsRes, compRes]) => {
+        const completions = compRes.data.completions;
 
-    api.get<{ earned_count: number }>("/api/v1/badges/me/count")
-      .then((r) => setEarnedBadgeCount(r.data.earned_count)).catch(() => {});
+        setMedications(
+          medsRes.data.map((m) => ({
+            id: m.id,
+            name: m.name,
+            dosage: m.dosage,
+            times: m.times,
+            completedToday: m.times.map((_, idx) => completions[idx] ?? false),
+          }))
+        );
+      })
+      .catch(() => {});
+
+    api
+      .get<{ earned_count: number }>("/api/v1/badges/me/count")
+      .then((r) => setEarnedBadgeCount(r.data.earned_count))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     const refreshChallenges = () => {
       if (document.visibilityState === "visible") fetchChallenges();
     };
+
     document.addEventListener("visibilitychange", refreshChallenges);
-    return () => document.removeEventListener("visibilitychange", refreshChallenges);
+    return () =>
+      document.removeEventListener("visibilitychange", refreshChallenges);
   }, []);
 
-  // 복약 시간 알림 체크
   useEffect(() => {
     const checkMedicationTime = () => {
       if (medications.length === 0) return;
+
       const now = new Date();
-      const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-      const schedules: Array<{ medId: number; medName: string; time: string; timeIndex: number; completed: boolean }> = [];
+      const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`;
+
+      const schedules: Array<{
+        medId: number;
+        medName: string;
+        time: string;
+        timeIndex: number;
+        completed: boolean;
+      }> = [];
+
       medications.forEach((med) => {
         med.times.forEach((time, idx) => {
-          schedules.push({ medId: med.id, medName: med.name, time, timeIndex: idx, completed: med.completedToday[idx] });
+          schedules.push({
+            medId: med.id,
+            medName: med.name,
+            time,
+            timeIndex: idx,
+            completed: med.completedToday[idx],
+          });
         });
       });
+
       const grouped = new Map<string, typeof schedules>();
+
       schedules.forEach((s) => {
         const period = getTimePeriod(s.time);
         if (!grouped.has(period)) grouped.set(period, []);
         grouped.get(period)!.push(s);
       });
+
       for (const [period, group] of grouped) {
         const allDone = group.every((m) => m.completed);
+
         if (!allDone && group[0].time === currentTime) {
           setMedicationNotification({ period, medications: group });
           break;
         }
       }
     };
+
     const interval = setInterval(checkMedicationTime, 60000);
     checkMedicationTime();
+
     return () => clearInterval(interval);
   }, [medications]);
 
-  const handleMaintenanceCheckin = async (challenge: UserChallenge, stillMaintaining: boolean) => {
+  const handleMaintenanceCheckin = async (
+    challenge: UserChallenge,
+    stillMaintaining: boolean
+  ) => {
     setMaintenanceSubmitting(true);
+
     try {
-      await api.post(`/api/v1/user-challenges/${challenge.type}/checkin`, { still_maintaining: stillMaintaining });
-    } catch { /* ignore */ } finally {
+      await api.post(`/api/v1/user-challenges/${challenge.type}/checkin`, {
+        still_maintaining: stillMaintaining,
+      });
+    } catch {
+      // ignore
+    } finally {
       setMaintenanceSubmitting(false);
       setMaintenanceQueue((prev) => {
         const next = prev.slice(1);
+
         if (next.length === 0) {
-          localStorage.setItem(`maintenance_shown_${new Date().toDateString()}`, "1");
+          localStorage.setItem(
+            `maintenance_shown_${new Date().toDateString()}`,
+            "1"
+          );
           fetchChallenges();
         }
+
         return next;
       });
     }
@@ -271,34 +412,52 @@ export function Home() {
 
   const handleCompleteChallenge = async () => {
     if (!completeTarget) return;
+
     try {
-      const res = await api.post<{ earned_badge?: { name: string; emoji: string } | null }>(
-        `/api/v1/user-challenges/${completeTarget.user_challenge_id}/logs`,
-        { is_completed: true },
-      );
+      const res = await api.post<{
+        earned_badge?: { name: string; emoji: string } | null;
+      }>(`/api/v1/user-challenges/${completeTarget.user_challenge_id}/logs`, {
+        is_completed: true,
+      });
+
       if (res.data.earned_badge) {
         setEarnedBadge(res.data.earned_badge);
         setTimeout(() => setEarnedBadge(null), 4000);
       }
+
       await fetchChallenges();
-    } catch { /* 이미 오늘 기록함 */ } finally {
+    } catch {
+      // 이미 오늘 기록함
+    } finally {
       setCompleteTarget(null);
     }
   };
 
   const handleFinalComplete = async () => {
     if (!finalCompleteTarget) return;
+
     setMeasureSubmitting(true);
+
     try {
       const body: Record<string, number> = {};
+
       if (measureWeight) body.weight = Number(measureWeight);
       if (measureWaist) body.waist = Number(measureWaist);
-      const res = await api.patch<{ score_before: number; new_score: number; new_grade: string }>(
-        `/api/v1/user-challenges/${finalCompleteTarget.user_challenge_id}/complete`, body
+
+      const res = await api.patch<{
+        score_before: number;
+        new_score: number;
+        new_grade: string;
+      }>(
+        `/api/v1/user-challenges/${finalCompleteTarget.user_challenge_id}/complete`,
+        body
       );
+
       setCompleteResult(res.data);
       await fetchChallenges();
-    } catch { /* 오류 무시 */ } finally {
+    } catch {
+      // 오류 무시
+    } finally {
       setFinalCompleteTarget(null);
       setMeasureSubmitting(false);
     }
@@ -307,69 +466,102 @@ export function Home() {
   const handleToggleTaken = async (medId: number, timeIndex: number) => {
     const med = medications.find((m) => m.id === medId);
     if (!med) return;
+
     const newCompleted = !med.completedToday[timeIndex];
+
     setMedications((prev) =>
       prev.map((m) => {
         if (m.id !== medId) return m;
-        const updated = m.completedToday.map((c, i) => (i === timeIndex ? newCompleted : c));
+
+        const updated = m.completedToday.map((c, i) =>
+          i === timeIndex ? newCompleted : c
+        );
+
         return { ...m, completedToday: updated };
       })
     );
-    await api.patch(`/api/v1/medications/${medId}/completions`, {
-      date: format(new Date(), "yyyy-MM-dd"),
-      time_index: timeIndex,
-      completed: newCompleted,
-    }).catch(() => {});
+
+    await api
+      .patch(`/api/v1/medications/${medId}/completions`, {
+        date: format(new Date(), "yyyy-MM-dd"),
+        time_index: timeIndex,
+        completed: newCompleted,
+      })
+      .catch(() => {});
   };
 
   const handleGroupToggle = async (period: string) => {
-    const schedules: Array<{ medId: number; timeIndex: number; completed: boolean }> = [];
+    const schedules: Array<{
+      medId: number;
+      timeIndex: number;
+      completed: boolean;
+    }> = [];
+
     medications.forEach((med) => {
       med.times.forEach((time, idx) => {
         if (getTimePeriod(time) === period) {
-          schedules.push({ medId: med.id, timeIndex: idx, completed: med.completedToday[idx] });
+          schedules.push({
+            medId: med.id,
+            timeIndex: idx,
+            completed: med.completedToday[idx],
+          });
         }
       });
     });
+
     const allDone = schedules.every((s) => s.completed);
     const newState = !allDone;
+
     setMedications((prev) =>
       prev.map((med) => {
         const updated = [...med.completedToday];
+
         med.times.forEach((time, idx) => {
           if (getTimePeriod(time) === period) updated[idx] = newState;
         });
+
         return { ...med, completedToday: updated };
       })
     );
+
     const today = format(new Date(), "yyyy-MM-dd");
+
     await Promise.all(
       schedules.map((s) =>
-        api.patch(`/api/v1/medications/${s.medId}/completions`, {
-          date: today,
-          time_index: s.timeIndex,
-          completed: newState,
-        }).catch(() => {})
+        api
+          .patch(`/api/v1/medications/${s.medId}/completions`, {
+            date: today,
+            time_index: s.timeIndex,
+            completed: newState,
+          })
+          .catch(() => {})
       )
     );
   };
 
-  const handleDietImageCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDietImageCapture = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     if (file.size > 5 * 1024 * 1024) {
       toast.error("이미지 크기는 5MB 이하만 가능합니다.");
       e.target.value = "";
       return;
     }
+
     setFoodResult(null);
     setFoodAnalyzing(true);
+
     try {
       const formData = new FormData();
       formData.append("image", file);
+
       const res = await api.post("/api/v1/food/analyze", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+
       setFoodResult(res.data);
     } finally {
       setFoodAnalyzing(false);
@@ -380,47 +572,92 @@ export function Home() {
   const calculateDday = (visitDate: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
     const target = new Date(visitDate);
     target.setHours(0, 0, 0, 0);
-    return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    return Math.ceil(
+      (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
   };
 
-  const nextAppointment = allAppointments
-    .filter((apt) => calculateDday(apt.visit_date) >= 0)
-    .sort((a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime())[0] ?? null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  const todayStr = format(new Date(), "yyyy-MM-dd");
-  const todayAppointments = allAppointments.filter((apt) => apt.visit_date.startsWith(todayStr));
+  const weekEnd = new Date(today);
+  weekEnd.setDate(today.getDate() + 7);
+  weekEnd.setHours(23, 59, 59, 999);
+
+  const monthEnd = new Date(today);
+  monthEnd.setDate(today.getDate() + 30);
+  monthEnd.setHours(23, 59, 59, 999);
+
+  const visibleAppointments = allAppointments
+    .filter((apt) => {
+      const date = new Date(apt.visit_date);
+
+      return appointmentView === "week"
+        ? date >= today && date <= weekEnd
+        : date >= today && date <= monthEnd;
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime()
+    )
+    .slice(0, 3);
 
   const getGroupedMedications = () => {
-    const schedules: Array<{ medId: number; medName: string; time: string; timeIndex: number; completed: boolean }> = [];
+    const schedules: Array<{
+      medId: number;
+      medName: string;
+      time: string;
+      timeIndex: number;
+      completed: boolean;
+    }> = [];
+
     medications.forEach((med) => {
       med.times.forEach((time, idx) => {
-        schedules.push({ medId: med.id, medName: med.name, time, timeIndex: idx, completed: med.completedToday[idx] });
+        schedules.push({
+          medId: med.id,
+          medName: med.name,
+          time,
+          timeIndex: idx,
+          completed: med.completedToday[idx],
+        });
       });
     });
+
     const grouped = new Map<string, typeof schedules>();
+
     schedules.forEach((s) => {
       const period = getTimePeriod(s.time);
       if (!grouped.has(period)) grouped.set(period, []);
       grouped.get(period)!.push(s);
     });
+
     const periodOrder = ["아침", "점심", "저녁", "취침 전"];
+
     return periodOrder
       .filter((p) => grouped.has(p))
       .map((period) => {
         const meds = grouped.get(period)!;
-        return { period, time: meds[0].time, medications: meds, allCompleted: meds.every((m) => m.completed) };
+
+        return {
+          period,
+          time: meds[0].time,
+          medications: meds,
+          allCompleted: meds.every((m) => m.completed),
+        };
       });
   };
 
   const completedToday = activeChallenges.filter((c) => c.today_completed).length;
   const totalChallenges = activeChallenges.length;
-  const progressPercent = totalChallenges > 0 ? (completedToday / totalChallenges) * 100 : 0;
+  const progressPercent =
+    totalChallenges > 0 ? (completedToday / totalChallenges) * 100 : 0;
 
   return (
     <div className="space-y-5 lg:space-y-8 pb-8">
-      {/* 복약 알림 */}
       {medicationNotification && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
           <Card className="border-2 border-purple-500 bg-white shadow-lg">
@@ -429,24 +666,45 @@ export function Home() {
                 <div className="size-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Bell className="size-5 text-purple-600" />
                 </div>
+
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-semibold text-gray-900">복약 시간입니다</p>
-                    <Button variant="ghost" size="icon" onClick={() => setMedicationNotification(null)} className="size-6 -mt-1 -mr-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setMedicationNotification(null)}
+                      className="size-6 -mt-1 -mr-1"
+                    >
                       <X className="size-4" />
                     </Button>
                   </div>
+
                   <p className="text-sm text-gray-700 mb-3">
-                    {medicationNotification.period}약: {medicationNotification.medications.map((m) => m.medName).join(", ")}
+                    {medicationNotification.period}약:{" "}
+                    {medicationNotification.medications
+                      .map((m) => m.medName)
+                      .join(", ")}
                   </p>
+
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setMedicationNotification(null)} className="flex-1">나중에</Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setMedicationNotification(null)}
+                      className="flex-1"
+                    >
+                      나중에
+                    </Button>
+
                     <Button
                       size="sm"
                       className="flex-1 bg-purple-600 hover:bg-purple-700"
                       onClick={async () => {
                         await Promise.all(
-                          medicationNotification.medications.map((m) => handleToggleTaken(m.medId, m.timeIndex))
+                          medicationNotification.medications.map((m) =>
+                            handleToggleTaken(m.medId, m.timeIndex)
+                          )
                         );
                         setMedicationNotification(null);
                       }}
@@ -461,32 +719,30 @@ export function Home() {
         </div>
       )}
 
-      {/* 뱃지 획득 토스트 */}
       {earnedBadge && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl shadow-lg px-6 py-4 flex items-center gap-3">
             <span className="text-3xl">{earnedBadge.emoji}</span>
             <div>
               <p className="text-xs font-medium text-amber-600">뱃지 획득!</p>
-              <p className="text-base font-bold text-gray-900">{earnedBadge.name}</p>
+              <p className="text-base font-bold text-gray-900">
+                {earnedBadge.name}
+              </p>
             </div>
           </div>
         </div>
       )}
 
       <div className="text-center space-y-1.5">
-        <h2 className="text-3xl font-bold text-gray-900">
+        <h2 className="text-2xl font-bold text-gray-900">
           안녕하세요, {user?.nickname ?? ""}님! 👋
         </h2>
-        <p className="text-gray-600">
-          {greetingMessage}
-        </p>
+        <p className="text-sm text-gray-500">{greetingMessage}</p>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-5 lg:gap-8">
-        {/* 왼쪽: 간 건강 */}
         <div className="space-y-5">
-          <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
             <Activity className="size-5 text-gray-700" />
             오늘의 간 건강
           </h3>
@@ -494,16 +750,18 @@ export function Home() {
           <Card className="border border-gray-200 bg-gradient-to-br from-white via-emerald-50/30 to-white overflow-hidden relative">
             <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-100/20 rounded-full blur-3xl -z-10" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-100/10 rounded-full blur-3xl -z-10" />
+
             <CardContent className="py-8 px-6">
               <div className="flex flex-col items-center justify-center gap-5">
-                {/* AI 말풍선 */}
                 {aiMessage && (
                   <div className="relative w-full max-w-xs">
-                    <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-4 relative">
+                    <div className="bg-amber-50 rounded-2xl shadow-md border border-amber-200 p-4 relative">
                       <div className="absolute -bottom-2 left-1/2 -translate-x-1/2">
-                        <div className="w-4 h-4 bg-white border-r border-b border-gray-200 rotate-45" />
+                        <div className="w-4 h-4 bg-amber-50 border-r border-b border-amber-200 rotate-45" />
                       </div>
-                      <p className="text-center font-bold text-gray-900 text-sm">{aiMessage.message}</p>
+                      <p className="text-center font-bold text-gray-900 text-sm">
+                        {aiMessage.message}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -515,14 +773,27 @@ export function Home() {
                 <div className="w-full max-w-xs space-y-4">
                   <div className="text-center">
                     <p className="text-sm text-gray-600">건강 점수</p>
-                    <p className="text-3xl font-bold" style={{ color: getScoreColor(healthScore) }}>
+                    <p
+                      className="text-3xl font-bold"
+                      style={{ color: getScoreColor(healthScore) }}
+                    >
                       {healthScore}점
                       {scorePercentile !== null && (
-                        <span className="text-base font-medium text-gray-500 ml-2">({scorePercentile.ageGroup}대 {scorePercentile.label} {scorePercentile.value}%)</span>
+                        <span className="text-base font-medium text-gray-500 ml-2">
+                          ({scorePercentile.ageGroup}대 {scorePercentile.label}{" "}
+                          {scorePercentile.value}%)
+                        </span>
                       )}
                     </p>
                   </div>
-                  <div className="relative h-2 w-full rounded-full overflow-hidden" style={{ background: "linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e)" }}>
+
+                  <div
+                    className="relative h-2 w-full rounded-full overflow-hidden"
+                    style={{
+                      background:
+                        "linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e)",
+                    }}
+                  >
                     <div
                       className="absolute top-0 right-0 h-full bg-gray-100 rounded-r-full transition-all duration-700"
                       style={{ width: `${100 - healthScore}%` }}
@@ -531,12 +802,16 @@ export function Home() {
 
                   {improvementFactors.length > 0 && (
                     <div className="text-center space-y-2 pt-2">
-                      <p className="text-sm font-semibold text-gray-700">지금 하면 점수가 올라요</p>
+                      <p className="text-sm font-semibold text-gray-700">
+                        지금 하면 점수가 올라요
+                      </p>
                       <div className="space-y-1 text-sm">
                         {improvementFactors.slice(0, 3).map((f) => (
                           <p key={f.category} className="text-gray-600">
                             {f.category}하면{" "}
-                            <span className="font-bold text-emerald-600">+{f.score_delta}점</span>
+                            <span className="font-bold text-emerald-600">
+                              +{f.score_delta}점
+                            </span>
                           </p>
                         ))}
                       </div>
@@ -547,7 +822,6 @@ export function Home() {
             </CardContent>
           </Card>
 
-          {/* 통계 요약 */}
           <div className="grid grid-cols-3 gap-3">
             <Card className="border border-gray-200">
               <CardContent className="p-3 text-center">
@@ -555,15 +829,21 @@ export function Home() {
                 <p className="text-xs text-gray-500 mt-0.5">연속 참여</p>
               </CardContent>
             </Card>
+
             <Card className="border border-gray-200">
               <CardContent className="p-3 text-center">
-                <p className="text-xl font-bold text-purple-600">{activeChallenges.length}개</p>
+                <p className="text-xl font-bold text-purple-600">
+                  {activeChallenges.length}개
+                </p>
                 <p className="text-xs text-gray-500 mt-0.5">진행 챌린지</p>
               </CardContent>
             </Card>
+
             <Card className="border border-gray-200">
               <CardContent className="p-3 text-center">
-                <p className="text-xl font-bold text-amber-600">{earnedBadgeCount}개</p>
+                <p className="text-xl font-bold text-amber-600">
+                  {earnedBadgeCount}개
+                </p>
                 <p className="text-xs text-gray-500 mt-0.5">획득 뱃지</p>
               </CardContent>
             </Card>
@@ -571,27 +851,59 @@ export function Home() {
 
           <Card className="border border-gray-200 bg-white">
             <CardHeader className="pb-3">
-              <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles className="size-5 text-emerald-600" />
+              <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                <Sparkles className="size-5 text-amber-500" />
                 AI 추천 챌린지
+                <span className="text-xs font-semibold text-amber-600 bg-amber-100 px-2 py-0.5 rounded">
+                  AI
+                </span>
               </CardTitle>
             </CardHeader>
+
             <CardContent>
-              <p className="text-sm text-gray-600 mb-3">건강 데이터 분석을 바탕으로 맞춤 챌린지를 추천해드려요.</p>
-              <Link to="/challenges">
+              <p className="text-sm text-gray-600 mb-3">
+                AI가 지금 필요한 챌린지를 골랐어요.
+              </p>
+
+              {suggestedChallenges.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {suggestedChallenges.map((challenge, index) => (
+                    <div
+                      key={challenge.id}
+                      className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-100"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs font-bold text-amber-600 flex-shrink-0">
+                          {index + 1}
+                        </span>
+                        <p className="text-sm font-medium text-gray-800 truncate">
+                          {challenge.name}
+                        </p>
+                      </div>
+
+                      {challenge.score_delta !== null && (
+                        <span className="text-xs font-semibold text-emerald-600 flex-shrink-0">
+                          +{challenge.score_delta}점
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Link to="/challenges?tab=available">
                 <Button className="w-full bg-emerald-500 hover:bg-emerald-600">
-                  챌린지 확인하기
+                  지금 시작하기
                 </Button>
               </Link>
             </CardContent>
           </Card>
         </div>
 
-        {/* 오른쪽: 오늘의 할 일 */}
         <div className="space-y-5">
           <div className="flex items-center justify-between gap-3">
             <div className="flex-1">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Clock className="size-5 text-gray-700" />
                 오늘의 할 일
               </h3>
@@ -599,94 +911,131 @@ export function Home() {
                 {format(new Date(), "MM월 dd일 EEEE", { locale: ko })}
               </p>
             </div>
-
-            {nextAppointment && (
-              <Card className="border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-none flex-shrink-0">
-                <CardContent className="px-3 py-2 min-w-[140px]">
-                  <div className="space-y-1 text-center">
-                    <p className="text-lg font-bold leading-none">
-                      {(() => {
-                        const d = calculateDday(nextAppointment.visit_date);
-                        return d === 0 ? "D-DAY" : d > 0 ? `D-${d}` : `D+${Math.abs(d)}`;
-                      })()}
-                    </p>
-                    <p className="text-xs font-medium text-emerald-800">{nextAppointment.hospital_name}</p>
-                    <p className="text-xs text-emerald-700/80">
-                      {format(new Date(nextAppointment.visit_date), "yyyy.MM.dd (E) HH:mm", { locale: ko })}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
-          {/* 오늘의 목표: 진행중 챌린지 */}
           <Card className="border border-gray-200">
             <CardHeader className="pb-1">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold text-gray-900">오늘의 목표</CardTitle>
+                <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                  <Target className="size-4 text-emerald-600" />
+                  오늘의 목표
+                </CardTitle>
+
                 {totalChallenges > 0 && (
-                  <span className="text-xs text-gray-500">{completedToday}/{totalChallenges} 완료</span>
+                  <span className="text-xs text-gray-500">
+                    {completedToday}/{totalChallenges} 완료
+                  </span>
                 )}
               </div>
-              {totalChallenges > 0 && <Progress value={progressPercent} className="h-1.5 mt-2" />}
+
+              {totalChallenges > 0 && (
+                <Progress value={progressPercent} className="h-1.5 mt-2" />
+              )}
             </CardHeader>
+
             <CardContent className="space-y-1.5">
               {totalChallenges === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">진행 중인 챌린지가 없습니다.</p>
+                <p className="text-sm text-gray-400 text-center py-4">
+                  진행 중인 챌린지가 없습니다.
+                </p>
               ) : (
-                [...activeChallenges].sort((a, b) => (b.progress >= 100 ? 1 : 0) - (a.progress >= 100 ? 1 : 0)).map((challenge) => {
-                  const Icon = TYPE_ICON[challenge.type] ?? Activity;
-                  const canComplete = challenge.progress >= 100;
-                  return (
-                    <div key={challenge.user_challenge_id}>
-                      {canComplete ? (
-                        <button
-                          onClick={() => {
-                            setFinalCompleteTarget(challenge);
-                            setMeasureWeight(currentSurvey ? String(currentSurvey.weight) : "");
-                            setMeasureWaist(currentSurvey ? String(currentSurvey.waist) : "");
-                          }}
-                          className="w-full flex items-center gap-2.5 py-2.5 px-3 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 transition-all text-left cursor-pointer"
-                        >
-                          <div className="size-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-amber-100">
-                            <Icon className="size-4 text-amber-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900">{challenge.challenge_name}</p>
-                            <p className="text-xs text-amber-600 font-medium">완료 가능 · 탭하여 완료하기</p>
-                          </div>
-                          <Trophy className="size-5 flex-shrink-0 text-amber-500" />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => !challenge.today_completed && setCompleteTarget(challenge)}
-                          disabled={challenge.today_completed}
-                          className={`w-full flex items-center gap-2.5 py-2.5 px-3 rounded-lg border transition-all text-left ${
-                            challenge.today_completed
-                              ? "bg-emerald-50 border-emerald-200 cursor-default"
-                              : "bg-gray-50 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 cursor-pointer"
-                          }`}
-                        >
-                          <div className={`size-8 rounded-lg flex items-center justify-center flex-shrink-0 ${challenge.today_completed ? "bg-emerald-100" : "bg-gray-200"}`}>
-                            <Icon className={`size-4 ${challenge.today_completed ? "text-emerald-600" : "text-gray-500"}`} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium ${challenge.today_completed ? "text-gray-900" : "text-gray-700"}`}>
-                              {challenge.challenge_name}
-                            </p>
-                          </div>
-                          <CheckCircle2 className={`size-5 flex-shrink-0 ${challenge.today_completed ? "text-emerald-600" : "text-gray-300"}`} />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })
+                [...activeChallenges]
+                  .sort(
+                    (a, b) =>
+                      (b.progress >= 100 ? 1 : 0) -
+                      (a.progress >= 100 ? 1 : 0)
+                  )
+                  .map((challenge) => {
+                    const Icon = TYPE_ICON[challenge.type] ?? Activity;
+                    const canComplete = challenge.progress >= 100;
+
+                    return (
+                      <div key={challenge.user_challenge_id}>
+                        {canComplete ? (
+                          <button
+                            onClick={() => {
+                              setFinalCompleteTarget(challenge);
+                              setMeasureWeight(
+                                currentSurvey ? String(currentSurvey.weight) : ""
+                              );
+                              setMeasureWaist(
+                                currentSurvey ? String(currentSurvey.waist) : ""
+                              );
+                            }}
+                            className="w-full flex items-center gap-2.5 py-2.5 px-3 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 transition-all text-left cursor-pointer"
+                          >
+                            <div className="size-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-amber-100">
+                              <Icon className="size-4 text-amber-600" />
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900">
+                                {challenge.challenge_name}
+                              </p>
+                              <p className="text-xs text-amber-600 font-medium">
+                                완료 가능 · 탭하여 완료하기
+                              </p>
+                            </div>
+
+                            <Trophy className="size-5 flex-shrink-0 text-amber-500" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              !challenge.today_completed &&
+                              setCompleteTarget(challenge)
+                            }
+                            disabled={challenge.today_completed}
+                            className={`w-full flex items-center gap-2.5 py-2.5 px-3 rounded-lg border transition-all text-left ${
+                              challenge.today_completed
+                                ? "bg-emerald-50 border-emerald-200 cursor-default"
+                                : "bg-gray-50 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 cursor-pointer"
+                            }`}
+                          >
+                            <div
+                              className={`size-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                challenge.today_completed
+                                  ? "bg-emerald-100"
+                                  : "bg-gray-200"
+                              }`}
+                            >
+                              <Icon
+                                className={`size-4 ${
+                                  challenge.today_completed
+                                    ? "text-emerald-600"
+                                    : "text-gray-500"
+                                }`}
+                              />
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <p
+                                className={`text-sm font-medium ${
+                                  challenge.today_completed
+                                    ? "text-gray-900"
+                                    : "text-gray-700"
+                                }`}
+                              >
+                                {challenge.challenge_name}
+                              </p>
+                            </div>
+
+                            <CheckCircle2
+                              className={`size-5 flex-shrink-0 ${
+                                challenge.today_completed
+                                  ? "text-emerald-600"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
               )}
             </CardContent>
           </Card>
 
-          {/* 식단 기록 */}
           <div className="md:hidden space-y-3">
             <input
               type="file"
@@ -696,6 +1045,7 @@ export function Home() {
               className="hidden"
               id="diet-camera-input"
             />
+
             <label htmlFor="diet-camera-input">
               <Button
                 asChild
@@ -708,55 +1058,133 @@ export function Home() {
                 </span>
               </Button>
             </label>
+
             {foodResult && (
               <Card className="border border-emerald-200 bg-emerald-50/50">
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="font-semibold text-gray-900">{foodResult.food_name}</p>
+                    <p className="font-semibold text-gray-900">
+                      {foodResult.food_name}
+                    </p>
                     <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
                       {foodResult.rating}
                     </span>
                   </div>
+
                   <div className="flex gap-3 text-sm text-gray-600">
                     <span>칼로리 {foodResult.calories}kcal</span>
                     <span>지방 {foodResult.fat}g</span>
                     <span>당류 {foodResult.sugar}g</span>
                   </div>
-                  <p className="text-sm text-gray-700">{foodResult.liver_impact}</p>
-                  <p className="text-sm text-emerald-700 font-medium">{foodResult.recommendation}</p>
+
+                  <p className="text-sm text-gray-700">
+                    {foodResult.liver_impact}
+                  </p>
+                  <p className="text-sm text-emerald-700 font-medium">
+                    {foodResult.recommendation}
+                  </p>
                 </CardContent>
               </Card>
             )}
           </div>
 
-          {/* 병원 일정 */}
           <Card className="border border-gray-200">
             <CardHeader className="pb-1">
-              <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                <Hospital className="size-4 text-blue-600" />
-                병원 일정
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                  <Hospital className="size-4 text-blue-600" />
+                  다가오는 병원 일정
+                </CardTitle>
+
+                <div className="flex rounded-lg border border-gray-200 overflow-hidden text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setAppointmentView("week")}
+                    className={`px-1.5 py-0.5 transition ${
+                      appointmentView === "week"
+                        ? "bg-emerald-500 text-white"
+                        : "bg-white text-gray-500 hover:bg-emerald-50"
+                    }`}
+                  >
+                    주단위
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAppointmentView("month")}
+                    className={`px-1.5 py-0.5 transition ${
+                      appointmentView === "month"
+                        ? "bg-emerald-500 text-white"
+                        : "bg-white text-gray-500 hover:bg-emerald-50"
+                    }`}
+                  >
+                    월단위
+                  </button>
+                </div>
+              </div>
             </CardHeader>
+
             <CardContent>
-              {todayAppointments.length > 0 ? (
+              {visibleAppointments.length > 0 ? (
                 <div className="space-y-2">
-                  {todayAppointments.map((apt) => (
-                    <div key={apt.id} className="p-2.5 bg-blue-50 rounded-lg border border-blue-200">
-                      <p className="font-semibold text-gray-900 text-sm">{apt.hospital_name}</p>
-                      <p className="text-sm text-gray-700 mt-0.5">
-                        {format(new Date(apt.visit_date), "HH:mm")}
-                      </p>
-                      {apt.memo && <p className="text-sm text-gray-600 mt-0.5">{apt.memo}</p>}
-                    </div>
-                  ))}
+                  {visibleAppointments.map((apt) => {
+                    const dday = calculateDday(apt.visit_date);
+
+                    return (
+                      <Link key={apt.id} to="/schedule">
+                        <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-gray-900 text-sm">
+                                {apt.hospital_name}
+                              </p>
+
+                              <p className="text-sm text-gray-700 mt-0.5">
+                                {format(
+                                  new Date(apt.visit_date),
+                                  "MM.dd (E) HH:mm",
+                                  {
+                                    locale: ko,
+                                  }
+                                )}
+                              </p>
+
+                              {apt.memo && (
+                                <p className="text-sm text-gray-600 mt-0.5 truncate">
+                                  {apt.memo}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex-shrink-0 text-right">
+                              <p className="text-base font-bold text-blue-600">
+                                {dday === 0 ? "D-DAY" : `D-${dday}`}
+                              </p>
+
+                              <p className="text-xs text-gray-500">진료</p>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+
+                  <Link to="/schedule">
+                    <p className="text-xs text-blue-600 text-center pt-1 hover:underline">
+                      일정관리에서 전체 보기
+                    </p>
+                  </Link>
                 </div>
               ) : (
-                <p className="text-sm text-gray-400 text-center py-2.5">오늘 예정된 병원 일정이 없습니다.</p>
+                <p className="text-sm text-gray-400 text-center py-2.5">
+                  {appointmentView === "week"
+                    ? "주단위 예정된 병원 일정이 없습니다."
+                    : "월단위 예정된 병원 일정이 없습니다."}
+                </p>
               )}
             </CardContent>
           </Card>
 
-          {/* 복약 일정 */}
           <Card className="border border-gray-200">
             <CardHeader className="pb-1">
               <div className="flex items-center justify-between">
@@ -764,28 +1192,48 @@ export function Home() {
                   <Pill className="size-4 text-purple-600" />
                   복약 일정
                 </CardTitle>
+
                 {getGroupedMedications().length > 0 && (
                   <p className="text-xs text-gray-500">복용 완료 시 체크</p>
                 )}
               </div>
             </CardHeader>
+
             <CardContent className="space-y-1.5">
               {getGroupedMedications().length > 0 ? (
                 getGroupedMedications().map((group) => (
                   <div
                     key={group.period}
                     className={`py-2.5 px-3 rounded-lg border transition-all ${
-                      group.allCompleted ? "bg-gray-100 border-gray-300" : "bg-gray-50 border-gray-200"
+                      group.allCompleted
+                        ? "bg-gray-100 border-gray-300"
+                        : "bg-gray-50 border-gray-200"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${group.allCompleted ? "line-through" : ""}`}>
-                          <span className={`font-semibold ${group.allCompleted ? "text-gray-500" : "text-gray-900"}`}>
+                        <p
+                          className={`text-sm ${
+                            group.allCompleted ? "line-through" : ""
+                          }`}
+                        >
+                          <span
+                            className={`font-semibold ${
+                              group.allCompleted
+                                ? "text-gray-500"
+                                : "text-gray-900"
+                            }`}
+                          >
                             {group.period}약 ({group.time})
                           </span>
                           <span className="text-gray-600 mx-2">|</span>
-                          <span className={group.allCompleted ? "text-gray-500" : "text-gray-700"}>
+                          <span
+                            className={
+                              group.allCompleted
+                                ? "text-gray-500"
+                                : "text-gray-700"
+                            }
+                          >
                             {group.medications.map((med, idx) => (
                               <span key={`${med.medId}-${med.timeIndex}`}>
                                 {idx > 0 && " · "}
@@ -795,8 +1243,14 @@ export function Home() {
                           </span>
                         </p>
                       </div>
+
                       <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                        {group.allCompleted && <span className="text-xs text-emerald-600 font-medium">완료</span>}
+                        {group.allCompleted && (
+                          <span className="text-xs text-emerald-600 font-medium">
+                            완료
+                          </span>
+                        )}
+
                         <Checkbox
                           checked={group.allCompleted}
                           onCheckedChange={() => handleGroupToggle(group.period)}
@@ -806,34 +1260,52 @@ export function Home() {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-gray-400 text-center py-2.5">오늘 복약 일정이 없습니다.</p>
+                <p className="text-sm text-gray-400 text-center py-2.5">
+                  오늘 복약 일정이 없습니다.
+                </p>
               )}
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* 유지 모드 체크인 다이얼로그 */}
       <Dialog open={maintenanceQueue.length > 0} onOpenChange={() => {}}>
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{maintenanceQueue[0]?.type} 유지 중이신가요? 💪</DialogTitle>
             <DialogDescription>
-              <span className="font-medium text-gray-900">{maintenanceQueue[0]?.challenge_name}</span> 챌린지를 완료하셨습니다.
-              오늘도 계속 유지하고 있다면 확인해주세요.
+              <span className="font-medium text-gray-900">
+                {maintenanceQueue[0]?.challenge_name}
+              </span>{" "}
+              챌린지를 완료하셨습니다. 오늘도 계속 유지하고 있다면 확인해주세요.
             </DialogDescription>
           </DialogHeader>
+
           {maintenanceQueue.length > 1 && (
-            <p className="text-xs text-gray-400 text-center">{maintenanceQueue.length - 1}개 더 확인이 필요합니다</p>
+            <p className="text-xs text-gray-400 text-center">
+              {maintenanceQueue.length - 1}개 더 확인이 필요합니다
+            </p>
           )}
+
           <DialogFooter className="gap-2">
-            <Button variant="outline" disabled={maintenanceSubmitting} onClick={() => maintenanceQueue[0] && handleMaintenanceCheckin(maintenanceQueue[0], false)}>
+            <Button
+              variant="outline"
+              disabled={maintenanceSubmitting}
+              onClick={() =>
+                maintenanceQueue[0] &&
+                handleMaintenanceCheckin(maintenanceQueue[0], false)
+              }
+            >
               그만할게요
             </Button>
+
             <Button
               className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
               disabled={maintenanceSubmitting}
-              onClick={() => maintenanceQueue[0] && handleMaintenanceCheckin(maintenanceQueue[0], true)}
+              onClick={() =>
+                maintenanceQueue[0] &&
+                handleMaintenanceCheckin(maintenanceQueue[0], true)
+              }
             >
               <CheckCircle2 className="size-4 mr-2" />
               네, 유지 중이에요!
@@ -842,17 +1314,26 @@ export function Home() {
         </DialogContent>
       </Dialog>
 
-      {/* 챌린지 완료 확인 다이얼로그 */}
-      <Dialog open={!!completeTarget} onOpenChange={(o) => !o && setCompleteTarget(null)}>
+      <Dialog
+        open={!!completeTarget}
+        onOpenChange={(o) => !o && setCompleteTarget(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>오늘의 목표를 완료하셨나요?</DialogTitle>
             <DialogDescription>
-              <span className="font-medium text-gray-900">{completeTarget?.challenge_name}</span> 챌린지의 오늘 목표를 달성했다면 완료로 기록합니다.
+              <span className="font-medium text-gray-900">
+                {completeTarget?.challenge_name}
+              </span>{" "}
+              챌린지의 오늘 목표를 달성했다면 완료로 기록합니다.
             </DialogDescription>
           </DialogHeader>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCompleteTarget(null)}>아직 아니에요</Button>
+            <Button variant="outline" onClick={() => setCompleteTarget(null)}>
+              아직 아니에요
+            </Button>
+
             <Button
               className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
               onClick={handleCompleteChallenge}
@@ -864,28 +1345,42 @@ export function Home() {
         </DialogContent>
       </Dialog>
 
-      {/* 챌린지 최종 완료 다이얼로그 (체중/허리 입력) */}
-      <Dialog open={!!finalCompleteTarget} onOpenChange={(o) => !o && setFinalCompleteTarget(null)}>
+      <Dialog
+        open={!!finalCompleteTarget}
+        onOpenChange={(o) => !o && setFinalCompleteTarget(null)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>🎉 챌린지 완료!</DialogTitle>
-            <DialogDescription>현재 신체 정보를 확인해주세요. 변화가 없으면 그대로 확인을 누르세요.</DialogDescription>
+            <DialogDescription>
+              현재 신체 정보를 확인해주세요. 변화가 없으면 그대로 확인을 누르세요.
+            </DialogDescription>
           </DialogHeader>
+
           <div className="space-y-3 py-2">
             <div className="flex items-center gap-2">
               <label className="w-16 text-sm text-gray-600 shrink-0">체중</label>
               <input
-                type="number" step="0.1" min="30" max="300"
+                type="number"
+                step="0.1"
+                min="30"
+                max="300"
                 value={measureWeight}
                 onChange={(e) => setMeasureWeight(e.target.value)}
                 className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
               <span className="text-sm text-gray-500 w-6">kg</span>
             </div>
+
             <div className="flex items-center gap-2">
-              <label className="w-16 text-sm text-gray-600 shrink-0">허리둘레</label>
+              <label className="w-16 text-sm text-gray-600 shrink-0">
+                허리둘레
+              </label>
               <input
-                type="number" step="0.1" min="40" max="200"
+                type="number"
+                step="0.1"
+                min="40"
+                max="200"
                 value={measureWaist}
                 onChange={(e) => setMeasureWaist(e.target.value)}
                 className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -893,8 +1388,12 @@ export function Home() {
               <span className="text-sm text-gray-500 w-6">cm</span>
             </div>
           </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFinalCompleteTarget(null)}>취소</Button>
+            <Button variant="outline" onClick={() => setFinalCompleteTarget(null)}>
+              취소
+            </Button>
+
             <Button
               className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
               onClick={handleFinalComplete}
@@ -907,8 +1406,10 @@ export function Home() {
         </DialogContent>
       </Dialog>
 
-      {/* 챌린지 완료 결과 다이얼로그 */}
-      <Dialog open={!!completeResult} onOpenChange={(o) => !o && setCompleteResult(null)}>
+      <Dialog
+        open={!!completeResult}
+        onOpenChange={(o) => !o && setCompleteResult(null)}
+      >
         <DialogContent className="text-center">
           <div className="py-4 space-y-6">
             <div className="flex flex-col items-center gap-3">
@@ -917,26 +1418,41 @@ export function Home() {
               </div>
               <h3 className="text-2xl font-bold text-gray-900">챌린지 완료!</h3>
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="p-4 bg-gray-50 rounded-xl">
                 <p className="text-sm text-gray-500 mb-1">이전 점수</p>
-                <p className="text-2xl font-bold text-gray-700">{Math.round(completeResult?.score_before ?? 0)}점</p>
+                <p className="text-2xl font-bold text-gray-700">
+                  {Math.round(completeResult?.score_before ?? 0)}점
+                </p>
               </div>
+
               <div className="p-4 bg-emerald-50 rounded-xl border-2 border-emerald-200">
                 <p className="text-sm text-emerald-600 mb-1">새 점수</p>
-                <p className="text-2xl font-bold text-emerald-700">{Math.round(completeResult?.new_score ?? 0)}점</p>
+                <p className="text-2xl font-bold text-emerald-700">
+                  {Math.round(completeResult?.new_score ?? 0)}점
+                </p>
               </div>
             </div>
+
             {completeResult && (
               <p className="text-sm text-gray-500">
                 {completeResult.new_score > completeResult.score_before
-                  ? `+${Math.round(completeResult.new_score - completeResult.score_before)}점 상승했습니다 🎉`
+                  ? `+${Math.round(
+                      completeResult.new_score - completeResult.score_before
+                    )}점 상승했습니다 🎉`
                   : completeResult.new_score < completeResult.score_before
-                  ? `${Math.round(completeResult.new_score - completeResult.score_before)}점 변동`
+                  ? `${Math.round(
+                      completeResult.new_score - completeResult.score_before
+                    )}점 변동`
                   : "점수 변동 없음"}
               </p>
             )}
-            <Button className="w-full bg-gradient-to-r from-emerald-500 to-teal-600" onClick={() => setCompleteResult(null)}>
+
+            <Button
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-600"
+              onClick={() => setCompleteResult(null)}
+            >
               확인
             </Button>
           </div>
