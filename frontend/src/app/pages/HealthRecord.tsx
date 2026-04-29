@@ -237,11 +237,22 @@ export function HealthRecord() {
       ? Math.round(latestPrediction.score - prevPrediction.score)
       : null;
 
-  const scoreChartData = [...predictions].reverse().map((p, i) => {
+  const _reversedPredictions = [...predictions].reverse();
+  const _dateCounts = _reversedPredictions.reduce<Record<string, number>>((acc, p) => {
+    const key = new Date(p.created_at).toISOString().split("T")[0];
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+  const scoreChartData = _reversedPredictions.map((p, i) => {
     const d = new Date(p.created_at);
+    const dateKey = d.toISOString().split("T")[0];
+    const showTime = (_dateCounts[dateKey] ?? 1) > 1;
+    const label = showTime
+      ? `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+      : `${d.getMonth() + 1}/${d.getDate()}`;
     return {
       id: `pred-${i}`,
-      date: `${d.getMonth() + 1}/${d.getDate()}`,
+      date: label,
       score: Math.round(p.score),
     };
   });
