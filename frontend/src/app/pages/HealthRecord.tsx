@@ -237,25 +237,12 @@ export function HealthRecord() {
       ? Math.round(latestPrediction.score - prevPrediction.score)
       : null;
 
-  const _reversedPredictions = [...predictions].reverse();
-  const _dateCounts = _reversedPredictions.reduce<Record<string, number>>((acc, p) => {
+  // predictions DESC(최신순) → 날짜별 최신 스코어 맵
+  const scoreByDate = new Map<string, number>();
+  for (const p of [...predictions].reverse()) {
     const key = new Date(p.created_at).toISOString().split("T")[0];
-    acc[key] = (acc[key] ?? 0) + 1;
-    return acc;
-  }, {});
-  const scoreChartData = _reversedPredictions.map((p, i) => {
-    const d = new Date(p.created_at);
-    const dateKey = d.toISOString().split("T")[0];
-    const showTime = (_dateCounts[dateKey] ?? 1) > 1;
-    const label = showTime
-      ? `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
-      : `${d.getMonth() + 1}/${d.getDate()}`;
-    return {
-      id: `pred-${i}`,
-      date: label,
-      score: Math.round(p.score),
-    };
-  });
+    scoreByDate.set(key, Math.round(p.score));
+  }
 
   const handlePrev = () => {
     if (timeRange === "week") {
@@ -296,43 +283,69 @@ export function HealthRecord() {
 
   const getChartData = () => {
     const today = new Date();
+
+    const buildDates = (dateStrs: string[], labels: string[], idPrefix: string) => {
+      // 기간 시작 이전의 마지막 값으로 fill-forward 초기값 설정
+      const periodStart = dateStrs[0];
+      let lastScore: number | undefined;
+      let lastWeight: number | undefined;
+      let lastSleep: number | undefined;
+      let lastAlcohol: number | undefined;
+
+      for (const [dateKey, score] of scoreByDate) {
+        if (dateKey < periodStart) lastScore = score;
+      }
+      const recsBefore = records.filter((r) => r.date < periodStart).sort((a, b) => b.date.localeCompare(a.date));
+      if (recsBefore[0]) {
+        lastWeight = recsBefore[0].weight;
+        lastSleep = recsBefore[0].sleepHours;
+        lastAlcohol = recsBefore[0].alcoholUnits;
+      }
+
+      return dateStrs.map((dateStr, i) => {
+        const d = new Date(dateStr + "T00:00:00");
+        const record = records.find((r) => r.date === dateStr);
+
+        if (scoreByDate.has(dateStr)) lastScore = scoreByDate.get(dateStr);
+        if (record?.weight !== undefined) lastWeight = record.weight;
+        if (record?.sleepHours !== undefined) lastSleep = record.sleepHours;
+        if (record?.alcoholUnits !== undefined) lastAlcohol = record.alcoholUnits;
+
+        return {
+          id: `${idPrefix}-${i}-${dateStr}`,
+          date: labels[i],
+          dateStr,
+          isToday: d.toDateString() === today.toDateString(),
+          score: lastScore,
+          weight: lastWeight,
+          sleep: lastSleep,
+          alcohol: lastAlcohol,
+        };
+      });
+    };
+
     if (timeRange === "week") {
       const start = new Date(selectedDate);
       start.setDate(selectedDate.getDate() - selectedDate.getDay());
       const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
-      return Array.from({ length: 7 }, (_, i) => {
+      const dateStrs = Array.from({ length: 7 }, (_, i) => {
         const d = new Date(start);
         d.setDate(start.getDate() + i);
-        const dateStr = d.toISOString().split("T")[0];
-        const record = records.find((r) => r.date === dateStr);
-        return {
-          id: `w-${i}-${dateStr}`,
-          date: dayNames[d.getDay()],
-          dateStr,
-          isToday: d.toDateString() === today.toDateString(),
-          weight: record?.weight,
-          sleep: record?.sleepHours,
-          alcohol: record?.alcoholUnits,
-        };
+        return d.toISOString().split("T")[0];
       });
+      const labels = dateStrs.map((_, i) => dayNames[new Date(dateStrs[i] + "T00:00:00").getDay()]);
+      return buildDates(dateStrs, labels, "w");
     }
+
     const year = selectedDate.getFullYear();
     const month = selectedDate.getMonth();
     const last = new Date(year, month + 1, 0);
-    return Array.from({ length: last.getDate() }, (_, i) => {
+    const dateStrs = Array.from({ length: last.getDate() }, (_, i) => {
       const d = new Date(year, month, i + 1);
-      const dateStr = d.toISOString().split("T")[0];
-      const record = records.find((r) => r.date === dateStr);
-      return {
-        id: `m-${i}-${dateStr}`,
-        date: `${i + 1}`,
-        dateStr,
-        isToday: d.toDateString() === today.toDateString(),
-        weight: record?.weight,
-        sleep: record?.sleepHours,
-        alcohol: record?.alcoholUnits,
-      };
+      return d.toISOString().split("T")[0];
     });
+    const labels = dateStrs.map((_, i) => `${i + 1}`);
+    return buildDates(dateStrs, labels, "m");
   };
 
   const chartData = getChartData();
@@ -595,13 +608,13 @@ export function HealthRecord() {
                 : `이전 대비 ${healthScoreDiff > 0 ? "+" : ""}${healthScoreDiff}점`}
             </p>
           </div>
-          {scoreChartData.length <= 1 ? (
+          {predictions.length === 0 ? (
             <div className="flex items-center justify-center h-[200px] text-sm text-gray-400">
-              {scoreChartData.length === 0 ? "예측 기록이 없습니다" : "예측 기록이 1개입니다. 챌린지를 완료하면 점수 변화를 확인할 수 있습니다."}
+              예측 기록이 없습니다
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={scoreChartData} margin={{ left: 0, right: 10, top: 5, bottom: 5 }}>
+              <LineChart data={chartData} margin={{ left: 0, right: 10, top: 5, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#9ca3af" />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#9ca3af" width={40} />
@@ -613,13 +626,14 @@ export function HealthRecord() {
                   strokeWidth={2}
                   dot={(props: any) => {
                     const { cx, cy, payload } = props;
+                    if (payload.score === undefined) return null;
                     return (
                       <circle
                         key={`score-${payload.id}`}
                         cx={cx}
                         cy={cy}
-                        r={4}
-                        fill="#10b981"
+                        r={payload.isToday ? 6 : 4}
+                        fill={payload.isToday ? "#ef4444" : "#10b981"}
                         stroke="white"
                         strokeWidth={2}
                       />
