@@ -86,8 +86,8 @@ export function Diet() {
 
   const getMealType = (analyzedAt: string): { label: string; color: string } => {
     const hour = new Date(analyzedAt).getHours();
-    if (hour >= 6 && hour < 10) return { label: "아침", color: "bg-orange-100 text-orange-700" };
-    if (hour >= 10 && hour < 15) return { label: "점심", color: "bg-blue-100 text-blue-700" };
+    if (hour >= 6 && hour < 11) return { label: "아침", color: "bg-orange-100 text-orange-700" };
+    if (hour >= 11 && hour < 15) return { label: "점심", color: "bg-blue-100 text-blue-700" };
     if (hour >= 15 && hour < 18) return { label: "간식", color: "bg-yellow-100 text-yellow-700" };
     if (hour >= 18 && hour < 22) return { label: "저녁", color: "bg-purple-100 text-purple-700" };
     return { label: "야식", color: "bg-gray-100 text-gray-700" };
