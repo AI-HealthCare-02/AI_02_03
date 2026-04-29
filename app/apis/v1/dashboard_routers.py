@@ -180,24 +180,56 @@ async def get_greeting_message(
     user: Annotated[User, Depends(get_request_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
-    """홈 상단 개인화 인사 메시지 (점수 기반 정적 생성)"""
+    """홈 상단 개인화 인사 메시지 (AI 생성, 하루 캐싱)"""
+    today = date.today().isoformat()
+    cache_key = f"greeting:{user.id}:{today}"
+
+    cached = await cache_get(cache_key)
+    if cached:
+        return Response(cached, status_code=status.HTTP_200_OK)
+
     prediction_repo = PredictionRepository(db)
     predictions = await prediction_repo.get_by_user_id(user.id)
 
     if not predictions:
-        return Response({"message": "건강 예측을 먼저 진행해보세요!"}, status_code=status.HTTP_200_OK)
+        return Response(
+            {"message": f"안녕하세요, {user.nickname}님! 건강 예측을 먼저 진행해보세요 👋"},
+            status_code=status.HTTP_200_OK,
+        )
 
-    score = predictions[0].score
-    if score >= 80:
-        message = "건강 상태가 좋아요! 오늘도 유지해봐요 💪"
-    elif score >= 55:
-        message = "꾸준한 관리로 점점 나아지고 있어요 📈"
-    elif score >= 35:
-        message = "함께 건강을 회복해 나가요 🌱"
-    else:
-        message = "오늘부터 조금씩 시작해봐요 ❤️"
+    score = round(predictions[0].score, 1)
+    grade = predictions[0].grade
 
-    return Response({"message": message}, status_code=status.HTTP_200_OK)
+    client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
+    prompt = f"""당신은 지방간 환자의 건강 관리를 돕는 따뜻한 AI 코치입니다.
+아래 정보를 바탕으로 사용자에게 오늘 하루를 시작하는 개인화된 인사 메시지를 작성하세요.
+
+- 이름: {user.nickname}
+- 건강 점수: {score}점 ({grade})
+
+규칙:
+- 이름({user.nickname})을 자연스럽게 포함할 것
+- 건강 점수/등급을 자연스럽게 반영한 따뜻한 한 문장
+- 이모지 1개 포함
+- 전체 40자 이내
+
+반드시 아래 JSON 형식으로만 응답하세요.
+{{"message": "..."}}"""
+
+    try:
+        resp = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=80,
+        )
+        text = resp.choices[0].message.content.strip().replace("```json", "").replace("```", "").strip()
+        result = json.loads(text)
+    except Exception:
+        result = {"message": f"안녕하세요, {user.nickname}님! 오늘도 건강한 하루 보내세요 💪"}
+
+    ttl = 86400  # 하루
+    await cache_set(cache_key, result, ttl)
+    return Response(result, status_code=status.HTTP_200_OK)
 
 
 @dashboard_router.get("/message", status_code=status.HTTP_200_OK)
@@ -250,7 +282,7 @@ async def get_dashboard_message(
 
     try:
         resp = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=100,
         )

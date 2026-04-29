@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Link } from "react-router";
 import api from "../../lib/api";
-import { useAuthStore } from "../../store/authStore";
 import {
   Card,
   CardContent,
@@ -134,7 +133,6 @@ function getTimePeriod(time: string) {
 }
 
 export function Home() {
-  const { user } = useAuthStore();
 
   const [healthScore, setHealthScore] = useState(0);
   const [scorePercentile, setScorePercentile] = useState<{ value: number; label: string; ageGroup: number } | null>(null);
@@ -508,9 +506,8 @@ export function Home() {
 
 <div className="text-center space-y-1.5">
         <h2 className="text-2xl font-bold text-gray-900">
-          안녕하세요, {user?.nickname ?? ""}님! 👋
+          {greetingMessage}
         </h2>
-        <p className="text-sm text-gray-500">{greetingMessage}</p>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-5 lg:gap-8">

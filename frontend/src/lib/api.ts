@@ -11,11 +11,12 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// 401 응답 시 토큰 삭제 후 로그인 페이지로 이동
+// 401 응답 시 토큰 삭제 후 로그인 페이지로 이동 (로그인 요청 자체는 제외)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const isLoginRequest = error.config?.url?.includes('/auth/login')
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem('access_token')
       sessionStorage.removeItem('access_token')
       window.location.href = '/login'

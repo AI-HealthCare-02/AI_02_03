@@ -341,7 +341,7 @@ async def get_suggested_challenges(
     try:
         client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
         resp = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},

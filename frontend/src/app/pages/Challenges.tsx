@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import api from "../../lib/api";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -60,7 +60,11 @@ export function Challenges() {
   const [completedChallenges, setCompletedChallenges] = useState<(Challenge & { completedAt?: string })[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [joining, setJoining] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState("active");
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = searchParams.get("tab");
+    return tab === "available" || tab === "completed" || tab === "badges" ? tab : "active";
+  });
   const [, setPendingBadge] = useState<{ name: string; emoji: string } | null>(null);
 
   // 참여 확인 다이얼로그
