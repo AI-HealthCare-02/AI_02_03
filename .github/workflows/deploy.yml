@@ -36,6 +36,7 @@ jobs:
             cd ~/AI_02_03
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/ai-health:frontend-v1.0.0
             sudo docker compose -f docker-compose.prod.yml up -d --force-recreate frontend
+            sudo docker system prune -f
 
   deploy-backend:
     name: Build & Deploy Backend
@@ -69,4 +70,5 @@ jobs:
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/ai-health:app-v1.0.0
             sudo docker compose -f docker-compose.prod.yml up -d --force-recreate fastapi
             sudo docker compose -f docker-compose.prod.yml exec -T fastapi uv run alembic upgrade head
+            sudo docker system prune -f
 
