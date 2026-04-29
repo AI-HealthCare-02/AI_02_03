@@ -43,15 +43,6 @@ _RECOVERY_TIERS = [
     (7, 0.3),
 ]
 
-# 유지 중단 시 연속 일수 → 설문값 롤백 비율 (0.0 = 롤백 없음, 1.0 = 완전 복원)
-_ROLLBACK_TIERS = [
-    (30, 0.0),  # 30일+ 유지: 영구 변경으로 인정, 롤백 없음
-    (21, 0.1),  # 21~29일: 10%만 롤백
-    (14, 0.3),  # 14~20일: 30% 롤백
-    (7, 0.6),  # 7~13일: 60% 롤백
-    (0, 1.0),  # 7일 미만: 완전 롤백
-]
-
 _MAINTENANCE_MESSAGES = {
     "운동": " 운동 유지 모드가 시작됩니다. 꾸준히 기록해 패널티를 줄여보세요.",
     "수면": " 수면 유지 모드가 시작됩니다. 꾸준히 기록해 패널티를 줄여보세요.",
@@ -81,12 +72,6 @@ def _calc_recovery_rate(consecutive_days: int) -> float:
             return rate
     return 0.0
 
-
-def _get_rollback_ratio(consecutive_days: int) -> float:
-    for threshold, ratio in _ROLLBACK_TIERS:
-        if consecutive_days >= threshold:
-            return ratio
-    return 1.0
 
 
 class ChallengeService:
@@ -207,7 +192,7 @@ class ChallengeService:
             # 같은 타입의 기존 유지 모드가 있으면 롤백 없이 교체 (더 높은 마일스톤 달성)
             prev_maintenance = await self.uc_repo.get_maintenance_by_user(user.id, uc.challenge.type)
             if prev_maintenance:
-                await self.uc_repo.update(prev_maintenance, {"is_maintenance": False, "survey_snapshot": None})
+                await self.uc_repo.update(prev_maintenance, {"is_maintenance": False})
             update_data["is_maintenance"] = True
             update_data["last_checkin_at"] = datetime.now()
 
@@ -217,15 +202,7 @@ class ChallengeService:
         survey_changes = None
         survey = await self.survey_repo.get_by_user_id(user.id)
         if survey:
-            # 유지모드 진입 챌린지는 변경 전에 원본값 snapshot 저장
-            pre_snapshot = (
-                self._take_snapshot_before(uc.challenge.type, survey)
-                if uc.challenge.type in _MAINTENANCE_TYPES
-                else None
-            )
             survey_changes = await self._apply_survey_update(uc, survey, input_weight)
-            if pre_snapshot:
-                await self.uc_repo.update(uc, {"survey_snapshot": pre_snapshot})
 
         # 체중/허리 명시적 입력값 적용 (모든 챌린지 공통)
         if input_weight is not None or input_waist is not None:
@@ -293,52 +270,37 @@ class ChallengeService:
         )
         return past_days + current_duration
 
-    def _take_snapshot_before(self, challenge_type: str, survey) -> dict:
-        """설문 변경 전에 유지모드 롤백용 원본값 저장 (타입별 관련 필드 전체)"""
-        if challenge_type == "운동":
-            return {"exercise": survey.exercise, "weekly_exercise_count": survey.weekly_exercise_count}
-        if challenge_type == "수면":
-            return {"sleep_hours": survey.sleep_hours}
-        if challenge_type == "금연":
-            return {"smoking": survey.smoking, "current_smoking": survey.current_smoking}
-        if challenge_type == "금주":
-            return {
-                "drinking": survey.drinking,
-                "drink_amount": survey.drink_amount,
-                "weekly_drink_freq": survey.weekly_drink_freq,
-                "monthly_binge_freq": survey.monthly_binge_freq,
-            }
-        return {}
-
-    async def _rollback_survey(self, user_id: int, snapshot: dict, consecutive_days: int = 0) -> None:
-        """유지 중단 일수에 따라 차등 롤백 (30일+ 유지 시 롤백 없음, 7일 미만 완전 복원)"""
-        survey = await self.survey_repo.get_by_user_id(user_id)
-        if not survey or not snapshot:
+    async def _apply_lapse_degradation(self, challenge_type: str, survey, lapse_days: int) -> None:
+        """유지 중단 기간에 따라 설문값을 점진적으로 악화 (7일마다 1단계)"""
+        weeks = lapse_days // 7
+        if weeks == 0 or not survey:
             return
 
-        ratio = _get_rollback_ratio(consecutive_days)
-        if ratio == 0.0:
-            return  # 충분히 유지했으므로 영구 변경으로 인정
+        updates: dict = {}
 
-        restore_data: dict = {}
-        for field, before_val in snapshot.items():
-            current_val = getattr(survey, field, None)
-            if current_val is None:
-                continue
-            if isinstance(before_val, (int, float)) and isinstance(current_val, (int, float)):
-                # 수치형: before 방향으로 ratio만큼만 복원
-                new_val = current_val + (before_val - current_val) * ratio
-                restore_data[field] = round(new_val) if isinstance(before_val, int) else round(new_val, 2)
-            elif isinstance(before_val, str) and ratio >= 0.5:
-                # 문자열(categorical): 절반 이상 롤백해야 할 때만 원상복귀
-                restore_data[field] = before_val
+        if challenge_type == "운동":
+            new_count = max(0, (survey.weekly_exercise_count or 0) - weeks)
+            updates["weekly_exercise_count"] = new_count
+            if new_count == 0:
+                updates["exercise"] = "운동안함"
 
-        # 음주량이 0 초과로 복원되면 음주 여부도 원래대로
-        if restore_data.get("drink_amount", 0) > 0 and survey.drinking == "음주안함":
-            restore_data["drinking"] = snapshot.get("drinking", "음주함")
+        elif challenge_type == "수면":
+            updates["sleep_hours"] = max(5.5, round((survey.sleep_hours or 7.0) - 0.5 * weeks, 1))
 
-        if restore_data:
-            await self.survey_repo.update(survey, restore_data)
+        elif challenge_type == "금주":
+            new_amount = min(5.0, round((survey.drink_amount or 0.0) + weeks, 1))
+            new_freq = min(4.0, round((survey.weekly_drink_freq or 0.0) + weeks, 1))
+            updates["drink_amount"] = new_amount
+            updates["weekly_drink_freq"] = new_freq
+            if survey.drinking == "음주안함":
+                updates["drinking"] = "음주함"
+            from app.services.health_surveys import _calc_monthly_binge
+            updates["monthly_binge_freq"] = _calc_monthly_binge(new_amount, new_freq)
+
+        # 금연: 설문값 변경 없음 (비흡연자가 다시 흡연자가 될 가능성은 낮음)
+
+        if updates:
+            await self.survey_repo.update(survey, updates)
 
     def _newly_crossed(self, prev: int, new: int) -> list[int]:
         """prev → new 사이에 새로 넘은 마일스톤 목록"""
@@ -592,26 +554,27 @@ class ChallengeService:
 
         if not still_maintaining:
             consecutive = await self.log_repo.get_consecutive_days(uc.id)
-            rollback_ratio = _get_rollback_ratio(consecutive)
-            await self._rollback_survey(uc.user_id, uc.survey_snapshot, consecutive)
-            await self.uc_repo.update(uc, {"is_maintenance": False, "survey_snapshot": None})
+            lapse_days = (datetime.now() - uc.last_checkin_at).days if uc.last_checkin_at else 7
+            survey = await self.survey_repo.get_by_user_id(uc.user_id)
+            await self._apply_lapse_degradation(challenge_type, survey, lapse_days)
+            await self.uc_repo.update(uc, {"is_maintenance": False})
 
             latest = await self.prediction_repo.get_latest_by_user_id(uc.user_id)
-            rolled_back_survey = await self.survey_repo.get_by_user_id(uc.user_id)
-            await self._run_and_save_prediction(uc.user_id, rolled_back_survey, latest.score if latest else 0.0, latest)
+            updated_survey = await self.survey_repo.get_by_user_id(uc.user_id)
+            await self._run_and_save_prediction(uc.user_id, updated_survey, latest.score if latest else 0.0, latest)
 
-            rollback_pct = int(rollback_ratio * 100)
+            weeks = lapse_days // 7
             detail = (
                 f"{challenge_type} 유지 모드가 종료되었습니다. "
-                f"{consecutive}일 유지 → 설문값 {rollback_pct}% 복원되었습니다."
-                if rollback_ratio > 0
-                else f"{challenge_type} 유지 모드가 종료되었습니다. 30일 이상 유지하여 변경값이 영구 반영됩니다."
+                f"{weeks}주 미유지 → 생활습관 수치가 단계적으로 조정되었습니다."
+                if weeks > 0
+                else f"{challenge_type} 유지 모드가 종료되었습니다."
             )
             return {
                 "detail": detail,
                 "is_maintenance": False,
                 "consecutive_days": consecutive,
-                "rollback_ratio": rollback_ratio,
+                "lapse_days": lapse_days,
             }
 
         await self.log_repo.create(uc.id, is_completed=True)
@@ -668,12 +631,13 @@ class ChallengeService:
         cutoff = datetime.now() - timedelta(days=14)
         stale = await self.uc_repo.get_expired_maintenances(cutoff)
         for uc in stale:
-            consecutive = await self.log_repo.get_consecutive_days(uc.id)
-            await self._rollback_survey(uc.user_id, uc.survey_snapshot, consecutive)
-            await self.uc_repo.update(uc, {"is_maintenance": False, "survey_snapshot": None})
+            lapse_days = (datetime.now() - uc.last_checkin_at).days if uc.last_checkin_at else 14
+            survey = await self.survey_repo.get_by_user_id(uc.user_id)
+            await self._apply_lapse_degradation(uc.challenge.type, survey, lapse_days)
+            await self.uc_repo.update(uc, {"is_maintenance": False})
             latest = await self.prediction_repo.get_latest_by_user_id(uc.user_id)
-            rolled_back_survey = await self.survey_repo.get_by_user_id(uc.user_id)
-            await self._run_and_save_prediction(uc.user_id, rolled_back_survey, latest.score if latest else 0.0, latest)
+            updated_survey = await self.survey_repo.get_by_user_id(uc.user_id)
+            await self._run_and_save_prediction(uc.user_id, updated_survey, latest.score if latest else 0.0, latest)
         return len(stale)
 
     async def add_log(self, user: User, user_challenge_id: int, is_completed: bool) -> ChallengeLogResponse:
