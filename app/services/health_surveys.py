@@ -200,7 +200,7 @@ class HealthSurveyService:
                 }
             ),
             "운동": _exercise_penalty(survey.weekly_exercise_count),
-            "금연": _smoking_penalty(survey.current_smoking, survey.smoking),
+            "금연": _smoking_penalty(survey.current_smoking),
             "수면": _sleep_penalty(survey.sleep_hours, survey.sleep_disorder),
         }
 
