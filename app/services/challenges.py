@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date, datetime, timedelta
 
 from fastapi import HTTPException, status
@@ -227,17 +228,58 @@ class ChallengeService:
             if pre_snapshot and survey_changes:
                 await self.uc_repo.update(uc, {"survey_snapshot": pre_snapshot})
 
-        # 새 점수 계산
+        # 새 점수 계산 및 예측 저장
+        from celery import current_app as celery_app
+
         from app.services.health_surveys import _calc_grade as _grade
-        from app.services.health_surveys import _calc_score_from_survey
+        from app.services.health_surveys import _estimate_waist
 
         updated_survey = await self.survey_repo.get_by_user_id(user.id)
-        try:
-            new_score = await _calc_score_from_survey(updated_survey) if updated_survey else score_before
-            new_score = await self._apply_all_penalties(user.id, updated_survey, new_score)
-        except Exception:
-            new_score = float(score_before)
+        new_score = float(score_before)
         new_grade = _grade(int(new_score))
+        new_improvement_factors = latest.improvement_factors if latest else []
+        new_character_state = latest.character_state if latest else "normal"
+
+        if updated_survey:
+            try:
+                waist = (
+                    updated_survey.waist
+                    if updated_survey.waist > 0
+                    else _estimate_waist(updated_survey.gender, updated_survey.bmi)
+                )
+                input_data = {
+                    "나이": updated_survey.age,
+                    "성별": updated_survey.gender,
+                    "키": updated_survey.height,
+                    "몸무게": updated_survey.weight,
+                    "BMI": updated_survey.bmi,
+                    "허리둘레": waist,
+                    "주당운동횟수": updated_survey.weekly_exercise_count,
+                    "흡연여부": updated_survey.smoking,
+                    "당뇨진단여부": updated_survey.diabetes,
+                    "고혈압진단여부": updated_survey.hypertension,
+                    "수면장애여부": updated_survey.sleep_disorder,
+                    "식습관자가평가": updated_survey.diet_eval,
+                    "간질환진단여부": "없음",
+                }
+                result = await asyncio.to_thread(
+                    lambda: celery_app.send_task("predict_fatty_liver", args=[input_data]).get(timeout=30)
+                )
+                new_score = float(result["score"])
+                new_score = await self._apply_all_penalties(user.id, updated_survey, new_score)
+                new_improvement_factors = result.get("improvement_factors", new_improvement_factors)
+                new_character_state = result.get("stage_label", new_character_state)
+            except Exception:
+                pass
+
+        new_grade = _grade(int(new_score))
+        await self.prediction_repo.create({
+            "user_id": user.id,
+            "score": new_score,
+            "grade": new_grade,
+            "character_state": new_character_state,
+            "improvement_factors": new_improvement_factors,
+        })
 
         from app.services.badges import BadgeService
 
