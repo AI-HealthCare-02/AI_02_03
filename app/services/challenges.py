@@ -213,17 +213,7 @@ class ChallengeService:
         updated_survey = await self.survey_repo.get_by_user_id(user.id)
         new_score, new_grade = await self._run_and_save_prediction(user.id, updated_survey, score_before, latest)
 
-        from app.services.badges import BadgeService
-
-        badge_service = BadgeService(self._session)
-        await badge_service.evaluate_and_grant(user.id)
-        await badge_service.grant_ai_badge(
-            user_id=user.id,
-            challenge_name=uc.challenge.name,
-            challenge_type=uc.challenge.type,
-            duration_days=uc.challenge.duration_days,
-            completed_at=datetime.now(),
-        )
+        earned_badge = await self._grant_completion_badges(user.id, uc)
 
         detail = "챌린지를 완료하였습니다." + _MAINTENANCE_MESSAGES.get(uc.challenge.type, "")
         return ChallengeCompleteResponse(
@@ -232,6 +222,7 @@ class ChallengeService:
             new_score=new_score,
             new_grade=new_grade,
             survey_changes=survey_changes,
+            earned_badge=earned_badge,
         )
 
     # ─── 설문 업데이트 방식 (식습관/식단/체중감량만) ────────────────────────
@@ -268,6 +259,26 @@ class ChallengeService:
             uc.challenge.duration_days for uc in completed if uc.challenge and uc.challenge.type == challenge_type
         )
         return past_days + current_duration
+
+    async def _grant_completion_badges(self, user_id: int, uc) -> dict | None:
+        from app.services.badges import BADGE_MAP, BadgeService
+
+        badge_service = BadgeService(self._session)
+        newly_granted = await badge_service.evaluate_and_grant(user_id)
+        ai_badge = await badge_service.grant_ai_badge(
+            user_id=user_id,
+            challenge_name=uc.challenge.name,
+            challenge_type=uc.challenge.type,
+            duration_days=uc.challenge.duration_days,
+            completed_at=datetime.now(),
+        )
+        if ai_badge:
+            return {"name": ai_badge["name"], "emoji": ai_badge["emoji"]}
+        if newly_granted:
+            defn = BADGE_MAP.get(newly_granted[0])
+            if defn:
+                return {"name": defn["name"], "emoji": defn["emoji"]}
+        return None
 
     async def _apply_lapse_degradation(self, challenge_type: str, survey, lapse_days: int) -> None:
         """유지 중단 기간에 따라 설문값을 점진적으로 악화 (7일마다 1단계)"""

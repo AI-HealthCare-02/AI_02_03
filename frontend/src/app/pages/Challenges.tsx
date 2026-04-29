@@ -49,6 +49,7 @@ interface CompleteResult {
   score_before: number;
   new_score: number;
   new_grade: string;
+  earned_badge?: { name: string; emoji: string } | null;
 }
 
 export function Challenges() {
@@ -196,6 +197,7 @@ export function Challenges() {
       setCompleteState("done");
       await fetchActiveChallenges();
       await fetchCompletedChallenges();
+      api.get<BadgeItem[]>("/api/v1/badges/me").then((r) => setBadges(r.data)).catch(() => {});
     } catch {
       setCompleteState("idle");
       setCompleteTarget(null);
@@ -602,6 +604,15 @@ export function Challenges() {
               <Badge className="bg-emerald-100 text-emerald-900 text-sm px-4 py-1">
                 등급: {completeResult.new_grade}
               </Badge>
+              {completeResult.earned_badge && (
+                <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                  <span className="text-3xl">{completeResult.earned_badge.emoji}</span>
+                  <div className="text-left">
+                    <p className="text-xs text-amber-600 font-medium">뱃지 획득!</p>
+                    <p className="text-sm font-bold text-gray-900">{completeResult.earned_badge.name}</p>
+                  </div>
+                </div>
+              )}
               <Button
                 className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
                 onClick={() => {
