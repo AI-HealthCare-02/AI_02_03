@@ -98,7 +98,7 @@ export function Challenges() {
   const [badges, setBadges] = useState<BadgeItem[]>([]);
 
   const toggleTag = (tag: string) => {
-    setSelectedTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
+    setSelectedTags((prev) => prev.includes(tag) ? [] : [tag]);
   };
 
   const allTags = Array.from(
