@@ -127,6 +127,9 @@ export function Home() {
   const [healthScore, setHealthScore] = useState(0);
   const [scorePercentile, setScorePercentile] = useState<{ value: number; label: string; ageGroup: number } | null>(null);
   const [streakDays, setStreakDays] = useState(0);
+
+  const [greetingMessage, setGreetingMessage] = useState("오늘도 간편이와 함께해요");
+
   const [aiMessage, setAiMessage] = useState<{ message: string } | null>(null);
   const [activeChallenges, setActiveChallenges] = useState<UserChallenge[]>([]);
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
@@ -181,6 +184,10 @@ export function Home() {
 
     api.get<{ message: string }>("/api/v1/dashboard/message")
       .then((r) => setAiMessage(r.data)).catch(() => {});
+
+    api.get<{ message: string }>("/api/v1/dashboard/greeting")
+      .then((r) => setGreetingMessage(r.data.message))
+      .catch(() => {});
 
     fetchChallenges();
     api.get<{ weight: number; waist: number }>("/api/v1/surveys/me").then((r) => setCurrentSurvey(r.data)).catch(() => {});
@@ -471,7 +478,9 @@ export function Home() {
         <h2 className="text-3xl font-bold text-gray-900">
           안녕하세요, {user?.nickname ?? ""}님! 👋
         </h2>
-        <p className="text-gray-600">오늘도 간편이와 건강한 하루를 만들어가요</p>
+        <p className="text-gray-600">
+          {greetingMessage}
+        </p>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-5 lg:gap-8">
