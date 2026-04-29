@@ -175,6 +175,31 @@ async def get_dashboard(
     return Response(result.model_dump(mode="json"), status_code=status.HTTP_200_OK)
 
 
+@dashboard_router.get("/greeting", status_code=status.HTTP_200_OK)
+async def get_greeting_message(
+    user: Annotated[User, Depends(get_request_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Response:
+    """홈 상단 개인화 인사 메시지 (점수 기반 정적 생성)"""
+    prediction_repo = PredictionRepository(db)
+    predictions = await prediction_repo.get_by_user_id(user.id)
+
+    if not predictions:
+        return Response({"message": "건강 예측을 먼저 진행해보세요!"}, status_code=status.HTTP_200_OK)
+
+    score = predictions[0].score
+    if score >= 80:
+        message = "건강 상태가 좋아요! 오늘도 유지해봐요 💪"
+    elif score >= 55:
+        message = "꾸준한 관리로 점점 나아지고 있어요 📈"
+    elif score >= 35:
+        message = "함께 건강을 회복해 나가요 🌱"
+    else:
+        message = "오늘부터 조금씩 시작해봐요 ❤️"
+
+    return Response({"message": message}, status_code=status.HTTP_200_OK)
+
+
 @dashboard_router.get("/message", status_code=status.HTTP_200_OK)
 async def get_dashboard_message(
     user: Annotated[User, Depends(get_request_user)],

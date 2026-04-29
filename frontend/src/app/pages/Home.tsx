@@ -38,6 +38,7 @@ import {
   Bell,
   Weight,
   Trophy,
+  Target,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -71,6 +72,17 @@ interface UserChallenge {
   today_completed: boolean;
   is_maintenance: boolean;
   progress: number;
+}
+
+interface SuggestedChallenge {
+  id: number;
+  type: string;
+  name: string;
+  description: string;
+  duration_days: number;
+  reason: string;
+  score_delta: number | null;
+  preview_badge: { name: string; description: string; emoji: string; condition: string | null } | null;
 }
 
 interface FoodAnalysisResult {
@@ -146,6 +158,9 @@ export function Home() {
   const [pendingBadge, setPendingBadge] = useState<{ name: string; emoji: string } | null>(null);
 
   const [improvementFactors, setImprovementFactors] = useState<ImprovementFactor[]>([]);
+  const [greetingMessage, setGreetingMessage] = useState("오늘도 간편이와 함께해요");
+  const [appointmentView, setAppointmentView] = useState<"week" | "month">("week");
+  const [suggestedChallenges, setSuggestedChallenges] = useState<SuggestedChallenge[]>([]);
 
   const showBadgeToast = (badge: { name: string; emoji: string }) => {
     toast(
@@ -194,6 +209,12 @@ export function Home() {
 
     api.get<{ message: string }>("/api/v1/dashboard/message")
       .then((r) => setAiMessage(r.data)).catch(() => {});
+
+    api.get<{ message: string }>("/api/v1/dashboard/greeting")
+      .then((r) => setGreetingMessage(r.data.message)).catch(() => {});
+
+    api.get<{ suggested: SuggestedChallenge[] }>("/api/v1/challenges/suggested")
+      .then((r) => setSuggestedChallenges(r.data.suggested ?? [])).catch(() => {});
 
     fetchChallenges();
     api.get<{ weight: number; waist: number }>("/api/v1/surveys/me").then((r) => setCurrentSurvey(r.data)).catch(() => {});
@@ -397,8 +418,24 @@ export function Home() {
     .filter((apt) => calculateDday(apt.visit_date) >= 0)
     .sort((a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime())[0] ?? null;
 
-  const todayStr = format(new Date(), "yyyy-MM-dd");
-  const todayAppointments = allAppointments.filter((apt) => apt.visit_date.startsWith(todayStr));
+  const apptToday = new Date();
+  apptToday.setHours(0, 0, 0, 0);
+  const apptWeekEnd = new Date(apptToday);
+  apptWeekEnd.setDate(apptToday.getDate() + 7);
+  apptWeekEnd.setHours(23, 59, 59, 999);
+  const apptMonthEnd = new Date(apptToday);
+  apptMonthEnd.setDate(apptToday.getDate() + 30);
+  apptMonthEnd.setHours(23, 59, 59, 999);
+
+  const visibleAppointments = allAppointments
+    .filter((apt) => {
+      const d = new Date(apt.visit_date);
+      return appointmentView === "week"
+        ? d >= apptToday && d <= apptWeekEnd
+        : d >= apptToday && d <= apptMonthEnd;
+    })
+    .sort((a, b) => new Date(a.visit_date).getTime() - new Date(b.visit_date).getTime())
+    .slice(0, 3);
 
   const getGroupedMedications = () => {
     const schedules: Array<{ medId: number; medName: string; time: string; timeIndex: number; completed: boolean }> = [];
@@ -470,16 +507,16 @@ export function Home() {
       )}
 
 <div className="text-center space-y-1.5">
-        <h2 className="text-3xl font-bold text-gray-900">
+        <h2 className="text-2xl font-bold text-gray-900">
           안녕하세요, {user?.nickname ?? ""}님! 👋
         </h2>
-        <p className="text-gray-600">오늘도 간편이와 건강한 하루를 만들어가요</p>
+        <p className="text-sm text-gray-500">{greetingMessage}</p>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-5 lg:gap-8">
         {/* 왼쪽: 간 건강 */}
         <div className="space-y-5">
-          <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
             <Activity className="size-5 text-gray-700" />
             오늘의 간 건강
           </h3>
@@ -564,16 +601,37 @@ export function Home() {
 
           <Card className="border border-gray-200 bg-white">
             <CardHeader className="pb-3">
-              <CardTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles className="size-5 text-emerald-600" />
+              <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                <Sparkles className="size-5 text-amber-500" />
                 AI 추천 챌린지
+                <span className="text-xs font-semibold text-amber-600 bg-amber-100 px-2 py-0.5 rounded">AI</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-600 mb-3">건강 데이터 분석을 바탕으로 맞춤 챌린지를 추천해드려요.</p>
-              <Link to="/challenges">
+              <p className="text-sm text-gray-600 mb-3">AI가 지금 필요한 챌린지를 골랐어요.</p>
+              {suggestedChallenges.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {suggestedChallenges.map((challenge, index) => (
+                    <div
+                      key={challenge.id}
+                      className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-100"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs font-bold text-amber-600 flex-shrink-0">{index + 1}</span>
+                        <p className="text-sm font-medium text-gray-800 truncate">{challenge.name}</p>
+                      </div>
+                      {challenge.score_delta !== null && (
+                        <span className="text-xs font-semibold text-emerald-600 flex-shrink-0">
+                          +{challenge.score_delta}점
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Link to="/challenges?tab=available">
                 <Button className="w-full bg-emerald-500 hover:bg-emerald-600">
-                  챌린지 확인하기
+                  지금 시작하기
                 </Button>
               </Link>
             </CardContent>
@@ -584,7 +642,7 @@ export function Home() {
         <div className="space-y-5">
           <div className="flex items-center justify-between gap-3">
             <div className="flex-1">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Clock className="size-5 text-gray-700" />
                 오늘의 할 일
               </h3>
@@ -725,26 +783,48 @@ export function Home() {
           {/* 병원 일정 */}
           <Card className="border border-gray-200">
             <CardHeader className="pb-1">
-              <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                <Hospital className="size-4 text-blue-600" />
-                병원 일정
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                  <Hospital className="size-4 text-blue-600" />
+                  다가오는 병원 일정
+                </CardTitle>
+                <div className="flex rounded-lg border border-gray-200 overflow-hidden text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setAppointmentView("week")}
+                    className={`px-1.5 py-0.5 transition ${appointmentView === "week" ? "bg-emerald-500 text-white" : "bg-white text-gray-500 hover:bg-emerald-50"}`}
+                  >
+                    주단위
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAppointmentView("month")}
+                    className={`px-1.5 py-0.5 transition ${appointmentView === "month" ? "bg-emerald-500 text-white" : "bg-white text-gray-500 hover:bg-emerald-50"}`}
+                  >
+                    월단위
+                  </button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              {todayAppointments.length > 0 ? (
+              {visibleAppointments.length > 0 ? (
                 <div className="space-y-2">
-                  {todayAppointments.map((apt) => (
-                    <div key={apt.id} className="p-2.5 bg-blue-50 rounded-lg border border-blue-200">
-                      <p className="font-semibold text-gray-900 text-sm">{apt.hospital_name}</p>
-                      <p className="text-sm text-gray-700 mt-0.5">
-                        {format(new Date(apt.visit_date), "HH:mm")}
-                      </p>
-                      {apt.memo && <p className="text-sm text-gray-600 mt-0.5">{apt.memo}</p>}
-                    </div>
+                  {visibleAppointments.map((apt) => (
+                    <Link key={apt.id} to="/schedule">
+                      <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer">
+                        <p className="font-semibold text-gray-900 text-sm">{apt.hospital_name}</p>
+                        <p className="text-sm text-gray-700 mt-0.5">
+                          {format(new Date(apt.visit_date), "MM.dd (E) HH:mm", { locale: ko })}
+                        </p>
+                        {apt.memo && <p className="text-sm text-gray-600 mt-0.5">{apt.memo}</p>}
+                      </div>
+                    </Link>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400 text-center py-2.5">오늘 예정된 병원 일정이 없습니다.</p>
+                <p className="text-sm text-gray-400 text-center py-2.5">
+                  {appointmentView === "week" ? "주단위 예정된 병원 일정이 없습니다." : "월단위 예정된 병원 일정이 없습니다."}
+                </p>
               )}
             </CardContent>
           </Card>
