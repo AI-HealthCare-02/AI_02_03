@@ -459,7 +459,7 @@ class ChallengeService:
             if kg_delta == 0.0:
                 return None
             new_weight = round(max(before_weight - kg_delta, 30.0), 1)
-        if new_weight >= before_weight:
+        if input_weight is None and new_weight >= before_weight:
             return None
         h = survey.height / 100
         new_bmi = round(new_weight / (h**2), 1)
