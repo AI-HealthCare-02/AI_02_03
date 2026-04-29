@@ -142,6 +142,7 @@ export function Home() {
   const [measureWaist, setMeasureWaist] = useState<string>("");
   const [measureSubmitting, setMeasureSubmitting] = useState(false);
   const [currentSurvey, setCurrentSurvey] = useState<{ weight: number; waist: number } | null>(null);
+  const [completeResult, setCompleteResult] = useState<{ score_before: number; new_score: number; new_grade: string } | null>(null);
 
   const [improvementFactors, setImprovementFactors] = useState<ImprovementFactor[]>([]);
   const [earnedBadge, setEarnedBadge] = useState<{ name: string; emoji: string } | null>(null);
@@ -285,7 +286,10 @@ export function Home() {
       const body: Record<string, number> = {};
       if (measureWeight) body.weight = Number(measureWeight);
       if (measureWaist) body.waist = Number(measureWaist);
-      await api.patch(`/api/v1/user-challenges/${finalCompleteTarget.user_challenge_id}/complete`, body);
+      const res = await api.patch<{ score_before: number; new_score: number; new_grade: string }>(
+        `/api/v1/user-challenges/${finalCompleteTarget.user_challenge_id}/complete`, body
+      );
+      setCompleteResult(res.data);
       await fetchChallenges();
     } catch { /* 오류 무시 */ } finally {
       setFinalCompleteTarget(null);
@@ -891,6 +895,42 @@ export function Home() {
               {measureSubmitting ? "처리 중..." : "완료하기"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 챌린지 완료 결과 다이얼로그 */}
+      <Dialog open={!!completeResult} onOpenChange={(o) => !o && setCompleteResult(null)}>
+        <DialogContent className="text-center">
+          <div className="py-4 space-y-6">
+            <div className="flex flex-col items-center gap-3">
+              <div className="size-16 rounded-full bg-amber-100 flex items-center justify-center">
+                <Trophy className="size-8 text-amber-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900">챌린지 완료!</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-4 bg-gray-50 rounded-xl">
+                <p className="text-sm text-gray-500 mb-1">이전 점수</p>
+                <p className="text-2xl font-bold text-gray-700">{Math.round(completeResult?.score_before ?? 0)}점</p>
+              </div>
+              <div className="p-4 bg-emerald-50 rounded-xl border-2 border-emerald-200">
+                <p className="text-sm text-emerald-600 mb-1">새 점수</p>
+                <p className="text-2xl font-bold text-emerald-700">{Math.round(completeResult?.new_score ?? 0)}점</p>
+              </div>
+            </div>
+            {completeResult && (
+              <p className="text-sm text-gray-500">
+                {completeResult.new_score > completeResult.score_before
+                  ? `+${Math.round(completeResult.new_score - completeResult.score_before)}점 상승했습니다 🎉`
+                  : completeResult.new_score < completeResult.score_before
+                  ? `${Math.round(completeResult.new_score - completeResult.score_before)}점 변동`
+                  : "점수 변동 없음"}
+              </p>
+            )}
+            <Button className="w-full bg-gradient-to-r from-emerald-500 to-teal-600" onClick={() => setCompleteResult(null)}>
+              확인
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
