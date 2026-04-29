@@ -48,10 +48,17 @@ interface SurveyData {
   updated_at: string;
 }
 
+interface ImprovementFactor {
+  category: string;
+  challenge_type: string;
+  score_delta: number;
+}
+
 interface PredictionItem {
   score: number;
   grade: string;
   created_at: string;
+  improvement_factors?: ImprovementFactor[];
 }
 
 type HealthRecord = {
@@ -163,6 +170,47 @@ export function HealthRecord() {
       alert("저장에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const buildFactorDescription = (factor: ImprovementFactor, s: SurveyData): { title: string; desc: string } => {
+    const delta = factor.score_delta;
+    switch (factor.category) {
+      case "수면":
+        return {
+          title: "수면 시간 개선",
+          desc: `현재 수면 ${s.sleep_hours}시간 → 7시간 이상 유지 시 건강 점수 +${delta}점 예상`,
+        };
+      case "체중감량":
+        return {
+          title: "체중 감량",
+          desc: `현재 BMI ${s.bmi.toFixed(1)} → 정상 범위(BMI 22.5) 도달 시 건강 점수 +${delta}점 예상`,
+        };
+      case "금주":
+        return {
+          title: "음주량 감소",
+          desc: `음주를 줄이거나 중단 시 건강 점수 +${delta}점 예상`,
+        };
+      case "운동":
+        return {
+          title: "운동량 증가",
+          desc: `주 5회 이상 규칙적인 운동 시 건강 점수 +${delta}점 예상`,
+        };
+      case "금연":
+        return {
+          title: "금연",
+          desc: `흡연 중단 시 건강 점수 +${delta}점 예상`,
+        };
+      case "식습관":
+        return {
+          title: "식습관 개선",
+          desc: `균형 잡힌 식단 유지 시 건강 점수 +${delta}점 예상`,
+        };
+      default:
+        return {
+          title: factor.category,
+          desc: `개선 시 건강 점수 +${delta}점 예상`,
+        };
     }
   };
 
@@ -624,19 +672,22 @@ export function HealthRecord() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {[
-              { title: "수면 시간 개선", desc: "평균 수면 시간이 6.8시간에서 7.5시간으로 증가했습니다" },
-              { title: "음주량 감소", desc: "주간 음주 횟수가 줄어들어 간 건강에 긍정적입니다" },
-              { title: "체중 관리", desc: "체중이 꾸준히 감소하고 있어 건강 점수가 향상되었습니다" },
-            ].map(({ title, desc }) => (
-              <div key={title} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-amber-200">
-                <TrendingUp className="size-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-gray-900">{title}</p>
-                  <p className="text-sm text-gray-600">{desc}</p>
-                </div>
-              </div>
-            ))}
+            {survey && (predictions[0]?.improvement_factors ?? []).length > 0 ? (
+              (predictions[0].improvement_factors ?? []).map((factor) => {
+                const { title, desc } = buildFactorDescription(factor, survey);
+                return (
+                  <div key={factor.category} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-amber-200">
+                    <TrendingUp className="size-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-gray-900">{title}</p>
+                      <p className="text-sm text-gray-600">{desc}</p>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">개선 요인 데이터가 없습니다</p>
+            )}
           </div>
         </CardContent>
       </Card>
