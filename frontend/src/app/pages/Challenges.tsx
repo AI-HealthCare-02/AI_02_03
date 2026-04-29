@@ -95,6 +95,8 @@ export function Challenges() {
   const completedChallengeIds = new Set(completedChallenges.map((c) => c.challengeId));
   const suggestedIds = new Set(suggested.map((c) => c.id));
 
+  const [badges, setBadges] = useState<BadgeItem[]>([]);
+
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
   };
@@ -104,14 +106,12 @@ export function Challenges() {
       ...availableChallenges.map((c) => c.category),
       ...activeChallenges.map((c) => c.category),
       ...completedChallenges.map((c) => c.category),
+      ...badges.flatMap((b) => b.tags ?? []),
     ])
   ).filter(Boolean).sort();
 
   const filterChallenges = (list: Challenge[]) =>
     selectedTags.length === 0 ? list : list.filter((c) => selectedTags.includes(c.category));
-
-  const [badges, setBadges] = useState<BadgeItem[]>([]);
-  const [selectedBadgeTags, setSelectedBadgeTags] = useState<string[]>([]);
 
   const sortedAvailable = filterChallenges(
     [...availableChallenges]
@@ -257,8 +257,8 @@ export function Challenges() {
           </TabsTrigger>
         </TabsList>
 
-        {/* 태그 필터 (뱃지 탭 제외) */}
-        {allTags.length > 0 && activeTab !== "badges" && (
+        {/* 태그 필터 */}
+        {allTags.length > 0 && (
           <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-gray-700">태그 필터</p>
@@ -440,45 +440,12 @@ export function Challenges() {
 
         <TabsContent value="badges" className="space-y-4">
           {(() => {
-            const allBadgeTags = Array.from(
-              new Set(badges.flatMap((b) => b.tags ?? []))
-            ).sort();
-            const filteredBadges = selectedBadgeTags.length === 0
+            const filteredBadges = selectedTags.length === 0
               ? badges
-              : badges.filter((b) => selectedBadgeTags.some((t) => (b.tags ?? []).includes(t)));
+              : badges.filter((b) => selectedTags.some((t: string) => (b.tags ?? []).includes(t)));
             const sorted = [...filteredBadges].sort((a, b) => Number(b.earned) - Number(a.earned));
             return (
               <>
-                {allBadgeTags.length > 0 && (
-                  <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-gray-700">태그 필터</p>
-                      {selectedBadgeTags.length > 0 && (
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedBadgeTags([])} className="h-7 text-xs">
-                          초기화
-                        </Button>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {allBadgeTags.map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant={selectedBadgeTags.includes(tag) ? "default" : "outline"}
-                          className={`cursor-pointer transition-all ${
-                            selectedBadgeTags.includes(tag)
-                              ? "bg-amber-500 hover:bg-amber-600 text-white"
-                              : "hover:bg-gray-100"
-                          }`}
-                          onClick={() => setSelectedBadgeTags((prev) =>
-                            prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-                          )}
-                        >
-                          #{tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 {sorted.length === 0 ? (
                   <Card>
                     <CardContent className="p-12 text-center">
