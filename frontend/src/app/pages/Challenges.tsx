@@ -102,12 +102,15 @@ export function Challenges() {
   };
 
   const allTags = Array.from(
-    new Set([
-      ...availableChallenges.map((c) => c.category),
-      ...activeChallenges.map((c) => c.category),
-      ...completedChallenges.map((c) => c.category),
-      ...badges.flatMap((b) => b.tags ?? []),
-    ])
+    new Set(
+      activeTab === "badges"
+        ? badges.flatMap((b) => b.tags ?? [])
+        : [
+            ...availableChallenges.map((c) => c.category),
+            ...activeChallenges.map((c) => c.category),
+            ...completedChallenges.map((c) => c.category),
+          ]
+    )
   ).filter(Boolean).sort();
 
   const filterChallenges = (list: Challenge[]) =>
@@ -237,7 +240,7 @@ export function Challenges() {
         <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{joinError}</p>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSelectedTags([]); }} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="active" className="gap-1 text-xs sm:text-sm">
             <Activity className="size-4" />
