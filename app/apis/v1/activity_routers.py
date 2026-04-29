@@ -138,7 +138,11 @@ def _build_pdf(user, result, health_logs) -> FPDF:
     # ── 건강 로그 섹션 ─────────────────────────────────
     if health_logs:
         _section_title(pdf, "일별 건강 기록")
-        _table_header(pdf, ["날짜", "체중(kg)", "허리(cm)", "수면(h)", "운동(분)", "음주(잔)", "흡연(개)"], [36, 26, 26, 22, 26, 26, 28])
+        _table_header(
+            pdf,
+            ["날짜", "체중(kg)", "허리(cm)", "수면(h)", "운동(분)", "음주(잔)", "흡연(개)"],
+            [36, 26, 26, 22, 26, 26, 28],
+        )
         for log in health_logs:
             _table_row(
                 pdf,
