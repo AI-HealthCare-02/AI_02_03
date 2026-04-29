@@ -64,6 +64,7 @@ interface PredictionItem {
 type HealthRecord = {
   id: number;
   date: string;
+  timestamp?: string;
   weight?: number;
   waistCircumference?: number;
   bloodPressure?: string;
@@ -94,6 +95,14 @@ export function HealthRecord() {
   });
 
   useEffect(() => {
+    let storedRecords: HealthRecord[] = [];
+    try {
+      const stored = localStorage.getItem("healthRecords");
+      if (stored) storedRecords = JSON.parse(stored);
+    } catch {
+      storedRecords = [];
+    }
+
     Promise.all([
       api.get<SurveyData>("/api/v1/surveys/me").catch(() => null),
       api.get<PredictionItem[]>("/api/v1/predictions/me").catch(() => null),
@@ -101,24 +110,35 @@ export function HealthRecord() {
       if (surveyRes) {
         const s = surveyRes.data;
         setSurvey(s);
-        // 오늘 날짜 기록으로 surveys 데이터 초기화
+
         const today = new Date().toISOString().split("T")[0];
-        setRecords([
-          {
-            id: 1,
+        const lastTimestamp = storedRecords[0]?.timestamp ?? null;
+        // survey가 마지막 기록보다 최신이면 (챌린지 완료/수동 입력으로 값 변경됨) 새 행 추가
+        if (!lastTimestamp || s.updated_at > lastTimestamp) {
+          const newRecord: HealthRecord = {
+            id: Date.now(),
             date: today,
+            timestamp: s.updated_at,
             weight: s.weight,
             waistCircumference: s.waist,
             sleepHours: s.sleep_hours,
             alcoholUnits: s.drink_amount ? Math.round(s.drink_amount) : 0,
-          },
-        ]);
+          };
+          storedRecords = [newRecord, ...storedRecords];
+        }
+        setRecords(storedRecords);
       }
       if (predRes) {
         setPredictions(predRes.data);
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (records.length > 0) {
+      localStorage.setItem("healthRecords", JSON.stringify(records));
+    }
+  }, [records]);
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -133,14 +153,36 @@ export function HealthRecord() {
       updatePayload.sleep_hours = parseFloat(formData.sleepHours);
 
     try {
+      let updatedTimestamp = new Date().toISOString();
       if (Object.keys(updatePayload).length > 0) {
         const res = await api.put<SurveyData>("/api/v1/surveys/me", updatePayload);
         setSurvey(res.data);
+        updatedTimestamp = res.data.updated_at;
       }
 
+      const today = new Date().toISOString().split("T")[0];
+      const logPayload: Record<string, unknown> = { log_date: today };
+      if (formData.weight) logPayload.weight = parseFloat(formData.weight);
+      if (formData.waistCircumference) logPayload.waist = parseFloat(formData.waistCircumference);
+      if (formData.sleepHours) logPayload.sleep_hours = parseFloat(formData.sleepHours);
+      if (formData.exerciseMinutes) {
+        logPayload.exercise_done = true;
+        logPayload.exercise_duration = parseInt(formData.exerciseMinutes);
+      }
+      if (formData.alcoholUnits) {
+        logPayload.alcohol_consumed = true;
+        logPayload.alcohol_amount = parseFloat(formData.alcoholUnits);
+      }
+      if (formData.smokingCount) {
+        logPayload.smoking_done = true;
+        logPayload.smoking_amount = parseInt(formData.smokingCount);
+      }
+      await api.post("/api/v1/health-logs", logPayload).catch(() => null);
+
       const newRecord: HealthRecord = {
-        id: records.length + 1,
-        date: new Date().toISOString().split("T")[0],
+        id: Date.now(),
+        date: today,
+        timestamp: updatedTimestamp,
       };
       if (formData.weight) newRecord.weight = parseFloat(formData.weight);
       if (formData.waistCircumference)

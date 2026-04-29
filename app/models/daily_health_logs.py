@@ -20,6 +20,8 @@ class DailyHealthLog(Base):
     alcohol_amount: Mapped[float | None] = mapped_column(Float, nullable=True)  # 잔 수
     smoking_done: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     smoking_amount: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 개비 수
+    sleep_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    waist: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.now, onupdate=datetime.now, nullable=False

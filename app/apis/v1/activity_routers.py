@@ -62,7 +62,7 @@ async def download_activity_report(
                 [
                     "건강로그",
                     log.log_date.strftime("%Y-%m-%d"),
-                    f"체중:{log.weight or '-'} 운동:{log.exercise_duration or 0}분 음주:{log.alcohol_amount or 0}잔 흡연:{log.smoking_amount or 0}개",
+                    f"체중:{log.weight or '-'} 허리:{log.waist or '-'} 수면:{log.sleep_hours or '-'}h 운동:{log.exercise_duration or 0}분 음주:{log.alcohol_amount or 0}잔 흡연:{log.smoking_amount or 0}개",
                     "",
                 ]
             )
@@ -138,18 +138,20 @@ def _build_pdf(user, result, health_logs) -> FPDF:
     # ── 건강 로그 섹션 ─────────────────────────────────
     if health_logs:
         _section_title(pdf, "일별 건강 기록")
-        _table_header(pdf, ["날짜", "체중(kg)", "운동(분)", "음주(잔)", "흡연(개)"], [42, 38, 38, 38, 34])
+        _table_header(pdf, ["날짜", "체중(kg)", "허리(cm)", "수면(h)", "운동(분)", "음주(잔)", "흡연(개)"], [36, 26, 26, 22, 26, 26, 28])
         for log in health_logs:
             _table_row(
                 pdf,
                 [
                     log.log_date.strftime("%Y-%m-%d"),
                     str(log.weight) if log.weight is not None else "-",
+                    str(log.waist) if log.waist is not None else "-",
+                    str(log.sleep_hours) if log.sleep_hours is not None else "-",
                     str(log.exercise_duration) if log.exercise_duration else "-",
                     str(log.alcohol_amount) if log.alcohol_amount else "-",
                     str(log.smoking_amount) if log.smoking_amount else "-",
                 ],
-                [42, 38, 38, 38, 34],
+                [36, 26, 26, 22, 26, 26, 28],
             )
         pdf.ln(6)
 

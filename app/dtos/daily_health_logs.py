@@ -14,6 +14,8 @@ class DailyHealthLogUpsertRequest(BaseModel):
     alcohol_amount: float | None = None  # 잔 수
     smoking_done: bool = False
     smoking_amount: int | None = None  # 개비 수
+    sleep_hours: float | None = None
+    waist: float | None = None
 
 
 class DailyHealthLogUpdateRequest(BaseModel):
@@ -24,6 +26,8 @@ class DailyHealthLogUpdateRequest(BaseModel):
     alcohol_amount: float | None = None
     smoking_done: bool | None = None
     smoking_amount: int | None = None
+    sleep_hours: float | None = None
+    waist: float | None = None
 
 
 class DailyHealthLogResponse(BaseSerializerModel):
@@ -36,5 +40,7 @@ class DailyHealthLogResponse(BaseSerializerModel):
     alcohol_amount: float | None
     smoking_done: bool
     smoking_amount: int | None
+    sleep_hours: float | None
+    waist: float | None
     created_at: datetime
     updated_at: datetime
