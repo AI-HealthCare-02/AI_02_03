@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import api from "../../lib/api";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -55,6 +55,7 @@ interface CompleteResult {
 }
 
 export function Challenges() {
+  const navigate = useNavigate();
   const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([]);
   const [availableChallenges, setAvailableChallenges] = useState<Challenge[]>([]);
   const [completedChallenges, setCompletedChallenges] = useState<(Challenge & { completedAt?: string })[]>([]);
@@ -660,10 +661,13 @@ export function Challenges() {
                   setPendingBadge(null);
                   if (badge) {
                     toast(
-                      <div className="flex items-center gap-3">
+                      <div
+                        className="flex items-center gap-3 cursor-pointer"
+                        onClick={() => navigate("/challenges?tab=badges")}
+                      >
                         <span className="text-3xl">{badge.emoji}</span>
                         <div>
-                          <p className="text-xs font-semibold text-amber-600 tracking-wide">🏅 뱃지 획득!</p>
+                          <p className="text-xs font-semibold text-amber-600 tracking-wide">🏅 뱃지 획득! (탭하여 확인)</p>
                           <p className="text-sm font-bold text-gray-900">{badge.name}</p>
                         </div>
                       </div>,
