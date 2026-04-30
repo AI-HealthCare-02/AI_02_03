@@ -80,30 +80,40 @@ export function OnboardingStep1() {
       }
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (validateForm()) {
-      const age = differenceInYears(new Date(), birthDate!);
-      const step1Data = {
-        age,
-        gender: formData.gender === "male" ? "남성" : "여성",
-        height: parseFloat(formData.height),
-        weight: parseFloat(formData.weight),
-        waist: waistUnknown ? 0 : parseFloat(formData.waist),
+    const newErrors = validateForm();
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      const errorFieldIds: Record<string, string> = {
+        age: "field-age",
+        gender: "field-gender",
+        height: "height",
+        weight: "weight",
+        waist: "waist",
       };
-      sessionStorage.setItem("onboarding_step1", JSON.stringify(step1Data));
-      sessionStorage.setItem("onboarding_step1_raw", JSON.stringify({
-        birthDate: birthDate!.toISOString(),
-        waistUnknown,
-        formData,
-      }));
-      navigate("/onboarding/step2");
+      const firstKey = Object.keys(newErrors)[0];
+      document.getElementById(errorFieldIds[firstKey] ?? firstKey)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
     }
+    const age = differenceInYears(new Date(), birthDate!);
+    const step1Data = {
+      age,
+      gender: formData.gender === "male" ? "남성" : "여성",
+      height: parseFloat(formData.height),
+      weight: parseFloat(formData.weight),
+      waist: waistUnknown ? 0 : parseFloat(formData.waist),
+    };
+    sessionStorage.setItem("onboarding_step1", JSON.stringify(step1Data));
+    sessionStorage.setItem("onboarding_step1_raw", JSON.stringify({
+      birthDate: birthDate!.toISOString(),
+      waistUnknown,
+      formData,
+    }));
+    navigate("/onboarding/step2");
   };
 
   const handleNumberInput = (field: string, value: string) => {
@@ -166,7 +176,7 @@ export function OnboardingStep1() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Birth Date */}
-              <div className="space-y-2">
+              <div id="field-age" className="space-y-2">
                 <Label className="text-base font-medium text-gray-900">
                   생년월일 <span className="text-red-500">*</span>
                 </Label>
@@ -216,7 +226,7 @@ export function OnboardingStep1() {
               </div>
 
               {/* Gender */}
-              <div className="space-y-3">
+              <div id="field-gender" className="space-y-3">
                 <Label className="text-base font-medium text-gray-900">
                   성별 <span className="text-red-500">*</span>
                 </Label>

@@ -108,37 +108,54 @@ export function OnboardingStep2() {
       newErrors.diet = "모든 식습관 문항에 응답해주세요";
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (validateForm()) {
-      const drinkTypeMap: Record<string, string> = { soju: "소주", beer: "맥주" };
-      const step2Data = {
-        drinking: formData.drinksAlcohol === "yes" ? "음주함" : "음주안함",
-        drink_type:
-          formData.drinksAlcohol === "yes"
-            ? (drinkTypeMap[formData.alcoholType] ?? formData.alcoholTypeOther ?? "기타")
-            : null,
-        drink_amount: formData.drinksAlcohol === "yes" ? parseFloat(formData.drinksPerSession) : 0,
-        weekly_drink_freq: formData.drinksAlcohol === "yes" ? parseFloat(formData.drinkingFrequency) : 0,
-        exercise: formData.exercises === "yes" ? "운동함" : "운동안함",
-        weekly_exercise_count: formData.exercises === "yes" ? parseInt(formData.exerciseFrequency) : 0,
-        smoking:
-          formData.smokes === "yes" ? "현재흡연" : formData.smokes === "past" ? "과거흡연" : "비흡연",
-        current_smoking: formData.smokes === "yes" ? `${formData.cigarettesPerDay}개비` : "안함",
-        sleep_hours: parseFloat(formData.sleepHours),
-        diet_questions: ["dietQ1", "dietQ2", "dietQ3", "dietQ4", "dietQ5", "dietQ6", "dietQ7"].map((q) =>
-          parseInt(formData[q as keyof typeof formData] as string)
-        ),
+    const newErrors = validateForm();
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      const errorFieldIds: Record<string, string> = {
+        drinksAlcohol: "field-alcohol",
+        alcoholType: "field-alcohol",
+        alcoholTypeOther: "field-alcohol",
+        drinkingFrequency: "field-alcohol",
+        drinksPerSession: "field-alcohol",
+        exercises: "field-exercise",
+        exerciseFrequency: "field-exercise",
+        exerciseDuration: "field-exercise",
+        smokes: "field-smoking",
+        cigarettesPerDay: "field-smoking",
+        sleepHours: "sleep-hours",
+        diet: "field-diet",
       };
-      sessionStorage.setItem("onboarding_step2", JSON.stringify(step2Data));
-      sessionStorage.setItem("onboarding_step2_raw", JSON.stringify(formData));
-      navigate("/onboarding/step3");
+      const firstKey = Object.keys(newErrors)[0];
+      document.getElementById(errorFieldIds[firstKey] ?? firstKey)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
     }
+    const drinkTypeMap: Record<string, string> = { soju: "소주", beer: "맥주" };
+    const step2Data = {
+      drinking: formData.drinksAlcohol === "yes" ? "음주함" : "음주안함",
+      drink_type:
+        formData.drinksAlcohol === "yes"
+          ? (drinkTypeMap[formData.alcoholType] ?? formData.alcoholTypeOther ?? "기타")
+          : null,
+      drink_amount: formData.drinksAlcohol === "yes" ? parseFloat(formData.drinksPerSession) : 0,
+      weekly_drink_freq: formData.drinksAlcohol === "yes" ? parseFloat(formData.drinkingFrequency) : 0,
+      exercise: formData.exercises === "yes" ? "운동함" : "운동안함",
+      weekly_exercise_count: formData.exercises === "yes" ? parseInt(formData.exerciseFrequency) : 0,
+      smoking:
+        formData.smokes === "yes" ? "현재흡연" : formData.smokes === "past" ? "과거흡연" : "비흡연",
+      current_smoking: formData.smokes === "yes" ? `${formData.cigarettesPerDay}개비` : "안함",
+      sleep_hours: parseFloat(formData.sleepHours),
+      diet_questions: ["dietQ1", "dietQ2", "dietQ3", "dietQ4", "dietQ5", "dietQ6", "dietQ7"].map((q) =>
+        parseInt(formData[q as keyof typeof formData] as string)
+      ),
+    };
+    sessionStorage.setItem("onboarding_step2", JSON.stringify(step2Data));
+    sessionStorage.setItem("onboarding_step2_raw", JSON.stringify(formData));
+    navigate("/onboarding/step3");
   };
 
   const handlePrevious = () => {
@@ -221,7 +238,7 @@ export function OnboardingStep2() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* Alcohol Section */}
-              <div className="space-y-4 p-5 bg-purple-50/50 rounded-lg border border-purple-100">
+              <div id="field-alcohol" className="space-y-4 p-5 bg-purple-50/50 rounded-lg border border-purple-100">
                 <div className="flex items-center gap-2 mb-2">
                   <Wine className="size-5 text-purple-600" />
                   <Label className="text-base font-medium text-gray-900">
@@ -478,7 +495,7 @@ export function OnboardingStep2() {
               </div>
 
               {/* Exercise Section */}
-              <div className="space-y-4 p-5 bg-blue-50/50 rounded-lg border border-blue-100">
+              <div id="field-exercise" className="space-y-4 p-5 bg-blue-50/50 rounded-lg border border-blue-100">
                 <div className="flex items-center gap-2 mb-2">
                   <Dumbbell className="size-5 text-blue-600" />
                   <Label className="text-base font-medium text-gray-900">
@@ -589,7 +606,7 @@ export function OnboardingStep2() {
               </div>
 
               {/* Smoking Section */}
-              <div className="space-y-4 p-5 bg-gray-50 rounded-lg border border-gray-200">
+              <div id="field-smoking" className="space-y-4 p-5 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Cigarette className="size-5 text-gray-600" />
                   <Label className="text-base font-medium text-gray-900">
@@ -714,7 +731,7 @@ export function OnboardingStep2() {
               </div>
 
               {/* Diet Section - 7 Questions */}
-              <div className="space-y-6 p-5 bg-emerald-50/50 rounded-lg border border-emerald-100">
+              <div id="field-diet" className="space-y-6 p-5 bg-emerald-50/50 rounded-lg border border-emerald-100">
                 <div className="flex items-center gap-2 mb-2">
                   <Utensils className="size-5 text-emerald-600" />
                   <Label className="text-base font-medium text-gray-900">

@@ -41,42 +41,50 @@ export function OnboardingStep3() {
       newErrors.sleepDisorder = "수면장애 여부를 선택해주세요";
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (validateForm()) {
-      sessionStorage.setItem("onboarding_step3_raw", JSON.stringify(formData));
-      setIsAnalyzing(true);
+    const newErrors = validateForm();
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      const errorFieldIds: Record<string, string> = {
+        diabetes: "field-diabetes",
+        hypertension: "field-hypertension",
+        sleepDisorder: "field-sleep-disorder",
+      };
+      const firstKey = Object.keys(newErrors)[0];
+      document.getElementById(errorFieldIds[firstKey] ?? firstKey)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    sessionStorage.setItem("onboarding_step3_raw", JSON.stringify(formData));
+    setIsAnalyzing(true);
+    try {
+      const step1 = JSON.parse(sessionStorage.getItem("onboarding_step1") || "{}");
+      const step2 = JSON.parse(sessionStorage.getItem("onboarding_step2") || "{}");
+      const payload = {
+        ...step1,
+        ...step2,
+        diabetes: formData.diabetes === "yes" ? "있음" : "없음",
+        hypertension: formData.hypertension === "yes" ? "있음" : "없음",
+        sleep_disorder: formData.sleepDisorder === "yes" ? "있음" : "없음",
+      };
       try {
-        const step1 = JSON.parse(sessionStorage.getItem("onboarding_step1") || "{}");
-        const step2 = JSON.parse(sessionStorage.getItem("onboarding_step2") || "{}");
-        const payload = {
-          ...step1,
-          ...step2,
-          diabetes: formData.diabetes === "yes" ? "있음" : "없음",
-          hypertension: formData.hypertension === "yes" ? "있음" : "없음",
-          sleep_disorder: formData.sleepDisorder === "yes" ? "있음" : "없음",
-        };
-        try {
-          await api.post("/api/v1/surveys", payload);
-        } catch (err: unknown) {
-          const status = (err as { response?: { status?: number } })?.response?.status;
-          if (status !== 409) throw err;
-        }
-        await api.post("/api/v1/predictions", {});
-        sessionStorage.removeItem("onboarding_step1");
-        sessionStorage.removeItem("onboarding_step1_raw");
-        sessionStorage.removeItem("onboarding_step2");
-        sessionStorage.removeItem("onboarding_step2_raw");
-        sessionStorage.removeItem("onboarding_step3_raw");
-        navigate("/");
-      } catch {
-        setIsAnalyzing(false);
+        await api.post("/api/v1/surveys", payload);
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status !== 409) throw err;
       }
+      await api.post("/api/v1/predictions", {});
+      sessionStorage.removeItem("onboarding_step1");
+      sessionStorage.removeItem("onboarding_step1_raw");
+      sessionStorage.removeItem("onboarding_step2");
+      sessionStorage.removeItem("onboarding_step2_raw");
+      sessionStorage.removeItem("onboarding_step3_raw");
+      navigate("/");
+    } catch {
+      setIsAnalyzing(false);
     }
   };
 
@@ -207,7 +215,7 @@ export function OnboardingStep3() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* Diabetes */}
-              <div className="space-y-4 p-5 bg-red-50/50 rounded-lg border border-red-100">
+              <div id="field-diabetes" className="space-y-4 p-5 bg-red-50/50 rounded-lg border border-red-100">
                 <div className="flex items-center gap-2 mb-2">
                   <Heart className="size-5 text-red-600" />
                   <Label className="text-base font-medium text-gray-900">
@@ -261,7 +269,7 @@ export function OnboardingStep3() {
               </div>
 
               {/* Hypertension */}
-              <div className="space-y-4 p-5 bg-orange-50/50 rounded-lg border border-orange-100">
+              <div id="field-hypertension" className="space-y-4 p-5 bg-orange-50/50 rounded-lg border border-orange-100">
                 <div className="flex items-center gap-2 mb-2">
                   <Activity className="size-5 text-orange-600" />
                   <Label className="text-base font-medium text-gray-900">
@@ -315,7 +323,7 @@ export function OnboardingStep3() {
               </div>
 
               {/* Sleep Disorder */}
-              <div className="space-y-4 p-5 bg-indigo-50/50 rounded-lg border border-indigo-100">
+              <div id="field-sleep-disorder" className="space-y-4 p-5 bg-indigo-50/50 rounded-lg border border-indigo-100">
                 <div className="flex items-center gap-2 mb-2">
                   <MoonIcon className="size-5 text-indigo-600" />
                   <Label className="text-base font-medium text-gray-900">
