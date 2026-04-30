@@ -264,8 +264,10 @@ export function HealthRecord() {
       const a = document.createElement("a");
       a.href = url;
       a.download = "health_report.pdf";
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } finally {
       setDownloading(false);
     }
@@ -346,22 +348,25 @@ export function HealthRecord() {
 
       return dateStrs.map((dateStr, i) => {
         const d = new Date(dateStr + "T00:00:00");
+        const isFuture = d > today;
         const record = records.find((r) => r.date === dateStr);
 
-        if (scoreByDate.has(dateStr)) lastScore = scoreByDate.get(dateStr);
-        if (record?.weight !== undefined) lastWeight = record.weight;
-        if (record?.sleepHours !== undefined) lastSleep = record.sleepHours;
-        if (record?.alcoholUnits !== undefined) lastAlcohol = record.alcoholUnits;
+        if (!isFuture) {
+          if (scoreByDate.has(dateStr)) lastScore = scoreByDate.get(dateStr);
+          if (record?.weight !== undefined) lastWeight = record.weight;
+          if (record?.sleepHours !== undefined) lastSleep = record.sleepHours;
+          if (record?.alcoholUnits !== undefined) lastAlcohol = record.alcoholUnits;
+        }
 
         return {
           id: `${idPrefix}-${i}-${dateStr}`,
           date: labels[i],
           dateStr,
           isToday: d.toDateString() === today.toDateString(),
-          score: lastScore,
-          weight: lastWeight,
-          sleep: lastSleep,
-          alcohol: lastAlcohol,
+          score: isFuture ? undefined : lastScore,
+          weight: isFuture ? undefined : lastWeight,
+          sleep: isFuture ? undefined : lastSleep,
+          alcohol: isFuture ? undefined : lastAlcohol,
         };
       });
     };
@@ -818,6 +823,14 @@ export function HealthRecord() {
                           month: "long",
                           day: "numeric",
                         })}
+                        {record.timestamp && (
+                          <span className="ml-2 text-sm font-normal text-gray-400">
+                            {new Date(record.timestamp).toLocaleTimeString("ko-KR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        )}
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         {record.weight && <Badge variant="outline">체중</Badge>}
