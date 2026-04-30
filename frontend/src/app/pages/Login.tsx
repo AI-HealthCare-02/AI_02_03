@@ -6,7 +6,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Checkbox } from "../components/ui/checkbox";
 import { Separator } from "../components/ui/separator";
-import { Mail, Lock, ArrowRight, UserPlus } from "lucide-react";
+import { Mail, Lock, ArrowRight, UserPlus, Eye, EyeOff } from "lucide-react";
 import { authService } from "../../services/auth";
 import { useAuthStore } from "../../store/authStore";
 import liverIcon from "../../assets/characters/liver_excellent.png";
@@ -25,6 +25,7 @@ export function Login() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // 저장된 이메일 복원
   useEffect(() => {
@@ -121,13 +122,20 @@ export function Login() {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="비밀번호를 입력하세요"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="pl-10 h-11 border-2 focus:border-emerald-500"
+                    className="pl-10 pr-10 h-11 border-2 focus:border-emerald-500"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
                 </div>
               </div>
 
