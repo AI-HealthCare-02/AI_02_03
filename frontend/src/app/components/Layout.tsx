@@ -73,6 +73,7 @@ export function Layout() {
                 <Link
                   key={to}
                   to={to}
+                  id={label === "식단" ? "tour-diet-nav" : undefined}
                   className={`px-3 py-2 rounded-lg transition-all text-sm font-medium ${
                     isActive(to, exact)
                       ? "bg-emerald-100 text-emerald-900"
@@ -142,6 +143,7 @@ export function Layout() {
             <Link
               key={to}
               to={to}
+              id={label === "식단" ? "tour-diet-nav-mobile" : undefined}
               className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
                 isActive(to, exact) ? "bg-emerald-100 text-emerald-900" : "text-gray-600"
               }`}

@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { driver } from "driver.js";
+import "driver.js/dist/driver.css";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router";
 import api from "../../lib/api";
@@ -160,6 +162,80 @@ export function Home() {
   const [greetingMessage, setGreetingMessage] = useState("오늘도 간편이와 함께해요");
   const [appointmentView, setAppointmentView] = useState<"week" | "month">("week");
   const [suggestedChallenges, setSuggestedChallenges] = useState<SuggestedChallenge[]>([]);
+
+  useEffect(() => {
+    if (localStorage.getItem("app_tour_done")) return;
+    const timer = setTimeout(() => {
+      const driverObj = driver({
+        showProgress: true,
+        progressText: "{{current}} / {{total}}",
+        nextBtnText: "다음 →",
+        prevBtnText: "← 이전",
+        doneBtnText: "시작하기 🎉",
+        steps: [
+          {
+            element: "#tour-health-score",
+            popover: {
+              title: "간 건강 점수",
+              description: "AI가 분석한 내 간 건강 점수입니다. 점수와 등급으로 현재 상태를 한눈에 확인하세요.",
+              side: "bottom",
+              align: "center",
+            },
+          },
+          {
+            element: "#tour-ai-challenge",
+            popover: {
+              title: "✨ AI 추천 챌린지",
+              description: "건강 점수를 높이기 위해 AI가 맞춤 챌린지를 추천해드려요. '지금 시작하기'를 눌러 참여해보세요.",
+              side: "top",
+              align: "center",
+            },
+          },
+          {
+            element: "#tour-today-goal",
+            popover: {
+              title: "🎯 오늘의 목표",
+              description: "참여 중인 챌린지의 오늘 목표를 달성했다면 여기서 체크하세요. 꾸준히 기록할수록 점수가 올라갑니다.",
+              side: "top",
+              align: "center",
+            },
+          },
+          {
+            element: window.innerWidth >= 768 ? "#tour-diet-nav" : "#tour-diet-nav-mobile",
+            popover: {
+              title: "🍽️ 식단",
+              description: "음식 사진을 찍으면 AI가 칼로리·영양소·간 건강 영향을 분석해드려요.",
+              side: "bottom",
+              align: "center",
+            },
+          },
+          {
+            element: "#tour-appointment",
+            popover: {
+              title: "🏥 병원 일정",
+              description: "다가오는 병원 예약을 한눈에 확인할 수 있어요. 일정 탭에서 추가하고 관리하세요.",
+              side: "top",
+              align: "center",
+            },
+          },
+          {
+            element: "#tour-medication",
+            popover: {
+              title: "💊 복약 일정",
+              description: "복약 시간이 되면 알림이 와요. 복용 후 체크하면 기록이 남습니다.",
+              side: "top",
+              align: "center",
+            },
+          },
+        ],
+        onDestroyed: () => {
+          localStorage.setItem("app_tour_done", "1");
+        },
+      });
+      driverObj.drive();
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
 
   const showBadgeToast = (badge: { name: string; emoji: string }) => {
     toast(
@@ -522,7 +598,7 @@ export function Home() {
             오늘의 간 건강
           </h3>
 
-          <Card className="border border-gray-200 bg-gradient-to-br from-white via-emerald-50/30 to-white overflow-hidden relative">
+          <Card id="tour-health-score" className="border border-gray-200 bg-gradient-to-br from-white via-emerald-50/30 to-white overflow-hidden relative">
             <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-100/20 rounded-full blur-3xl -z-10" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-100/10 rounded-full blur-3xl -z-10" />
             <CardContent className="py-8 px-6">
@@ -600,7 +676,7 @@ export function Home() {
             </Card>
           </div>
 
-          <Card className="border border-gray-200 bg-white">
+          <Card id="tour-ai-challenge" className="border border-gray-200 bg-white">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
                 <Sparkles className="size-5 text-amber-500" />
@@ -673,7 +749,7 @@ export function Home() {
           </div>
 
           {/* 오늘의 목표: 진행중 챌린지 */}
-          <Card className="border border-gray-200">
+          <Card id="tour-today-goal" className="border border-gray-200">
             <CardHeader className="pb-1">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold text-gray-900">오늘의 목표</CardTitle>
@@ -782,7 +858,7 @@ export function Home() {
           </div>
 
           {/* 병원 일정 */}
-          <Card className="border border-gray-200">
+          <Card id="tour-appointment" className="border border-gray-200">
             <CardHeader className="pb-1">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
@@ -831,7 +907,7 @@ export function Home() {
           </Card>
 
           {/* 복약 일정 */}
-          <Card className="border border-gray-200">
+          <Card id="tour-medication" className="border border-gray-200">
             <CardHeader className="pb-1">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
