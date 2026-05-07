@@ -24,7 +24,7 @@ from lightgbm import LGBMClassifier
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score, recall_score
+from sklearn.metrics import accuracy_score, f1_score, recall_score, roc_auc_score
 from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
 from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 from xgboost import XGBClassifier
@@ -195,14 +195,17 @@ print(f"학습 시간: {elapsed:.1f}초")
 # ================================
 # 테스트 성능 출력
 # ================================
-y_pred = stacking.predict(X_test)
-acc  = accuracy_score(y_test, y_pred)
-f1   = f1_score(y_test, y_pred, average="macro")
+y_pred  = stacking.predict(X_test)
+y_proba = stacking.predict_proba(X_test)
+acc        = accuracy_score(y_test, y_pred)
+f1         = f1_score(y_test, y_pred, average="macro")
 risk_recall = recall_score(y_test, y_pred, labels=[2, 3], average="macro")
+auc        = roc_auc_score(y_test, y_proba, multi_class="ovr", average="macro")
 
 print("\n[결과] Stacking")
 print(f"  Accuracy     : {acc:.4f}")
 print(f"  F1 (macro)   : {f1:.4f}")
+print(f"  AUC (macro)  : {auc:.4f}")
 print(f"  Risk Recall  : {risk_recall:.4f}  (중등도+중증)")
 
 

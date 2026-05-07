@@ -39,7 +39,6 @@ import {
   Bell,
   Weight,
   Trophy,
-  Target,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
