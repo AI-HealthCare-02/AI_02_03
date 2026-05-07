@@ -1,17 +1,31 @@
-# AI Healthcare Project
+# 간편한 하루 — AI 기반 개인 맞춤 간 건강 관리 서비스
 
-지방간(NAFLD) 위험도를 AI 모델로 예측하고, SHAP 기반 설명과 개인화된 챌린지를 제공하는 헬스케어 서비스입니다.
+지방간(NAFLD) 위험도를 AI 모델로 예측하고, Counterfactual 분석 기반 개선 지표와 LLM 개인화 챌린지를 제공하는 헬스케어 서비스입니다.
 
 ## 주요 기술 스택
 
+### Frontend
+- **React / TypeScript** - UI 구성
+- **TailwindCSS** - 스타일링
+
+### Backend
 - **FastAPI** - 비동기 API 서버
 - **SQLAlchemy (async)** - 비동기 ORM
 - **PostgreSQL** - 데이터베이스
 - **Alembic** - DB 마이그레이션
-- **Redis** - 메시지 브로커 / 캐싱
-- **AI Worker** - 지방간 예측 모델 추론
-- **JWT** - 인증
-- **Docker Compose** - 컨테이너 실행
+- **Redis** - LLM 추천 캐싱 / Celery 브로커
+- **Celery** - 비동기 ML 추론 워커
+
+### AI / ML
+- **RandomForest / XGBoost / LightGBM Stacking** - 지방간 위험도 예측
+- **Optuna** - 하이퍼파라미터 자동 튜닝
+- **OpenAI** - 개인화 챌린지 추천 / 식단 이미지 분석
+
+### Infra
+- **Docker Compose** - 컨테이너 통합 관리
+- **Nginx** - 리버스 프록시 / SSL / 정적 파일 서빙
+- **GitHub Actions** - CI/CD 자동 배포
+- **AWS EC2 / S3** - 서버 및 파일 스토리지
 
 ---
 
@@ -34,30 +48,11 @@
 
 > ⚠️ Docker Desktop은 실행 중인 상태여야 합니다. 터미널에서 `docker ps` 쳤을 때 오류 없이 나오면 정상입니다.
 
-### Step 2. 레포 클론 및 브랜치 설정
+### Step 2. 레포 클론
 
 ```bash
 git clone https://github.com/AI-HealthCare-02/AI_02_03.git
 cd AI_02_03
-
-# dev 브랜치로 전환
-git checkout dev
-```
-
-> ⚠️ **반드시 내 브랜치를 만들고 작업하세요.**  
-> `git checkout dev` 한 뒤 바로 파일을 수정하면 dev 브랜치에 직접 작업하는 것입니다.  
-> 아래 명령어로 내 브랜치를 먼저 만든 후 작업을 시작하세요.
-
-```bash
-# 내 작업 브랜치 생성 (이름은 본인 이름 또는 기능명으로)
-# 예: feat/kim-auth, feat/lee-dashboard, feat/survey-api
-git checkout -b feat/본인이름-기능명
-```
-
-작업 중 내가 어느 브랜치에 있는지 항상 확인하는 습관을 들이세요:
-```bash
-git branch
-# * feat/본인이름-기능명   ← 앞에 * 표시가 현재 브랜치
 ```
 
 ### Step 3. 의존성 설치
@@ -89,19 +84,11 @@ cp envs/example.local.env .env
 `.env` 파일을 열어서 아래 항목은 본인 환경에 맞게 수정하세요:
 
 ```env
-# Docker Hub 계정 정보
-DOCKER_USER=본인_도커허브_아이디
-DOCKER_REPOSITORY=ai-health
-
-# 보안 키 (아무 문자열로 변경)
 SECRET_KEY=my-secret-key-change-this
+OPENAI_API_KEY=your-openai-api-key
 ```
 
-> ⚠️ **`.env` 파일은 절대 커밋하지 마세요.**  
-> 비밀번호, 시크릿 키 등 민감한 정보가 담겨 있습니다.  
-> `.gitignore`에 등록되어 있어 `git add .` 해도 자동으로 제외되지만,  
-> `git add .env` 처럼 직접 추가하면 올라가버립니다. 절대 하지 마세요.  
-> 혹시 실수로 올렸다면 즉시 팀장에게 알려주세요.
+> ⚠️ **`.env` 파일은 절대 커밋하지 마세요.**
 
 ### Step 5. 도커 실행
 
@@ -109,7 +96,7 @@ SECRET_KEY=my-secret-key-change-this
 docker compose up -d --build
 ```
 
-> ⚠️ 처음 실행 시 이미지 다운로드로 시간이 걸릴 수 있습니다. 기다려주세요.  
+> ⚠️ 처음 실행 시 이미지 다운로드로 시간이 걸릴 수 있습니다.  
 > `--build` 옵션은 최초 실행 또는 코드 변경 후에만 필요합니다. 이후엔 `docker compose up -d`로 충분합니다.
 
 정상 실행 확인:
@@ -122,19 +109,18 @@ docker ps
 postgres    Up (healthy)
 redis       Up (healthy)
 fastapi     Up
-ai-worker   Restarting  ← 아직 미구현 상태로 정상
+ai-worker   Up
 nginx       Up
 ```
 
 **접속 확인:**
 - API 문서: http://127.0.0.1:8000/api/docs
 
-> ⚠️ http://127.0.0.1:8000 이 아니라 http://127.0.0.1:8000/api/docs 입니다. Nginx를 통해 접속합니다.
+---
 
 ### Step 5-2. 로컬에서 직접 실행 (도커 없이 개발할 때)
 
-DB와 Redis는 도커로, FastAPI와 프론트엔드는 로컬에서 직접 실행하는 방식입니다.  
-코드 수정 시 즉시 반영되어 개발할 때 편리합니다.
+DB와 Redis는 도커로, FastAPI와 프론트엔드는 로컬에서 직접 실행하는 방식입니다.
 
 > ⚠️ Node.js가 설치되어 있지 않으면 [nodejs.org](https://nodejs.org/)에서 LTS 버전을 설치하세요.
 
@@ -152,7 +138,7 @@ uv sync --group app --group dev
 # 3. DB · Redis만 도커로 실행
 docker compose up -d postgres redis
 
-# 4. DB 마이그레이션 (처음 한 번만 / dev pull 후 재실행)
+# 4. DB 마이그레이션 (처음 한 번만 / pull 후 재실행)
 uv run alembic upgrade head
 
 # 5. 초기 데이터 삽입 (처음 한 번만)
@@ -169,13 +155,8 @@ uv run uvicorn app.main:app --reload
 #### 터미널 2 — 프론트엔드
 
 ```bash
-# 1. 프론트엔드 디렉토리로 이동
 cd frontend
-
-# 2. 의존성 설치 (처음 한 번만)
-npm install
-
-# 3. 개발 서버 실행
+npm install  # 처음 한 번만
 npm run dev
 ```
 
@@ -183,104 +164,11 @@ npm run dev
 
 ---
 
-> ⚠️ 백엔드와 프론트엔드는 터미널을 **각각 따로** 열어서 실행해야 합니다.  
-> Step 4 · 5 (마이그레이션 · 시드)는 **처음 세팅할 때, 또는 `dev`를 pull 한 뒤 마이그레이션 파일이 추가됐을 때**만 다시 실행하면 됩니다.
-
----
-
-### 프론트엔드 개발자 — 백엔드 빠른 실행
-
-> 프론트엔드 작업 중 API 연동 테스트가 필요할 때, 백엔드를 최소한으로 켜는 방법입니다.  
-> **백엔드 코드를 건드리지 않아도 됩니다.** 그냥 켜두기만 하면 됩니다.
-
-**최초 1회 세팅 (터미널 1):**
-
-```bash
-# 루트 디렉토리에서 실행
-cp envs/example.local.env .env
-uv sync --group app --group dev
-docker compose up -d postgres redis
-uv run alembic upgrade head
-uv run python -m app.db.seeds.challenges_seed
-```
-
-**이후 매번 켤 때 (터미널 1):**
-
-```bash
-docker compose up -d postgres redis
-uv run uvicorn app.main:app --reload
-```
-
-**프론트 실행 (터미널 2):**
-
-```bash
-cd frontend
-npm install  # 처음 한 번만
-npm run dev
-```
-
-- 백엔드 API: http://localhost:8000/api/docs
-- 프론트엔드: http://localhost:5173
-
-> `dev`를 새로 pull 받았다면 마이그레이션이 추가됐을 수 있습니다.  
-> 백엔드 켜기 전에 `uv run alembic upgrade head` 한 번 더 실행해주세요.
-
----
-
-## 개발 워크플로우
-
-### 매일 작업 시작할 때
-
-```bash
-# 1. dev 최신 내용 가져오기
-git checkout dev
-git pull origin dev
-
-# 2. 내 브랜치로 돌아와서 dev 내용 반영
-git checkout feat/본인이름-기능명
-git rebase origin/dev
-```
-
-> ⚠️ `git pull` 하기 전에 내 변경사항을 커밋하거나 stash 해두지 않으면 충돌이 날 수 있습니다.  
-> 작업 중이라면 먼저 커밋하고 pull 하세요.
-
-### 작업 후 커밋 & 푸시
-
-```bash
-git add .
-git commit -m "feat: 기능 설명"
-git push origin feat/본인이름-기능명
-```
-
-커밋 메시지 앞에 아래 prefix를 붙여주세요:
-- `feat:` 새 기능
-- `fix:` 버그 수정
-- `refactor:` 코드 구조 변경
-- `docs:` 문서 수정
-- `chore:` 설정, 패키지 등 기타
-
-### PR 올리기
-
-1. GitHub 레포에서 **Pull requests** 탭 클릭
-2. **New pull request** 버튼 클릭
-3. 상단 드롭다운에서 타겟 브랜치 설정:
-   ```
-   base: dev  ←  compare: feat/본인이름-기능명
-   ```
-   - `base` = 코드를 받을 브랜치 → **반드시 `dev`로 설정**
-   - `compare` = 내가 작업한 브랜치
-4. **Create pull request** 클릭 후 제목/설명 작성
-
-> ⚠️ `base`가 기본값인 `main`으로 되어있을 수 있습니다. 반드시 `dev`로 바꾸고 PR을 올리세요.  
-> PR 올리기 전에 `git rebase origin/dev`로 최신 dev 내용을 반영해주세요.
-
----
-
 ## 프로젝트 구조
 
 ```
 .
-├── ai_worker/              # AI 모델 워커
+├── ai_worker/              # AI 모델 워커 (Celery)
 │   ├── core/               # 워커 설정 및 로거
 │   ├── schemas/            # 입출력 스키마
 │   ├── tasks/              # 예측 작업 로직
@@ -302,13 +190,13 @@ git push origin feat/본인이름-기능명
 │   └── src/
 │       ├── app/
 │       │   ├── components/
-│       │   │   ├── ui/     # shadcn 기본 컴포넌트 (수정 금지)
-│       │   │   └── ...     # 공통 컴포넌트 (Layout, LiverCharacter 등)
-│       │   ├── pages/      # 각 페이지 (Home, Login, Challenges 등)
+│       │   │   ├── ui/     # shadcn 기본 컴포넌트
+│       │   │   └── ...     # 공통 컴포넌트
+│       │   ├── pages/      # 각 페이지
 │       │   └── routes.tsx  # 라우팅 설정
 │       ├── lib/
 │       │   └── api.ts      # axios 인스턴스 및 인터셉터
-│       ├── services/       # API 호출 함수 (auth, survey, challenge 등)
+│       ├── services/       # API 호출 함수
 │       ├── store/          # 전역 상태 관리 (zustand)
 │       └── styles/         # 전역 CSS
 ├── envs/                   # 환경 변수 예시 파일
